@@ -8,8 +8,8 @@ from routes import (
 )
 
 app = FastAPI(
-    title="Movies homework",
-    description="Description of project"
+    title="Online Cinema",
+    description="Group project Online Cinema API"
 )
 
 api_version_prefix = "/api/v1"
