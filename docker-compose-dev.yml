@@ -122,7 +122,7 @@ services:
     networks:
       - theater_network
 
-  # Cache Service
+      # Cache Service
   redis:
     image: redis:latest
     container_name: redis_theater
@@ -181,7 +181,7 @@ services:
     container_name: flower_theater
     command: celery -A scheduler.celery_app flower --address=0.0.0.0 --url-prefix=/flower
     ports:
-      - "5555:5555"
+      - "5555:80"
     env_file:
       - .env
     depends_on:
