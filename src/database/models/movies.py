@@ -1,5 +1,6 @@
 from typing import Optional
-from sqlalchemy import String, Text, DECIMAL, UniqueConstraint, ForeignKey, Table, Column, UUID
+from sqlalchemy import String, Text, DECIMAL, UniqueConstraint, ForeignKey, Table, Column
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from database import Base
 import uuid
