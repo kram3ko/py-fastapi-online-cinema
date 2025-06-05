@@ -37,6 +37,13 @@ ActorsMoviesModel = Table(
         ForeignKey("actors.id", ondelete="CASCADE"), primary_key=True, nullable=False),
 )
 
+MoviesLanguagesModel = Table(
+    "movies_languages",
+    Base.metadata,
+    Column("movie_id", ForeignKey("movies.id", ondelete="CASCADE"), primary_key=True),
+    Column("language_id", ForeignKey("languages.id", ondelete="CASCADE"), primary_key=True),
+)
+
 
 class GenreModel(Base):
     __tablename__ = "genres"
