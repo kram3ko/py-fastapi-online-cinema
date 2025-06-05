@@ -83,21 +83,6 @@ class CountryModel(Base):
         return f"<Country(code='{self.code}', name='{self.name}')>"
 
 
-class LanguageModel(Base):
-    __tablename__ = "languages"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-
-    movies: Mapped[list["MovieModel"]] = relationship(
-        "MovieModel",
-        secondary=MoviesLanguagesModel,
-        back_populates="languages"
-    )
-
-    def __repr__(self):
-        return f"<Language(name='{self.name}')>"
-
 
 class MovieModel(Base):
     __tablename__ = "movies"
@@ -128,11 +113,6 @@ class MovieModel(Base):
         back_populates="movies"
     )
 
-    languages: Mapped[list["LanguageModel"]] = relationship(
-        "LanguageModel",
-        secondary=MoviesLanguagesModel,
-        back_populates="movies"
-    )
 
     __table_args__ = (
         UniqueConstraint("name", "date", name="unique_movie_constraint"),
