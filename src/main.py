@@ -1,16 +1,9 @@
 from fastapi import FastAPI
 from fastapi_pagination import add_pagination
 
-from routes import (
-    movie_router,
-    accounts_router,
-    profiles_router
-)
+from routes import accounts_router, movie_router, profiles_router
 
-app = FastAPI(
-    title="Online Cinema",
-    description="Group project Online Cinema API"
-)
+app = FastAPI(title="Online Cinema", description="Group project Online Cinema API")
 
 api_version_prefix = "/api/v1"
 
