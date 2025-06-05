@@ -28,6 +28,11 @@ jobs:
           pip install poetry
           poetry install
 
+      - name: Run ruff
+        run: |
+          poetry run ruff check --fix
+          poetry run ruff format
+
       - name: Run flake8
         run: |
           poetry run flake8 src
@@ -53,6 +58,11 @@ jobs:
           pip install poetry
           poetry install
 
+      - name: Run ruff
+        run: |
+          poetry run ruff check --fix
+          poetry run ruff format
+
       - name: Run flake8
         run: |
           poetry run flake8 src
@@ -77,6 +87,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install poetry
           poetry install
+      - name: Run ruff
+        run: |
+          poetry run ruff check --fix
+          poetry run ruff format
 
       - name: Run flake8
         run: |

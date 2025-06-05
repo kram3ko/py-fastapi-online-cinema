@@ -8,9 +8,8 @@ from tqdm import tqdm
 
 from config import get_settings
 from database import get_db_contextmanager
-from database.models.movies import GenreModel, MovieModel
 from database.models.accounts import UserGroupEnum, UserGroupModel
-
+from database.models.movies import GenreModel, MovieModel
 
 CHUNK_SIZE = 1000
 

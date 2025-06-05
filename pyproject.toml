@@ -71,7 +71,7 @@ line-length = 119
 # SIM — flake8-simplify (Simplification suggestions, e.g. redundant ifs or code)
 # ARG — flake8-unused-arguments (Checks for unused function arguments)
 
-#preview = true
+preview = true
 ignore = [
     "E203",
     "E266",
@@ -88,7 +88,10 @@ ignore = [
     "ARG001",
     "ARG003",
     "PLW1508",
-    "N802"
+    "N802",
+    "PLR0917",
+    "PLR6301",
+    "PLC2801"
 ]
 select = ["E", "F", "W", "N", "ANN", "UP", "I", "Q", "PL", "SIM", "ARG"]
 

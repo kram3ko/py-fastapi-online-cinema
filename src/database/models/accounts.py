@@ -102,7 +102,7 @@ class UserModel(Base):
         return verify_password(raw_password, self._hashed_password)
 
     @validates("email")
-    def validate_email(self, value: str) -> str | None:
+    def validate_email(self, key, value: str) -> str | None:  # noqa
         return validators.validate_email(value.lower())
 
 

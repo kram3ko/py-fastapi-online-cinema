@@ -9,7 +9,6 @@ from sqlalchemy.orm import joinedload
 
 from config import BaseAppSettings, get_accounts_email_notificator, get_jwt_auth_manager, get_settings
 from database import get_db
-
 from database.models.accounts import (
     ActivationTokenModel,
     PasswordResetTokenModel,
@@ -18,7 +17,6 @@ from database.models.accounts import (
     UserGroupModel,
     UserModel,
 )
-
 from exceptions import BaseSecurityError
 from notifications import EmailSenderInterface
 from schemas.accounts import (
@@ -135,7 +133,7 @@ async def register_user(
     responses={
         400: {
             "description": "Bad Request - The activation token is invalid or expired, "
-                           "or the user account is already active.",
+            "or the user account is already active.",
             "content": {
                 "application/json": {
                     "examples": {

@@ -6,17 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from database import get_db
-from database.models.movies import MovieModel
 from database.models.accounts import UserModel
-
+from database.models.movies import MovieModel
 from pagination import Page, Params
 from pagination.pages import T
-from schemas.movies import (
-    MovieCreateSchema,
-    MovieUpdateSchema,
-    MovieDetailSchema,
-    MovieListItemSchema
-)
+from schemas.movies import MovieCreateSchema, MovieDetailSchema, MovieListItemSchema, MovieUpdateSchema
 
 router = APIRouter()
 
