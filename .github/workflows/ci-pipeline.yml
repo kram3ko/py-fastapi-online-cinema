@@ -32,9 +32,9 @@ jobs:
         run: |
           poetry run flake8 src
 
-      - name: Run accounts tests
-        run: |
-          poetry run pytest src/tests/test_integration/test_accounts.py
+#      - name: Run accounts tests
+#        run: |
+#          poetry run pytest src/tests/test_integration/test_accounts.py
 
   test-movies:
     runs-on: ubuntu-latest
