@@ -8,7 +8,8 @@ from schemas.examples.movies import (
     movie_item_schema_example,
     movie_list_response_schema_example,
     movie_create_schema_example,
-    movie_detail_schema_example
+    movie_detail_schema_example,
+    movie_update_schema_example
 )
 
 
@@ -247,7 +248,7 @@ class MovieUpdateSchema(BaseModel):
         from_attributes=True,
         json_schema_extra={
             "examples": [
-                movie_create_schema_example
+                movie_update_schema_example
             ]
         }
     )
