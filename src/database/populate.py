@@ -1,10 +1,9 @@
-import asyncio
 import math
 
 import pandas as pd
 from sqlalchemy import insert, select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 from tqdm import tqdm
 
 from config import get_settings
@@ -95,10 +94,10 @@ class CSVDatabaseSeeder:
             print("User groups seeded successfully.")
 
     async def _get_or_create_bulk(
-            self,
-            model,
-            items: list[str],
-            unique_field: str
+        self,
+        model,
+        items: list[str],
+        unique_field: str
     ) -> dict[str, object]:
         """
         For a given model and a list of item names/keys (e.g., a list of genres),
@@ -169,8 +168,8 @@ class CSVDatabaseSeeder:
         await self._db_session.flush()
 
     async def _prepare_reference_data(
-            self,
-            data: pd.DataFrame
+        self,
+        data: pd.DataFrame
     ) -> tuple[dict[str, object]]:
         """
         Gather unique values for countries, genres, actors, and languages from the DataFrame.
@@ -188,12 +187,11 @@ class CSVDatabaseSeeder:
 
         genre_map = await self._get_or_create_bulk(GenreModel, list(genres), 'name')
 
-
         return genre_map
 
     def _prepare_movies_data(
-            self,
-            data: pd.DataFrame,
+        self,
+        data: pd.DataFrame,
     ) -> list[dict[str, object]]:
         """
         Build a list of dictionaries representing movie records to be inserted into MovieModel.
@@ -242,7 +240,6 @@ class CSVDatabaseSeeder:
                 if genre_name:
                     genre = genre_map[genre_name]
                     movie_genres_data.append({"movie_id": movie_id, "genre_id": genre.id})
-
 
         return movie_genres_data
 
@@ -309,4 +306,5 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    pass
+    # asyncio.run(main())
