@@ -39,6 +39,7 @@ ruff = "^0.11.12"
 fastapi-pagination = "^0.13.1"
 celery = {extras = ["redis"], version = "^5.5.3"}
 flower = "^2.0.1"
+mypy = "^1.16.0"
 
 
 [build-system]
