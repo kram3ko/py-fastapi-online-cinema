@@ -37,6 +37,13 @@ ActorsMoviesModel = Table(
         ForeignKey("actors.id", ondelete="CASCADE"), primary_key=True, nullable=False),
 )
 
+MoviesLanguagesModel = Table(
+    "movies_languages",
+    Base.metadata,
+    Column("movie_id", ForeignKey("movies.id", ondelete="CASCADE"), primary_key=True),
+    Column("language_id", ForeignKey("languages.id", ondelete="CASCADE"), primary_key=True),
+)
+
 
 class GenreModel(Base):
     __tablename__ = "genres"
@@ -83,6 +90,22 @@ class CountryModel(Base):
         return f"<Country(code='{self.code}', name='{self.name}')>"
 
 
+class LanguageModel(Base):
+    __tablename__ = "languages"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+
+    movies: Mapped[list["MovieModel"]] = relationship(
+        "MovieModel",
+        secondary=MoviesLanguagesModel,
+        back_populates="languages"
+    )
+
+    def __repr__(self):
+        return f"<Language(name='{self.name}')>"
+
+
 class MovieModel(Base):
     __tablename__ = "movies"
 
@@ -109,6 +132,12 @@ class MovieModel(Base):
     actors: Mapped[list["ActorModel"]] = relationship(
         "ActorModel",
         secondary=ActorsMoviesModel,
+        back_populates="movies"
+    )
+
+    languages: Mapped[list["LanguageModel"]] = relationship(
+        "LanguageModel",
+        secondary=MoviesLanguagesModel,
         back_populates="movies"
     )
 
