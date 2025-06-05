@@ -1,23 +1,17 @@
-import asyncio
 import math
-from typing import List, Dict, Tuple
 
 import pandas as pd
 from sqlalchemy import insert, select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 from tqdm import tqdm
 
 from config import get_settings
 from database import (
-    CountryModel,
     GenreModel,
-    ActorModel,
-    MoviesGenresModel,
-    ActorsMoviesModel,
-    LanguageModel,
-    MoviesLanguagesModel,
-    MovieModel, UserGroupModel, UserGroupEnum
+    MovieModel,
+    UserGroupModel,
+    UserGroupEnum
 )
 from database import get_db_contextmanager
 
@@ -100,11 +94,11 @@ class CSVDatabaseSeeder:
             print("User groups seeded successfully.")
 
     async def _get_or_create_bulk(
-            self,
-            model,
-            items: List[str],
-            unique_field: str
-    ) -> Dict[str, object]:
+        self,
+        model,
+        items: list[str],
+        unique_field: str
+    ) -> dict[str, object]:
         """
         For a given model and a list of item names/keys (e.g., a list of genres),
         retrieves any existing records in the database matching these items.
@@ -116,7 +110,7 @@ class CSVDatabaseSeeder:
         :param unique_field: The field name that should be unique (e.g., "name").
         :return: A dict mapping each item to its model instance.
         """
-        existing_dict: Dict[str, object] = {}
+        existing_dict: dict[str, object] = {}
 
         if items:
             for i in range(0, len(items), CHUNK_SIZE):
@@ -150,7 +144,7 @@ class CSVDatabaseSeeder:
 
         return existing_dict
 
-    async def _bulk_insert(self, table, data_list: List[Dict[str, int]]) -> None:
+    async def _bulk_insert(self, table, data_list: list[dict[str, int]]) -> None:
         """
         Insert data_list into the given table in chunks, displaying progress via tqdm.
 
@@ -174,9 +168,9 @@ class CSVDatabaseSeeder:
         await self._db_session.flush()
 
     async def _prepare_reference_data(
-            self,
-            data: pd.DataFrame
-    ) -> Tuple[Dict[str, object], Dict[str, object], Dict[str, object], Dict[str, object]]:
+        self,
+        data: pd.DataFrame
+    ) -> tuple[dict[str, object]]:
         """
         Gather unique values for countries, genres, actors, and languages from the DataFrame.
         Then call _get_or_create_bulk for each to ensure they exist in the database.
@@ -185,45 +179,28 @@ class CSVDatabaseSeeder:
         :return: A tuple of four dictionaries:
                  (country_map, genre_map, actor_map, language_map).
         """
-        countries = list(data['country'].unique())
         genres = {
             genre.strip()
             for genres_ in data['genre'].dropna() for genre in genres_.split(',')
             if genre.strip()
         }
-        actors = {
-            actor.strip()
-            for crew in data['crew'].dropna() for actor in crew.split(',')
-            if actor.strip()
-        }
-        languages = {
-            lang.strip()
-            for langs in data['orig_lang'].dropna() for lang in langs.split(',')
-            if lang.strip()
-        }
 
-        country_map = await self._get_or_create_bulk(CountryModel, countries, 'code')
         genre_map = await self._get_or_create_bulk(GenreModel, list(genres), 'name')
-        actor_map = await self._get_or_create_bulk(ActorModel, list(actors), 'name')
-        language_map = await self._get_or_create_bulk(LanguageModel, list(languages), 'name')
 
-        return country_map, genre_map, actor_map, language_map
+        return genre_map
 
     def _prepare_movies_data(
-            self,
-            data: pd.DataFrame,
-            country_map: Dict[str, object]
-    ) -> List[Dict[str, object]]:
+        self,
+        data: pd.DataFrame,
+    ) -> list[dict[str, object]]:
         """
         Build a list of dictionaries representing movie records to be inserted into MovieModel.
 
         :param data: The preprocessed DataFrame.
-        :param country_map: A mapping of country codes to CountryModel instances.
         :return: A list of dictionaries, each representing a new movie record.
         """
-        movies_data: List[Dict[str, object]] = []
+        movies_data: list[dict[str, object]] = []
         for _, row in tqdm(data.iterrows(), total=data.shape[0], desc="Processing movies"):
-            country = country_map[row['country']]
             movie = {
                 "name": row['names'],
                 "date": row['date_x'],
@@ -232,35 +209,28 @@ class CSVDatabaseSeeder:
                 "status": row['status'],
                 "budget": float(row['budget_x']),
                 "revenue": float(row['revenue']),
-                "country_id": country.id
             }
             movies_data.append(movie)
         return movies_data
 
     def _prepare_associations(
-            self,
-            data: pd.DataFrame,
-            movie_ids: List[int],
-            genre_map: Dict[str, object],
-            actor_map: Dict[str, object],
-            language_map: Dict[str, object]
-    ) -> Tuple[List[Dict[str, int]], List[Dict[str, int]], List[Dict[str, int]]]:
+        self,
+        data: pd.DataFrame,
+        movie_ids: list[int],
+        genre_map: dict[str, object],
+    ) -> tuple[list[dict[str, int]]]:
         """
-        Prepare three lists of dictionaries: movie-genre, movie-actor, and movie-language
+        Prepare three lists of dictionaries: movie-genre, movie-actor,
         associations for all movies in the DataFrame.
 
         :param data: The DataFrame containing movie info.
         :param movie_ids: The list of newly inserted movie IDs, in the same order as DataFrame rows.
         :param genre_map: A mapping of genre names to GenreModel instances.
-        :param actor_map: A mapping of actor names to ActorModel instances.
-        :param language_map: A mapping of language names to LanguageModel instances.
-        :return: A tuple of three lists:
-                 (movie_genres_data, movie_actors_data, movie_languages_data),
+        :return: A tuple of Two lists:
+                 (movie_genres_data, movie_actors_data),
                  each containing dictionaries for bulk insertion.
         """
-        movie_genres_data: List[Dict[str, int]] = []
-        movie_actors_data: List[Dict[str, int]] = []
-        movie_languages_data: List[Dict[str, int]] = []
+        movie_genres_data: list[dict[str, int]] = []
 
         for i, (_, row) in enumerate(tqdm(data.iterrows(), total=data.shape[0], desc="Processing associations")):
             movie_id = movie_ids[i]
@@ -271,19 +241,7 @@ class CSVDatabaseSeeder:
                     genre = genre_map[genre_name]
                     movie_genres_data.append({"movie_id": movie_id, "genre_id": genre.id})
 
-            for actor_name in row['crew'].split(','):
-                actor_name = actor_name.strip()
-                if actor_name:
-                    actor = actor_map[actor_name]
-                    movie_actors_data.append({"movie_id": movie_id, "actor_id": actor.id})
-
-            for lang_name in row['orig_lang'].split(','):
-                lang_name = lang_name.strip()
-                if lang_name:
-                    language = language_map[lang_name]
-                    movie_languages_data.append({"movie_id": movie_id, "language_id": language.id})
-
-        return movie_genres_data, movie_actors_data, movie_languages_data
+        return movie_genres_data
 
     async def seed(self) -> None:
         """
@@ -300,9 +258,9 @@ class CSVDatabaseSeeder:
 
             data = self._preprocess_csv()
 
-            country_map, genre_map, actor_map, language_map = await self._prepare_reference_data(data)
+            genre_map, actor_map = await self._prepare_reference_data(data)
 
-            movies_data = self._prepare_movies_data(data, country_map)
+            movies_data = self._prepare_movies_data(data)
 
             result = await self._db_session.execute(
                 insert(MovieModel).returning(MovieModel.id),
@@ -310,13 +268,12 @@ class CSVDatabaseSeeder:
             )
             movie_ids = list(result.scalars().all())
 
-            movie_genres_data, movie_actors_data, movie_languages_data = self._prepare_associations(
-                data, movie_ids, genre_map, actor_map, language_map
+            movie_genres_data, movie_actors_data, = self._prepare_associations(
+                data, movie_ids, genre_map, actor_map
             )
 
-            await self._bulk_insert(MoviesGenresModel, movie_genres_data)
-            await self._bulk_insert(ActorsMoviesModel, movie_actors_data)
-            await self._bulk_insert(MoviesLanguagesModel, movie_languages_data)
+            # await self._bulk_insert(MoviesGenresModel, movie_genres_data)
+            # await self._bulk_insert(ActorsMoviesModel, movie_actors_data)
 
             await self._db_session.commit()
             print("Seeding completed.")
@@ -349,4 +306,5 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    pass
+    # asyncio.run(main())
