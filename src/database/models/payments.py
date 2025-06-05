@@ -1,8 +1,11 @@
-from sqlalchemy import Column, Integer, ForeignKey, String, DECIMAL, DateTime, Enum
-from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 from enum import Enum as PyEnum
+
+from sqlalchemy import Column, Integer, ForeignKey, String, DECIMAL, DateTime, Enum
+from sqlalchemy.orm import relationship
+
 from database import Base
+
 
 class PaymentStatus(PyEnum):
     SUCCESSFUL = "successful"
@@ -20,7 +23,6 @@ class PaymentModel(Base):
     status = Column(Enum(PaymentStatus), default=PaymentStatus.SUCCESSFUL, nullable=False)
     amount = Column(DECIMAL(10, 2), nullable=False)
     external_payment_id = Column(String, nullable=True)
-
 
     user = relationship("UserModel", back_populates="payments")
     order = relationship("OrderModel", back_populates="payments")
