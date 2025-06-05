@@ -9,8 +9,10 @@ ENV ALEMBIC_CONFIG=/usr/src/alembic/alembic.ini
 # Install system dependencies using apk
 RUN apk update && apk add --no-cache \
     gcc \
+    findutils \
     musl-dev \
     postgresql-dev \
+    postgresql-client \
     libpq \
     netcat-openbsd \
     dos2unix \
