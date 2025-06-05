@@ -12,3 +12,14 @@ from exceptions.storage import (
     S3FileNotFoundError,
     S3PermissionError
 )
+from exceptions.orders import (
+    BaseOrderException,
+    MovieNotFoundError,
+    MovieNotAvailableError,
+    MovieAlreadyPurchasedError,
+    CartEmptyError,
+    OrderCancellationError,
+    OrderNotFoundException,
+    DuplicatePendingOrderError,
+    UnauthorizedOrderAccess
+)
