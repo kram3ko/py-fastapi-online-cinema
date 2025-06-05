@@ -15,6 +15,7 @@ MovieGenresModel = Table(
         "genre_id",
         ForeignKey("genres.id", ondelete="CASCADE"), primary_key=True, nullable=False),
 )
+""" Association table linking movies and genres (many_to_many)."""
 
 MovieDirectorsModel = Table(
     "movie_directors",
@@ -22,6 +23,7 @@ MovieDirectorsModel = Table(
     Column("movie_id", ForeignKey("movies.id", ondelete="CASCADE"), primary_key=True),
     Column("director_id", ForeignKey("directors.id", ondelete="CASCADE"), primary_key=True),
 )
+""" Association table linking movies and directors (many_to_many)."""
 
 MovieStarsModel = Table(
     "movie_stars",
@@ -33,9 +35,18 @@ MovieStarsModel = Table(
         "star_id",
         ForeignKey("stars.id", ondelete="CASCADE"), primary_key=True, nullable=False),
 )
+""" Association table linking movies and stars (many_to_many)."""
 
 
 class GenreModel(Base):
+    """
+    Genre of a movie (e.g. Action, Comedy).
+
+    Attributes:
+        id (int): Primary key.
+        name (str): Unique name of the genre.
+        movies (list[MovieModel]): Movies associated with this genre.
+    """
     __tablename__ = "genres"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -52,6 +63,14 @@ class GenreModel(Base):
 
 
 class StarModel(Base):
+    """
+    Actor or actress featured in a movie.
+
+    Attributes:
+        id (int): Primary key.
+        name (str): Unique name of the star.
+        movies (list[MovieModel]): Movies this star appears in.
+    """
     __tablename__ = "stars"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -68,6 +87,14 @@ class StarModel(Base):
 
 
 class DirectorModel(Base):
+    """
+    Director of a movie.
+
+    Attributes:
+        id (int): Primary key.
+        name (Optional[str]): Unique name of the director.
+        movies (list[MovieModel]): Movies directed by this person.
+    """
     __tablename__ = "directors"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -80,6 +107,14 @@ class DirectorModel(Base):
 
 
 class CertificationModel(Base):
+    """
+    Certification of a movie.
+
+    Attributes:
+        id (int): Primary key.
+        name (str): Certification label.
+        movies (list[MovieModel]): Movies with this certification.
+    """
     __tablename__ = "certifications"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -92,6 +127,29 @@ class CertificationModel(Base):
 
 
 class MovieModel(Base):
+    """
+    Main model representing a movie.
+
+    Attributes:
+        id (int): Primary key.
+        uuid_movie (UUID): Unique identifier.
+        name (str): Movie title.
+        year (int): Release year.
+        time (int): Duration in minutes.
+        imdb (float): IMDb rating.
+        votes (int | None): Number of IMDb votes.
+        meta_score (float): Metacritic score.
+        gross (float | None): Box office gross.
+        descriptions (str): Movie descriptions.
+        price (float): Rental or purchase price.
+
+        certification_id (int): Foreign key to the CertificationModel.
+        certification (CertificationModel): Linked certification.
+
+        genres (list[GenreModel]): Genres this movie belongs to.
+        stars (list[StarModel]): Stars features in the movie.
+        directors (list[DirectorModel]): Directors of the movie.
+    """
     __tablename__ = "movies"
     __table_args__ = (UniqueConstraint("name", "year", "time"),)
 
@@ -117,7 +175,7 @@ class MovieModel(Base):
     )
 
     stars: Mapped[list["StarModel"]] = relationship(
-        "ActorModel",
+        "StarModel",
         secondary=MovieStarsModel,
         back_populates="movies"
     )
