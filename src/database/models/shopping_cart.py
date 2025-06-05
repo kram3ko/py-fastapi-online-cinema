@@ -23,9 +23,10 @@ class Cart(Base):
         unique=True,
     )
 
-
-    user: Mapped["UserModel"] = relationship("UserModel", back_populates="cart")
-    items: Mapped[List["CartItem"]] = relationship(
+    user: Mapped[list["UserModel"]] = relationship(
+        "UserModel", back_populates="cart"
+    )
+    items: Mapped[list["CartItem"]] = relationship(
         "CartItem", back_populates="cart", cascade="all, delete-orphan"
     )
 
@@ -51,8 +52,12 @@ class CartItem(Base):
         DateTime, nullable=False, default=datetime.utcnow
     )
 
-    cart: Mapped["Cart"] = relationship("Cart", back_populates="items")
-    movie: Mapped["MovieModel"] = relationship("MovieModel")
+    cart: Mapped[list["Cart"]] = relationship(
+        "Cart", back_populates="items"
+    )
+    movie: Mapped[list["MovieModel"]] = relationship(
+        "MovieModel"
+    )
 
     __table_args__ = (
         UniqueConstraint("cart_id", "movie_id", name="uix_cart_movie"),
