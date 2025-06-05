@@ -7,7 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from tqdm import tqdm
 
 from config import get_settings
-from database import GenreModel, MovieModel, UserGroupEnum, UserGroupModel, get_db_contextmanager
+from database import get_db_contextmanager
+from database.models.movies import GenreModel, MovieModel
+from database.models.accounts import UserGroupEnum, UserGroupModel
+
 
 CHUNK_SIZE = 1000
 

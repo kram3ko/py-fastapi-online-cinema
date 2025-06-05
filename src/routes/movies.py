@@ -5,15 +5,18 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from database import (
-    GenreModel,
-    MovieModel,
-    get_db,
-)
+from database import get_db
+from database.models.movies import MovieModel
+from database.models.accounts import UserModel
+
 from pagination import Page, Params
 from pagination.pages import T
-from schemas import MovieDetailSchema, MovieListItemSchema
-from schemas.movies import MovieCreateSchema, MovieUpdateSchema
+from schemas.movies import (
+    MovieCreateSchema,
+    MovieUpdateSchema,
+    MovieDetailSchema,
+    MovieListItemSchema
+)
 
 router = APIRouter()
 

@@ -1,9 +1,12 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database import Base, MovieModel, UserModel
+from database import Base
+from database.models.movies import MovieModel
+from database.models.accounts import UserModel
+
 
 
 class Cart(Base):

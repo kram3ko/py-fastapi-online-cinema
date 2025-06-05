@@ -8,18 +8,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from config import BaseAppSettings, get_accounts_email_notificator, get_jwt_auth_manager, get_settings
-from database import (
+from database import get_db
+
+from database.models.accounts import (
     ActivationTokenModel,
     PasswordResetTokenModel,
     RefreshTokenModel,
     UserGroupEnum,
     UserGroupModel,
     UserModel,
-    get_db,
 )
+
 from exceptions import BaseSecurityError
 from notifications import EmailSenderInterface
-from schemas import (
+from schemas.accounts import (
     MessageResponseSchema,
     PasswordResetCompleteRequestSchema,
     PasswordResetRequestSchema,
@@ -133,7 +135,7 @@ async def register_user(
     responses={
         400: {
             "description": "Bad Request - The activation token is invalid or expired, "
-            "or the user account is already active.",
+                           "or the user account is already active.",
             "content": {
                 "application/json": {
                     "examples": {

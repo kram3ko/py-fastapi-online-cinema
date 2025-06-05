@@ -4,7 +4,8 @@ from enum import Enum as PyEnum
 from sqlalchemy import DECIMAL, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database import Base, UserModel
+from database import Base
+from database.models.accounts import UserModel
 
 
 class PaymentStatus(PyEnum):
