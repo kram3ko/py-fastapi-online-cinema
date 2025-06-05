@@ -96,7 +96,7 @@ class MovieModel(Base):
     __table_args__ = (UniqueConstraint("name", "year", "time"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    uuid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
+    uuid_movie: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     year: Mapped[int] = mapped_column(nullable=False)
     time: Mapped[int] = mapped_column(nullable=False)
