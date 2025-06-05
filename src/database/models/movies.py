@@ -160,7 +160,7 @@ class MovieModel(Base):
     time: Mapped[int] = mapped_column(nullable=False)
     imdb: Mapped[float] = mapped_column(nullable=True)
     votes: Mapped[int] = mapped_column(nullable=True)
-    meta_score: Mapped[float | None] = mapped_column(nullable=False)
+    meta_score: Mapped[float | None] = mapped_column(nullable=True)
     gross: Mapped[float | None] = mapped_column(nullable=True)
     descriptions: Mapped[str] = mapped_column(Text, nullable=False)
     price: Mapped[float] = mapped_column(DECIMAL(10, 2))
