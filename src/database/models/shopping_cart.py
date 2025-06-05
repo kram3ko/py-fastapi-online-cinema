@@ -23,7 +23,7 @@ class Cart(Base):
         unique=True,
     )
 
-    # Relationships
+
     user: Mapped["UserModel"] = relationship("UserModel", back_populates="cart")
     items: Mapped[List["CartItem"]] = relationship(
         "CartItem", back_populates="cart", cascade="all, delete-orphan"
