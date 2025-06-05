@@ -83,7 +83,6 @@ class CountryModel(Base):
         return f"<Country(code='{self.code}', name='{self.name}')>"
 
 
-
 class MovieModel(Base):
     __tablename__ = "movies"
 
@@ -112,7 +111,6 @@ class MovieModel(Base):
         secondary=ActorsMoviesModel,
         back_populates="movies"
     )
-
 
     __table_args__ = (
         UniqueConstraint("name", "date", name="unique_movie_constraint"),
