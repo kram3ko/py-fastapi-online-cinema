@@ -1,7 +1,5 @@
-from datetime import date, datetime
 from typing import Optional, List
-from uuid import UUID
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict
 from schemas.examples.movies import (
     genre_schema_example,
     star_schema_example,
@@ -230,8 +228,29 @@ class MovieCreateSchema(MovieBaseSchema):
     )
 
 
-class MovieUpdateSchema(MovieCreateSchema):
-    pass
+class MovieUpdateSchema(BaseModel):
+    name: Optional[str] = None
+    year: Optional[int] = None
+    time: Optional[int] = None
+    imdb: Optional[float] = None
+    votes: Optional[int] = None
+    meta_score: Optional[float] = None
+    gross: Optional[float] = None
+    descriptions: Optional[str] = None
+    price: Optional[float] = None
+    certification_id: Optional[int] = None
+    genre_ids: Optional[List[int]] = None
+    star_ids: Optional[List[int]] = None
+    director_ids: Optional[List[int]] = None
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                movie_create_schema_example
+            ]
+        }
+    )
 
 
 class MovieDeleteSchema(MovieBaseSchema):

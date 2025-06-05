@@ -80,3 +80,19 @@ movie_detail_schema_example = {
     "stars": [star_schema_example],
     "directors": [director_schema_example]
 }
+
+movie_update_schema_example = {
+    "name": "Update Movie Title",
+    "year": 2024,
+    "time": 135,
+    "imdb": 8.2,
+    "votes": 500000,
+    "meta_score": 77.0,
+    "gross": 4500000.00,
+    "descriptions": "Updated description of the movie.",
+    "price": 11.99,
+    "certification_id": 2,
+    "genres_id": [1, 4],
+    "stars_id": [1],
+    "directors_id": [1]
+}
