@@ -1,5 +1,8 @@
+from typing import Dict
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from crud.movie_service import (
     create_genre,
     create_movie,
@@ -167,7 +170,7 @@ async def delete_movie_star(
     response_model=Page[MovieListItemSchema]
 )
 async def get_movies(
-        db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> Page[MovieListItemSchema]:
     """
     Get a paginated list of movies.
@@ -180,8 +183,8 @@ async def get_movies(
     response_model=MovieDetailSchema
 )
 async def get_movie_by_id(
-        movie_id: int,
-        db: AsyncSession = Depends(get_db),
+    movie_id: int,
+    db: AsyncSession = Depends(get_db),
 ) -> MovieDetailSchema:
     """
     Get detailed information about a movie by its ID.

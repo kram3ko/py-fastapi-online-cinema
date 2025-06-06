@@ -7,6 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
 from database.models.accounts import UserModel
+from database.models.orders import OrderItemModel, OrderModel
 
 
 class PaymentStatus(PyEnum):
@@ -29,7 +30,7 @@ class PaymentModel(Base):
     external_payment_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
     user: Mapped[UserModel] = relationship(back_populates="payments")
-    # order: Mapped["OrderModel"] = relationship(back_populates="payments")
+    order: Mapped[OrderModel] = relationship(back_populates="payments")
     payment_items: Mapped[list["PaymentItemModel"]] = relationship(back_populates="payment")
 
 
@@ -42,4 +43,4 @@ class PaymentItemModel(Base):
     price_at_payment: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)
 
     payment: Mapped[PaymentModel] = relationship(back_populates="payment_items")
-    # order_item: Mapped["OrderItemModel"] = relationship(back_populates="payment_items")
+    order_item: Mapped[OrderItemModel] = relationship(back_populates="payment_items")
