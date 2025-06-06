@@ -17,7 +17,7 @@ from crud.movie_service import (
     update_movie,
     update_star,
 )
-from database import get_db
+from database.deps import get_db
 from pagination import Page
 from schemas.movies import (
     GenreCreateSchema,
@@ -35,7 +35,10 @@ from schemas.movies import (
 router = APIRouter()
 
 
-@router.get("/genres/", response_model=list[GenreReadSchema])
+@router.get(
+    "/genres/",
+    response_model=list[GenreReadSchema]
+)
 async def get_genres(db: AsyncSession = Depends(get_db)) -> list[GenreReadSchema]:
     """
     Get a list of all movie genres.
@@ -43,7 +46,10 @@ async def get_genres(db: AsyncSession = Depends(get_db)) -> list[GenreReadSchema
     return await list_genres(db)
 
 
-@router.get("/genres/{genre_id}/", response_model=GenreReadSchema)
+@router.get(
+    "/genres/{genre_id}/",
+    response_model=GenreReadSchema
+)
 async def get_genre_by_id(genre_id: int, db: AsyncSession = Depends(get_db)) -> GenreReadSchema:
     """
     Retrieve a genre by its ID.
@@ -51,7 +57,11 @@ async def get_genre_by_id(genre_id: int, db: AsyncSession = Depends(get_db)) -> 
     return await get_genre(db, genre_id)
 
 
-@router.post("/genres/", response_model=GenreReadSchema, status_code=201)
+@router.post(
+    "/genres/",
+    response_model=GenreReadSchema,
+    status_code=201
+)
 async def create_movie_genre(genre_data: GenreCreateSchema, db: AsyncSession = Depends(get_db)) -> GenreReadSchema:
     """
     Create a new genre.
@@ -59,10 +69,12 @@ async def create_movie_genre(genre_data: GenreCreateSchema, db: AsyncSession = D
     return await create_genre(db, genre_data)
 
 
-@router.put("/genres/{genre_id}/", response_model=GenreReadSchema)
-async def update_movie_genre(
-    genre_id: int, genre_data: GenreUpdateSchema, db: AsyncSession = Depends(get_db)
-) -> GenreReadSchema:
+@router.put(
+    "/genres/{genre_id}/",
+    response_model=GenreReadSchema
+)
+async def update_movie_genre(genre_id: int, genre_data: GenreUpdateSchema,
+                             db: AsyncSession = Depends(get_db)) -> GenreReadSchema:
     """
     Update an existing genre by ID.
     """
@@ -102,9 +114,8 @@ async def create_movie_star(star_data: StarCreateSchema, db: AsyncSession = Depe
 
 
 @router.put("/stars/{star_id}/", response_model=StarReadSchema)
-async def update_movie_star(
-    star_id: int, star_data: StarUpdateSchema, db: AsyncSession = Depends(get_db)
-) -> StarReadSchema:
+async def update_movie_star(star_id: int, star_data: StarUpdateSchema,
+                            db: AsyncSession = Depends(get_db)) -> StarReadSchema:
     """
     Update a movie star by ID.
     """
@@ -119,7 +130,10 @@ async def delete_movie_star(star_id: int, db: AsyncSession = Depends(get_db)) ->
     return await delete_star(db, star_id)
 
 
-@router.get("/movies/", response_model=Page[MovieListItemSchema])
+@router.get(
+    "/movies/",
+    response_model=Page[MovieListItemSchema]
+)
 async def get_movies(
     db: AsyncSession = Depends(get_db),
 ) -> Page[MovieListItemSchema]:
@@ -129,7 +143,10 @@ async def get_movies(
     return await list_movies(db)
 
 
-@router.get("/movies/{movie_id}/", response_model=MovieDetailSchema)
+@router.get(
+    "/movies/{movie_id}/",
+    response_model=MovieDetailSchema
+)
 async def get_movie_by_id(
     movie_id: int,
     db: AsyncSession = Depends(get_db),
@@ -150,7 +167,9 @@ async def create_one_movie(data: MovieCreateSchema, db: AsyncSession = Depends(g
 
 @router.put("/movies/{movie_id}/", response_model=MovieDetailSchema)
 async def update_one_movie(
-    movie_id: int, data: MovieUpdateSchema, db: AsyncSession = Depends(get_db)
+    movie_id: int,
+    data: MovieUpdateSchema,
+    db: AsyncSession = Depends(get_db)
 ) -> MovieDetailSchema:
     """
     Update an existing movie by ID.

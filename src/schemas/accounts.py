@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
-from database import accounts_validators
+from database.validators.accounts import validate_password_strength, validate_email
 
 
 class BaseEmailPasswordSchema(BaseModel):
@@ -11,13 +11,13 @@ class BaseEmailPasswordSchema(BaseModel):
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, value: str) -> str:
-        return value.lower()
+    def validate_user_email(cls, value: str) -> str:
+        return validate_email(value.lower())
 
     @field_validator("password")
     @classmethod
     def validate_password(cls, value: str) -> str:
-        return accounts_validators.validate_password_strength(value)
+        return validate_password_strength(value)
 
 
 class UserRegistrationRequestSchema(BaseEmailPasswordSchema):
