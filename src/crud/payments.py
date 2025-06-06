@@ -1,0 +1,70 @@
+from fastapi.params import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from fastapi import HTTPException, status
+from decimal import Decimal
+from database.models.payments import PaymentModel, PaymentItemModel
+from database.models.order import Order, OrderItem
+from schemas.payments import PaymentCreateSchema, PaymentStatusSchema
+
+from database import get_db
+
+
+async def create_payment(payment_data: PaymentCreateSchema,
+                         user_id: int ,
+                         db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Order).where(Order.id==payment_data.order_id))
+    order = result.scalar_one_or_none()
+
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found.")
+
+    if order.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="It`s not your order.")
+
+    result = await db.execute(select(OrderItem).where(OrderItem.order_id==order.id))
+    order_items = result.scalar().all()
+    total_amount = sum([item.price for item in order_items])
+
+    if total_amount != payment_data.amount:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Incorrect payment ammount. Expected: {total_amount}, Got: {payment_data.amount}")
+
+    payment = PaymentModel(
+        user_id=user_id,
+        order_id=order.id,
+        amount=payment_data.amount,
+        status=PaymentStatusSchema.successful,
+    )
+
+    db.add(payment)
+
+    await db.flush()
+
+    for item in order_items:
+        payment_item = PaymentItemModel(
+            payment_id=payment.id,
+            order_item_id=item.id,
+            price_at_payment=item.price,
+        )
+        db.add(payment_item)
+
+    await db.commit()
+    await db.refresh(payment)
+    return payment
+
+
+async def get_user_payments(user_id: int,
+                            db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(PaymentModel).where(PaymentModel.user_id==user_id))
+
+    return result.scalars().all()
+
+
+async def get_all_payments(db: AsyncSession = Depends(get_db) ,status: PaymentStatusSchema = None):
+    query = select(PaymentModel)
+    if status:
+        query.where(PaymentModel.status==status)
+    result = await db.execute(query)
+    return result.scalars().all()
