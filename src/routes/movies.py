@@ -1,8 +1,5 @@
-from typing import Dict
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from crud.movie_service import (
     create_genre,
     create_movie,
@@ -10,11 +7,12 @@ from crud.movie_service import (
     delete_genre,
     delete_movie,
     delete_star,
-    get_genre,
-    get_star,
-    list_genres,
-    list_movies,
-    list_stars,
+    get_genre_by_id as get_genre,
+    get_star_by_id as get_star,
+    get_all_genres as list_genres,
+    get_all_movies as list_movies,
+    get_all_stars as list_stars,
+    get_movie_by_id as get_movie,
     update_genre,
     update_movie,
     update_star,
@@ -52,7 +50,10 @@ async def get_genres(db: AsyncSession = Depends(get_db)) -> list[GenreReadSchema
     "/genres/{genre_id}/",
     response_model=GenreReadSchema
 )
-async def get_genre_by_id(genre_id: int, db: AsyncSession = Depends(get_db)) -> GenreReadSchema:
+async def get_genre_by_id(
+        genre_id: int,
+        db: AsyncSession = Depends(get_db)
+) -> GenreReadSchema:
     """
     Retrieve a genre by its ID.
     """
@@ -64,7 +65,10 @@ async def get_genre_by_id(genre_id: int, db: AsyncSession = Depends(get_db)) -> 
     response_model=GenreReadSchema,
     status_code=201
 )
-async def create_movie_genre(genre_data: GenreCreateSchema, db: AsyncSession = Depends(get_db)) -> GenreReadSchema:
+async def create_movie_genre(
+        genre_data: GenreCreateSchema,
+        db: AsyncSession = Depends(get_db)
+) -> GenreReadSchema:
     """
     Create a new genre.
     """
@@ -75,7 +79,11 @@ async def create_movie_genre(genre_data: GenreCreateSchema, db: AsyncSession = D
     "/genres/{genre_id}/",
     response_model=GenreReadSchema
 )
-async def update_movie_genre(genre_id: int, genre_data: GenreUpdateSchema, db: AsyncSession = Depends(get_db)) -> GenreReadSchema:
+async def update_movie_genre(
+        genre_id: int,
+        genre_data: GenreUpdateSchema,
+        db: AsyncSession = Depends(get_db)
+) -> GenreReadSchema:
     """
     Update an existing genre by ID.
     """
@@ -83,15 +91,23 @@ async def update_movie_genre(genre_id: int, genre_data: GenreUpdateSchema, db: A
 
 
 @router.delete("/genres/{genre_id}/")
-async def delete_movie_genre(genre_id: int, db: AsyncSession = Depends(get_db)) -> Dict[str, str]:
+async def delete_movie_genre(
+        genre_id: int,
+        db: AsyncSession = Depends(get_db)
+) -> dict[str, str]:
     """
     Delete a genre by its ID.
     """
-    return await delete_genre(db, genre_id)
+    success = await delete_genre(db, genre_id)
+    if success:
+        return {"detail": "Genre deleted successfully"}
+    return {"detail": "Genre not found."}
 
 
 @router.get("/stars/", response_model=list[StarReadSchema])
-async def get_stars(db: AsyncSession = Depends(get_db)) -> list[StarReadSchema]:
+async def get_stars(
+        db: AsyncSession = Depends(get_db)
+) -> list[StarReadSchema]:
     """
     Get a list of all movie stars.
     """
@@ -99,7 +115,10 @@ async def get_stars(db: AsyncSession = Depends(get_db)) -> list[StarReadSchema]:
 
 
 @router.get("/stars/{star_id}/", response_model=StarReadSchema)
-async def get_star_by_id(star_id: int, db: AsyncSession = Depends(get_db)) -> StarReadSchema:
+async def get_star_by_id(
+        star_id: int,
+        db: AsyncSession = Depends(get_db)
+) -> StarReadSchema:
     """
     Retrieve a movie star by ID.
     """
@@ -107,7 +126,10 @@ async def get_star_by_id(star_id: int, db: AsyncSession = Depends(get_db)) -> St
 
 
 @router.post("/stars/", response_model=StarReadSchema, status_code=201)
-async def create_movie_star(star_data: StarCreateSchema, db: AsyncSession = Depends(get_db)) -> StarReadSchema:
+async def create_movie_star(
+        star_data: StarCreateSchema,
+        db: AsyncSession = Depends(get_db)
+) -> StarReadSchema:
     """
     Create a new movie star.
     """
@@ -115,7 +137,11 @@ async def create_movie_star(star_data: StarCreateSchema, db: AsyncSession = Depe
 
 
 @router.put("/stars/{star_id}/", response_model=StarReadSchema)
-async def update_movie_star(star_id: int, star_data: StarUpdateSchema, db: AsyncSession = Depends(get_db)) -> StarReadSchema:
+async def update_movie_star(
+        star_id: int,
+        star_data: StarUpdateSchema,
+        db: AsyncSession = Depends(get_db)
+) -> StarReadSchema:
     """
     Update a movie star by ID.
     """
@@ -123,11 +149,17 @@ async def update_movie_star(star_id: int, star_data: StarUpdateSchema, db: Async
 
 
 @router.delete("/stars/{star_id}/")
-async def delete_movie_star(star_id: int, db: AsyncSession = Depends(get_db)) -> Dict[str, str]:
+async def delete_movie_star(
+        star_id: int,
+        db: AsyncSession = Depends(get_db)
+) -> dict[str, str]:
     """
     Delete a movie star by ID.
     """
-    return await delete_star(db, star_id)
+    success = await delete_star(db, star_id)
+    if success:
+        return {"detail": "Star deleted successfully"}
+    return {"detail": "Star not found."}
 
 
 @router.get(
@@ -154,11 +186,14 @@ async def get_movie_by_id(
     """
     Get detailed information about a movie by its ID.
     """
-    return await get_movies(db, movie_id)
+    return await get_movie(db, movie_id)
 
 
 @router.post("/movies/", response_model=MovieDetailSchema, status_code=201)
-async def create_one_movie(data: MovieCreateSchema, db: AsyncSession = Depends(get_db)) -> MovieDetailSchema:
+async def create_one_movie(
+        data: MovieCreateSchema,
+        db: AsyncSession = Depends(get_db)
+) -> MovieDetailSchema:
     """
     Create a new movie.
     """
@@ -166,7 +201,11 @@ async def create_one_movie(data: MovieCreateSchema, db: AsyncSession = Depends(g
 
 
 @router.put("/movies/{movie_id}/", response_model=MovieDetailSchema)
-async def update_one_movie(movie_id: int, data: MovieUpdateSchema, db: AsyncSession = Depends(get_db)) -> MovieDetailSchema:
+async def update_one_movie(
+        movie_id: int,
+        data: MovieUpdateSchema,
+        db: AsyncSession = Depends(get_db)
+) -> MovieDetailSchema:
     """
     Update an existing movie by ID.
     """
@@ -174,8 +213,14 @@ async def update_one_movie(movie_id: int, data: MovieUpdateSchema, db: AsyncSess
 
 
 @router.delete("/movies/{movie_id}/")
-async def delete_one_movie(movie_id: int, db: AsyncSession = Depends(get_db)) -> Dict[str, str]:
+async def delete_one_movie(
+        movie_id: int,
+        db: AsyncSession = Depends(get_db)
+) -> dict[str, str]:
     """
     Delete a movie by ID.
     """
-    return await delete_movie(db, movie_id)
+    success = await delete_movie(db, movie_id)
+    if success:
+        return {"detail": "Movie deleted successfully"}
+    return {"detail": "Movie not found."}

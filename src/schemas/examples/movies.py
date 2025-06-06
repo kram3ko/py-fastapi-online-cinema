@@ -1,5 +1,4 @@
 movie_item_schema_example = {
-    "id": 1,
     "uuid_movie": "38e6c48d-8a93-4e1e-9df5-4316cbf3f9a1",
     "name": "Inception",
     "year": 2010,
@@ -49,14 +48,13 @@ movie_create_schema_example = {
 }
 
 
-director_schema_example = {"id": 1, "name": "Christopher Nolan"}
+director_schema_example = {"name": "Christopher Nolan"}
 
-certification_schema_example = {"id": 1, "name": "PG-13"}
+certification_schema_example = {"name": "PG-13"}
 
 genre_schema_example = {"genre": "Comedy"}
 
 star_schema_example = {
-    "id": 1,
     "name": "Leonardo DiCaprio",
 }
 
