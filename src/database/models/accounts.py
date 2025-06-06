@@ -6,8 +6,6 @@ from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Strin
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from database.models.base import Base
-from database.models.orders import OrderModel
-from database.models.shopping_cart import Cart
 from database.validators import accounts as validators
 from security.passwords import hash_password, verify_password
 from security.utils import generate_secure_token
@@ -51,8 +49,8 @@ class UserModel(Base):
     group_id: Mapped[int] = mapped_column(ForeignKey("user_groups.id", ondelete="CASCADE"), nullable=False)
     group: Mapped["UserGroupModel"] = relationship("UserGroupModel", back_populates="users")
 
-    orders: Mapped[list[OrderModel]] = relationship("OrderModel", back_populates="user")
-    cart: Mapped[Cart] = relationship("Cart", back_populates="user", uselist=False)
+    orders: Mapped[list["OrderModel"]] = relationship("OrderModel", back_populates="user")
+    cart: Mapped["Cart"] = relationship("Cart", back_populates="user", uselist=False)
 
     activation_token: Mapped[Optional["ActivationTokenModel"]] = relationship(
         "ActivationTokenModel", back_populates="user", cascade="all, delete-orphan"
