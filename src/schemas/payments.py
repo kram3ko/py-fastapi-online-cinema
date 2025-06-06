@@ -47,3 +47,5 @@ class AdminPaymentFilter(BaseModel):
     status: Optional[PaymentStatusSchema] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+    skip: int = 0
+    limit: int = 10
