@@ -41,23 +41,28 @@ if ! alembic -c $ALEMBIC_CONFIG revision --autogenerate -m "temp_migration"; the
     exit 1
 fi
 
-# Find the last created migration file
-LAST_MIGRATION=$(find "$MIGRATIONS_DIR" -type f -printf '%T+ %p\n' | sort | tail -n 1 | awk '{print $2}')
+# check for the last migration file
+LAST_MIGRATION=$(ls -t "$MIGRATIONS_DIR"/*.py 2>/dev/null | head -n 1)
 
-# Show migration content
+if [ -z "$LAST_MIGRATION" ]; then
+    echo "No migration files found. Exiting."
+    exit 1
+fi
+
+# show the content of the last migration
 echo "Generated migration content:"
 cat "$LAST_MIGRATION"
 
-# Check if the migration contains real changes
-if grep -qE '^\s*pass\s*$' "$LAST_MIGRATION"; then
-    echo "No changes detected. Deleting temporary migration."
+# check if the last migration is empty or contains only 'pass'
+if ! grep -q 'op\.' "$LAST_MIGRATION"; then
+    echo "No real changes detected. Deleting temporary migration."
     rm "$LAST_MIGRATION"
 else
     echo "Changes detected. Applying migration."
     alembic -c $ALEMBIC_CONFIG upgrade head
 fi
 
-# Run database saver script
+# run database saver script
 echo "Running database saver script..."
 python -m database.populate
 echo "Database saver script completed."
