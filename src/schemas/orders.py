@@ -1,4 +1,4 @@
-from pydantic import BaseModel, condecimal
+from pydantic import BaseModel, condecimal, ConfigDict
 from datetime import datetime
 from typing import List, Optional
 
@@ -11,8 +11,7 @@ class OrderItemResponse(BaseModel):
     movie_id: int
     price_at_order: condecimal(max_digits=10, decimal_places=2)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderCreate(BaseModel):
@@ -34,8 +33,7 @@ class OrderResponse(BaseModel):
     order_items: List[OrderItemResponse] = []
     user: UserModel
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderFilterParams(BaseModel):
@@ -44,5 +42,4 @@ class OrderFilterParams(BaseModel):
     end_date: Optional[datetime] = None
     status: Optional[OrderStatus] = None
 
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(from_attributes=True)
