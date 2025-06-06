@@ -8,15 +8,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from config import BaseAppSettings, get_accounts_email_notificator, get_jwt_auth_manager, get_settings
-from database import get_db
+from database.deps import get_db
 from database.models.accounts import (
     ActivationTokenModel,
     PasswordResetTokenModel,
-    RefreshTokenModel, UserModel
+    RefreshTokenModel,
+    UserModel,
+    UserGroupEnum,
+    UserGroupModel
 )
 from exceptions import BaseSecurityError
 from notifications import EmailSenderInterface
-from schemas import (
+from schemas.accounts import (
     UserRegistrationRequestSchema,
     UserRegistrationResponseSchema,
     MessageResponseSchema,
