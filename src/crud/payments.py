@@ -2,9 +2,8 @@ from fastapi.params import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from fastapi import HTTPException, status
-from decimal import Decimal
 from database.models.payments import PaymentModel, PaymentItemModel
-from database.models.order import Order, OrderItem
+from database.models.order import OrderModel, OrderItemModel
 from schemas.payments import PaymentCreateSchema, PaymentStatusSchema
 
 from database import get_db
@@ -13,7 +12,7 @@ from database import get_db
 async def create_payment(payment_data: PaymentCreateSchema,
                          user_id: int ,
                          db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Order).where(Order.id==payment_data.order_id))
+    result = await db.execute(select(OrderModel).where(OrderModel.id==payment_data.order_id))
     order = result.scalar_one_or_none()
 
     if not order:
@@ -22,7 +21,7 @@ async def create_payment(payment_data: PaymentCreateSchema,
     if order.user_id != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="It`s not your order.")
 
-    result = await db.execute(select(OrderItem).where(OrderItem.order_id==order.id))
+    result = await db.execute(select(OrderItemModel).where(OrderItemModel.order_id==order.id))
     order_items = result.scalar().all()
     total_amount = sum([item.price for item in order_items])
 
@@ -62,9 +61,9 @@ async def get_user_payments(user_id: int,
     return result.scalars().all()
 
 
-async def get_all_payments(db: AsyncSession = Depends(get_db) ,status: PaymentStatusSchema = None):
+async def get_all_payments(db: AsyncSession = Depends(get_db), payment_status: PaymentStatusSchema = None):
     query = select(PaymentModel)
     if status:
-        query.where(PaymentModel.status==status)
+        query.where(PaymentModel.status==payment_status)
     result = await db.execute(query)
     return result.scalars().all()
