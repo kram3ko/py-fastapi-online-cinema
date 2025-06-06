@@ -1,10 +1,11 @@
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database.models.movies import MovieModel
+from database.models.orders import OrderItemModel, OrderModel, OrderStatus
 from database.models.shopping_cart import Cart, CartItem
 
 
@@ -39,13 +40,39 @@ async def get_or_create_cart(db: AsyncSession, user_id: int) -> Cart:
     return cart
 
 
+async def is_movie_purchased(
+    db: AsyncSession, user_id: int, movie_id: int
+) -> bool:
+    """
+    Check if user has already purchased the movie.
+    Returns True if movie was purchased, False otherwise.
+    """
+    query = (
+        select(OrderItemModel)
+        .join(OrderModel)
+        .where(
+            and_(
+                OrderModel.user_id == user_id,
+                OrderItemModel.movie_id == movie_id,
+                OrderModel.status == OrderStatus.PAID,
+            )
+        )
+    )
+    result = await db.execute(query)
+    return result.scalar_one_or_none() is not None
+
+
 async def add_movie_to_cart(
-    db: AsyncSession, cart_id: int, movie_id: int
+    db: AsyncSession, cart_id: int, movie_id: int, user_id: int
 ) -> Optional[CartItem]:
     """
     Add movie to cart.
-    Returns None if movie is already in cart.
+    Returns None if:
+    - movie is already in cart
+    - movie doesn't exist
+    - movie was already purchased by user
     """
+
     movie = await db.get(MovieModel, movie_id)
     if not movie:
         return None
@@ -55,6 +82,9 @@ async def add_movie_to_cart(
     )
     result = await db.execute(query)
     if result.scalar_one_or_none():
+        return None
+
+    if await is_movie_purchased(db, user_id, movie_id):
         return None
 
     cart_item = CartItem(cart_id=cart_id, movie_id=movie_id)
