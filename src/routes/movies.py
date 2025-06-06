@@ -5,16 +5,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from database import (
-    GenreModel,
-)
-from database import get_db, MovieModel
+from database import get_db
+from database.models.accounts import UserModel
+from database.models.movies import MovieModel
 from pagination import Page, Params
-from schemas import (
-    MovieDetailSchema,
-    MovieListItemSchema
-)
-from schemas.movies import MovieCreateSchema, MovieUpdateSchema
+from pagination.pages import T
+from schemas.movies import MovieCreateSchema, MovieDetailSchema, MovieListItemSchema, MovieUpdateSchema
 
 router = APIRouter()
 
@@ -32,19 +28,15 @@ router = APIRouter()
     responses={
         404: {
             "description": "No movies found.",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "No movies found."}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "No movies found."}}},
         }
-    }
+    },
 )
 async def get_movie_list(
     request: Request,
     params: Params = Depends(),
     db: AsyncSession = Depends(get_db),
-) -> Page:
+) -> None:
     """
     Fetch a paginated list of movies from the database (asynchronously).
 
@@ -64,7 +56,7 @@ async def get_movie_list(
 
     :raises HTTPException: Raises a 404 error if no movies are found for the requested page.
     """
-    return MovieListItemSchema
+    return None
 
 
 @router.post(
@@ -83,19 +75,12 @@ async def get_movie_list(
         },
         400: {
             "description": "Invalid input.",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Invalid input data."}
-                }
-            },
-        }
+            "content": {"application/json": {"example": {"detail": "Invalid input data."}}},
+        },
     },
-    status_code=201
+    status_code=201,
 )
-async def create_movie(
-    movie_data: MovieCreateSchema,
-    db: AsyncSession = Depends(get_db)
-) -> MovieDetailSchema:
+async def create_movie(movie_data: MovieCreateSchema, db: AsyncSession = Depends(get_db)) -> MovieDetailSchema | None:
     """
     Add a new movie to the database.
 
@@ -115,7 +100,7 @@ async def create_movie(
         - 409 if a movie with the same name and date already exists.
         - 400 if input data is invalid (e.g., violating a constraint).
     """
-    pass
+    return None
 
 
 @router.get(
@@ -131,18 +116,14 @@ async def create_movie(
     responses={
         404: {
             "description": "Movie not found.",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Movie with the given ID was not found."}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "Movie with the given ID was not found."}}},
         }
-    }
+    },
 )
 async def get_movie_by_id(
     movie_id: int,
     db: AsyncSession = Depends(get_db),
-) -> MovieDetailSchema:
+) -> MovieDetailSchema | None:
     """
     Retrieve detailed information about a specific movie by its ID.
 
@@ -159,7 +140,7 @@ async def get_movie_by_id(
 
     :raises HTTPException: Raises a 404 error if the movie with the given ID is not found.
     """
-    pass
+    return None
 
 
 @router.delete(
@@ -171,24 +152,18 @@ async def get_movie_by_id(
         "a 404 error will be returned.</p>"
     ),
     responses={
-        204: {
-            "description": "Movie deleted successfully."
-        },
+        204: {"description": "Movie deleted successfully."},
         404: {
             "description": "Movie not found.",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Movie with the given ID was not found."}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "Movie with the given ID was not found."}}},
         },
     },
-    status_code=204
+    status_code=204,
 )
 async def delete_movie(
     movie_id: int,
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """
     Delete a specific movie by its ID.
 
@@ -207,8 +182,6 @@ async def delete_movie(
     """
     pass
 
-    return {"detail": "Movie deleted successfully."}
-
 
 @router.patch(
     "/movies/{movie_id}/",
@@ -221,27 +194,19 @@ async def delete_movie(
     responses={
         200: {
             "description": "Movie updated successfully.",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Movie updated successfully."}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "Movie updated successfully."}}},
         },
         404: {
             "description": "Movie not found.",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Movie with the given ID was not found."}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "Movie with the given ID was not found."}}},
         },
-    }
+    },
 )
 async def update_movie(
     movie_id: int,
     movie_data: MovieUpdateSchema,
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """
     Update a specific movie by its ID.
 
@@ -261,4 +226,3 @@ async def update_movie(
     :rtype: None
     """
     pass
-    return {"detail": "Movie updated successfully."}

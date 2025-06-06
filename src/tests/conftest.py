@@ -7,9 +7,9 @@ from config import get_settings, get_accounts_email_notificator, get_s3_storage_
 from database import (
     reset_database,
     get_db_contextmanager,
-    UserGroupEnum,
-    UserGroupModel
 )
+from database.models.accounts import UserGroupEnum, UserGroupModel
+
 from database.populate import CSVDatabaseSeeder
 from main import app
 from security.interfaces import JWTAuthManagerInterface

@@ -1,8 +1,9 @@
-from pydantic import BaseModel
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
 from enum import Enum
-from typing import List, Optional
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
 
 
 class PaymentItemBaseSchema(BaseModel):
@@ -10,8 +11,7 @@ class PaymentItemBaseSchema(BaseModel):
     order_item_id: int
     price_at_payment: Decimal
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PaymentStatusSchema(str, Enum):
@@ -33,11 +33,10 @@ class PaymentBaseSchema(BaseModel):
     status: PaymentStatusSchema
     amount: Decimal
     external_payment_id: Optional[str] = None
-    payment_items: List[PaymentItemBaseSchema] = []
+    payment_items: list[PaymentItemBaseSchema] = []
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PaymentListSchema(BaseModel):
-    payments: List[PaymentBaseSchema]
+    payments: list[PaymentBaseSchema]
