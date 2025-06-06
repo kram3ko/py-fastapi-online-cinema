@@ -1,9 +1,6 @@
-from pyexpat.errors import messages
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.dependencies import get_current_user
 from crud import shopping_cart as cart_crud
 from database import get_db
 from database.models.accounts import UserModel
@@ -13,10 +10,9 @@ from schemas.shopping_cart import (
     CartItemResponse,
     CartResponse,
 )
+from security.dependencies import get_current_user
 
-router = APIRouter(
-    prefix="/cart", tags=["cart"], dependencies=[Depends(get_current_user)]
-)
+router = APIRouter(prefix="/cart", tags=["cart"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("/", response_model=CartResponse)
@@ -37,9 +33,7 @@ async def add_movie_to_cart(
 ) -> CartItemResponse:
     """Add movie to cart."""
     cart = await cart_crud.get_or_create_cart(db, current_user.id)
-    cart_item = await cart_crud.add_movie_to_cart(
-        db, cart.id, item.movie_id, current_user.id
-    )
+    cart_item = await cart_crud.add_movie_to_cart(db, cart.id, item.movie_id, current_user.id)
 
     if not cart_item:
         raise HTTPException(
@@ -59,9 +53,7 @@ async def remove_movie_from_cart(
     """Remove movie from cart."""
     cart = await cart_crud.get_user_cart(db, current_user.id)
     if not cart:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
     removed = await cart_crud.remove_movie_from_cart(db, cart.id, movie_id)
     if not removed:
@@ -81,14 +73,10 @@ async def clear_cart(
     """Clear all items from cart."""
     cart = await cart_crud.get_user_cart(db, current_user.id)
     if not cart:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
     cleared = await cart_crud.clear_cart(db, cart.id)
     if not cleared:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
 
     return MessageResponseSchema(message="Cart cleared successfully")

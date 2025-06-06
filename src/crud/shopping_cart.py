@@ -14,11 +14,7 @@ async def get_user_cart(db: AsyncSession, user_id: int) -> Optional[Cart]:
     Get user's shopping cart with all items.
     If cart doesn't exist, returns None.
     """
-    query = (
-        select(Cart)
-        .options(selectinload(Cart.items).selectinload(CartItem.movie))
-        .where(Cart.user_id == user_id)
-    )
+    query = select(Cart).options(selectinload(Cart.items).selectinload(CartItem.movie)).where(Cart.user_id == user_id)
     result = await db.execute(query)
     return result.scalar_one_or_none()
 
@@ -40,9 +36,7 @@ async def get_or_create_cart(db: AsyncSession, user_id: int) -> Cart:
     return cart
 
 
-async def is_movie_purchased(
-    db: AsyncSession, user_id: int, movie_id: int
-) -> bool:
+async def is_movie_purchased(db: AsyncSession, user_id: int, movie_id: int) -> bool:
     """
     Check if user has already purchased the movie.
     Returns True if movie was purchased, False otherwise.
@@ -62,9 +56,7 @@ async def is_movie_purchased(
     return result.scalar_one_or_none() is not None
 
 
-async def add_movie_to_cart(
-    db: AsyncSession, cart_id: int, movie_id: int, user_id: int
-) -> Optional[CartItem]:
+async def add_movie_to_cart(db: AsyncSession, cart_id: int, movie_id: int, user_id: int) -> Optional[CartItem]:
     """
     Add movie to cart.
     Returns None if:
@@ -77,9 +69,7 @@ async def add_movie_to_cart(
     if not movie:
         return None
 
-    query = select(CartItem).where(
-        CartItem.cart_id == cart_id, CartItem.movie_id == movie_id
-    )
+    query = select(CartItem).where(CartItem.cart_id == cart_id, CartItem.movie_id == movie_id)
     result = await db.execute(query)
     if result.scalar_one_or_none():
         return None
@@ -94,16 +84,12 @@ async def add_movie_to_cart(
     return cart_item
 
 
-async def remove_movie_from_cart(
-    db: AsyncSession, cart_id: int, movie_id: int
-) -> bool:
+async def remove_movie_from_cart(db: AsyncSession, cart_id: int, movie_id: int) -> bool:
     """
     Remove movie from cart.
     Returns True if movie was removed, False if it wasn't in cart.
     """
-    query = select(CartItem).where(
-        CartItem.cart_id == cart_id, CartItem.movie_id == movie_id
-    )
+    query = select(CartItem).where(CartItem.cart_id == cart_id, CartItem.movie_id == movie_id)
     result = await db.execute(query)
     cart_item = result.scalar_one_or_none()
 
