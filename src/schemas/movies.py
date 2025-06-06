@@ -42,8 +42,7 @@ class GenreReadSchema(GenreBaseSchema):
     id: int
     movie_count: Optional[int] = Field(None, example=12)
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StarBaseSchema(BaseModel):

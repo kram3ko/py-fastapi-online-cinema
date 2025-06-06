@@ -2,7 +2,7 @@ from typing import Dict
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from routes.movie_service import (
+from crud.movie_service import (
     list_genres,
     get_genre,
     create_genre,
@@ -15,8 +15,8 @@ from routes.movie_service import (
     delete_star,
     list_movies
 )
-from database import get_db, MovieModel
-from pagination import Page, Params
+from database import get_db
+from pagination import Page
 from schemas.movies import (
     MovieCreateSchema,
     MovieUpdateSchema,

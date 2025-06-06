@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi_pagination import Params, Page
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
-from routes import movie_crud
+from crud import movie_crud
 from schemas.movies import (
     MovieListItemSchema,
     MovieDetailSchema,
