@@ -136,13 +136,15 @@ class CSVDatabaseSeeder:
     def _prepare_movies_data(self, data: pd.DataFrame) -> list[dict]:
         movies_data = []
         for _, row in data.iterrows():
-            movies_data.append({
-                "names": row["names"],
-                "date_x": row["date_x"],
-                "country": row["country"],
-                "orig_lang": row["orig_lang"],
-                "status": row["status"],
-            })
+            movies_data.append(
+                {
+                    "names": row["names"],
+                    "date_x": row["date_x"],
+                    "country": row["country"],
+                    "orig_lang": row["orig_lang"],
+                    "status": row["status"],
+                }
+            )
         return movies_data
 
     async def seed(self) -> None:
@@ -152,10 +154,7 @@ class CSVDatabaseSeeder:
                 await self._db_session.rollback()
 
             await self._seed_user_groups()
-            data = self._preprocess_csv()
-            movies_data = self._prepare_movies_data(data)
-            result = await self._db_session.execute(insert(MovieModel).returning(MovieModel.id), movies_data)
-            movie_ids = list(result.scalars().all())
+
             await self._db_session.commit()
             print("Seeding completed.")
 

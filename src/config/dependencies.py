@@ -4,13 +4,13 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.settings import BaseAppSettings, Settings, TestingSettings
+from database.deps import get_db
 from database.models.accounts import UserModel
 from notifications import EmailSender, EmailSenderInterface
 from security.http import get_token
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
 from storages import S3StorageClient, S3StorageInterface
-from database.deps import get_db
 
 
 def get_settings() -> Settings:
