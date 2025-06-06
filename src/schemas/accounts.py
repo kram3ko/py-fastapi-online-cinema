@@ -20,6 +20,10 @@ class BaseEmailPasswordSchema(BaseModel):
         return validate_password_strength(value)
 
 
+class MessageSchema(BaseModel):
+    message: str
+
+
 class UserRegistrationRequestSchema(BaseEmailPasswordSchema):
     pass
 
@@ -40,6 +44,10 @@ class UserLoginResponseSchema(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+
+
+class UserLogoutResponseSchema(MessageSchema):
+    pass
 
 
 class UserRegistrationResponseSchema(BaseModel):
