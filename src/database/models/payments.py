@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
 from database.models.accounts import UserModel
-from database.models.orders import OrderModel, OrderItemModel
+from database.models.orders import OrderItemModel, OrderModel
 
 
 class PaymentStatus(PyEnum):
