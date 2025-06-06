@@ -1,11 +1,11 @@
-from typing import List, Optional
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from database.models.shopping_cart import Cart, CartItem
 from database.models.movies import MovieModel
+from database.models.shopping_cart import Cart, CartItem
 
 
 async def get_user_cart(db: AsyncSession, user_id: int) -> Optional[Cart]:

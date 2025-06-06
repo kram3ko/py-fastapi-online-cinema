@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -224,9 +224,9 @@ class MovieUpdateSchema(BaseModel):
     descriptions: Optional[str] = None
     price: Optional[float] = None
     certification_id: Optional[int] = None
-    genre_ids: Optional[List[int]] = None
-    star_ids: Optional[List[int]] = None
-    director_ids: Optional[List[int]] = None
+    genre_ids: Optional[list[int]] = None
+    star_ids: Optional[list[int]] = None
+    director_ids: Optional[list[int]] = None
 
     model_config = ConfigDict(
         from_attributes=True,

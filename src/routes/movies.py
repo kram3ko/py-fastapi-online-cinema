@@ -1,5 +1,3 @@
-from typing import Dict
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -75,7 +73,8 @@ async def create_movie_genre(genre_data: GenreCreateSchema, db: AsyncSession = D
     "/genres/{genre_id}/",
     response_model=GenreReadSchema
 )
-async def update_movie_genre(genre_id: int, genre_data: GenreUpdateSchema, db: AsyncSession = Depends(get_db)) -> GenreReadSchema:
+async def update_movie_genre(genre_id: int, genre_data: GenreUpdateSchema,
+                             db: AsyncSession = Depends(get_db)) -> GenreReadSchema:
     """
     Update an existing genre by ID.
     """
@@ -83,7 +82,7 @@ async def update_movie_genre(genre_id: int, genre_data: GenreUpdateSchema, db: A
 
 
 @router.delete("/genres/{genre_id}/")
-async def delete_movie_genre(genre_id: int, db: AsyncSession = Depends(get_db)) -> Dict[str, str]:
+async def delete_movie_genre(genre_id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     """
     Delete a genre by its ID.
     """
@@ -115,7 +114,8 @@ async def create_movie_star(star_data: StarCreateSchema, db: AsyncSession = Depe
 
 
 @router.put("/stars/{star_id}/", response_model=StarReadSchema)
-async def update_movie_star(star_id: int, star_data: StarUpdateSchema, db: AsyncSession = Depends(get_db)) -> StarReadSchema:
+async def update_movie_star(star_id: int, star_data: StarUpdateSchema,
+                            db: AsyncSession = Depends(get_db)) -> StarReadSchema:
     """
     Update a movie star by ID.
     """
@@ -123,7 +123,7 @@ async def update_movie_star(star_id: int, star_data: StarUpdateSchema, db: Async
 
 
 @router.delete("/stars/{star_id}/")
-async def delete_movie_star(star_id: int, db: AsyncSession = Depends(get_db)) -> Dict[str, str]:
+async def delete_movie_star(star_id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     """
     Delete a movie star by ID.
     """
@@ -135,7 +135,7 @@ async def delete_movie_star(star_id: int, db: AsyncSession = Depends(get_db)) ->
     response_model=Page[MovieListItemSchema]
 )
 async def get_movies(
-        db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> Page[MovieListItemSchema]:
     """
     Get a paginated list of movies.
@@ -148,8 +148,8 @@ async def get_movies(
     response_model=MovieDetailSchema
 )
 async def get_movie_by_id(
-        movie_id: int,
-        db: AsyncSession = Depends(get_db),
+    movie_id: int,
+    db: AsyncSession = Depends(get_db),
 ) -> MovieDetailSchema:
     """
     Get detailed information about a movie by its ID.
@@ -166,7 +166,11 @@ async def create_one_movie(data: MovieCreateSchema, db: AsyncSession = Depends(g
 
 
 @router.put("/movies/{movie_id}/", response_model=MovieDetailSchema)
-async def update_one_movie(movie_id: int, data: MovieUpdateSchema, db: AsyncSession = Depends(get_db)) -> MovieDetailSchema:
+async def update_one_movie(
+    movie_id: int,
+    data: MovieUpdateSchema,
+    db: AsyncSession = Depends(get_db)
+) -> MovieDetailSchema:
     """
     Update an existing movie by ID.
     """
@@ -174,7 +178,7 @@ async def update_one_movie(movie_id: int, data: MovieUpdateSchema, db: AsyncSess
 
 
 @router.delete("/movies/{movie_id}/")
-async def delete_one_movie(movie_id: int, db: AsyncSession = Depends(get_db)) -> Dict[str, str]:
+async def delete_one_movie(movie_id: int, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     """
     Delete a movie by ID.
     """

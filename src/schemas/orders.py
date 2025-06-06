@@ -1,6 +1,7 @@
-from pydantic import BaseModel, condecimal, ConfigDict
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, condecimal
 
 from database.models.accounts import UserModel
 from src.database.models.orders import OrderStatus
@@ -17,7 +18,8 @@ class OrderItemResponse(BaseModel):
 class OrderCreate(BaseModel):
     # The order is placed from the cart, so a list of movie IDs
     # might not be directly sent in the request body, but inferred from the user's cart.
-    pass # Empty body for 'place order from my cart' scenario
+    # Empty body for 'place order from my cart' scenario
+    pass
 
 
 class OrderUpdateStatus(BaseModel):
@@ -30,7 +32,7 @@ class OrderResponse(BaseModel):
     created_at: datetime
     status: OrderStatus
     total_amount: Optional[condecimal(max_digits=10, decimal_places=2)]
-    order_items: List[OrderItemResponse] = []
+    order_items: list[OrderItemResponse] = []
     user: UserModel
 
     model_config = ConfigDict(from_attributes=True)

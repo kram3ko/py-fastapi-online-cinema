@@ -1,18 +1,13 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import (
-    Column,
-    Integer,
-    ForeignKey,
-    DateTime,
-    Enum,
-    DECIMAL
-)
-from sqlalchemy.orm import relationship, Mapped
+from sqlalchemy import DECIMAL, Column, DateTime, Enum, ForeignKey, Integer
+from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.functions import func
 
 from database import Base
+from database.models.accounts import UserModel
+from database.models.movies import MovieModel
 
 
 class OrderStatus(enum.Enum):
