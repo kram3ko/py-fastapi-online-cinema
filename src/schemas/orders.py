@@ -2,8 +2,8 @@ from pydantic import BaseModel, condecimal, ConfigDict
 from datetime import datetime
 from typing import List, Optional
 
-from database import UserModel
-from src.database import OrderStatus
+from database.models.accounts import UserModel
+from src.database.models.orders import OrderStatus
 
 
 class OrderItemResponse(BaseModel):

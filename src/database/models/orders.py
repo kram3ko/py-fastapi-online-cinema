@@ -9,7 +9,7 @@ from sqlalchemy import (
     Enum,
     DECIMAL
 )
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy.orm import relationship, Mapped
 from sqlalchemy.sql.functions import func
 
 from database import Base
