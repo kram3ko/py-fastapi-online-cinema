@@ -74,8 +74,7 @@ class StarDeleteSchema(StarBaseSchema):
 class StarReadSchema(StarBaseSchema):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DirectorBaseSchema(BaseModel):
@@ -106,8 +105,7 @@ class DirectorDeleteSchema(DirectorBaseSchema):
 class DirectorReadSchema(DirectorBaseSchema):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CertificationBaseSchema(BaseModel):
@@ -138,8 +136,7 @@ class CertificationDeleteSchema(CertificationBaseSchema):
 class CertificationReadSchema(CertificationBaseSchema):
     id: int
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieBaseSchema(BaseModel):
@@ -166,18 +163,11 @@ class MovieBaseSchema(BaseModel):
 
 class MovieDetailSchema(MovieBaseSchema):
     id: int
-    genres: List[GenreBaseSchema]
-    stars: List[StarBaseSchema]
-    directors: List[DirectorBaseSchema]
+    genres: list[GenreBaseSchema]
+    stars: list[StarBaseSchema]
+    directors: list[DirectorBaseSchema]
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "examples": [
-                movie_detail_schema_example
-            ]
-        }
-    )
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={"example": movie_detail_schema_example})
 
 
 class MovieListItemSchema(BaseModel):
@@ -187,18 +177,11 @@ class MovieListItemSchema(BaseModel):
     imdb: float
     time: int
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_schema_extra={
-            "examples": [
-                movie_item_schema_example
-            ]
-        }
-    )
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={"example": movie_item_schema_example})
 
 
 class MovieListResponseSchema(BaseModel):
-    movies: List[MovieListItemSchema]
+    movies: list[MovieListItemSchema]
     prev_page: Optional[str]
     next_page: Optional[str]
     total_pages: int
@@ -215,9 +198,9 @@ class MovieListResponseSchema(BaseModel):
 
 
 class MovieCreateSchema(MovieBaseSchema):
-    genre_ids: List[int]
-    star_ids: List[int]
-    director_ids: List[int]
+    genre_ids: list[int]
+    star_ids: list[int]
+    director_ids: list[int]
 
     model_config = ConfigDict(
         from_attributes=True,

@@ -28,13 +28,13 @@ jobs:
           pip install poetry
           poetry install
 
-      - name: Run flake8
+      - name: Run ruff
         run: |
-          poetry run flake8 src
+          poetry run ruff check src
 
-#      - name: Run accounts tests
-#        run: |
-#          poetry run pytest src/tests/test_integration/test_accounts.py
+      - name: Run accounts tests
+        run: |
+          poetry run pytest src/tests/test_integration/test_accounts.py
 
   test-movies:
     runs-on: ubuntu-latest
@@ -53,9 +53,9 @@ jobs:
           pip install poetry
           poetry install
 
-      - name: Run flake8
+      - name: Run ruff
         run: |
-          poetry run flake8 src
+          poetry run ruff check src
 
 #      - name: Run movies tests
 #        run: |
@@ -78,25 +78,25 @@ jobs:
           pip install poetry
           poetry install
 
-      - name: Run flake8
+      - name: Run ruff
         run: |
-          poetry run flake8 src
+          poetry run ruff check src
 
-#      - name: Run movies tests
-#        run: |
-#          poetry run pytest src/tests/test_integration/test_profiles.py
+      - name: Run movies tests
+        run: |
+          poetry run pytest src/tests/test_integration/test_profiles.py
 
-#  test-e2e:
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Checkout code
-#        uses: actions/checkout@v3
-#
-#      - name: Start Docker Compose and wait for completion
-#        run: |
-#          docker compose -f docker-compose-tests.yml up --build --abort-on-container-exit --exit-code-from web
-#
-#      - name: Cleanup
-#        if: always()
-#        run: |
-#          docker compose -f docker-compose-tests.yml down
+  test-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Start Docker Compose and wait for completion
+        run: |
+          docker compose -f docker-compose-tests.yml up --build --abort-on-container-exit --exit-code-from web
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose -f docker-compose-tests.yml down
