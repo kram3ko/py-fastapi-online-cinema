@@ -11,9 +11,7 @@ from schemas.payments import PaymentCreateSchema, PaymentStatusSchema, AdminPaym
 
 
 async def create_payment(
-    payment_data: PaymentCreateSchema,
-    user_id: int,
-    db: AsyncSession = Depends(get_db)
+    payment_data: PaymentCreateSchema, user_id: int, db: AsyncSession = Depends(get_db)
 ) -> PaymentModel:
     result = await db.execute(select(OrderModel).where(OrderModel.id == payment_data.order_id))
     order = result.scalar_one_or_none()
@@ -31,7 +29,9 @@ async def create_payment(
     if total_amount != payment_data.amount:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+
             detail=f"Incorrect payment amount. Expected: {total_amount}, Got: {payment_data.amount}")
+
 
     payment = PaymentModel(
         user_id=user_id,
@@ -57,23 +57,14 @@ async def create_payment(
     return payment
 
 
+
 async def get_payment_by_id(payment_id: int, db: AsyncSession) -> PaymentModel | None:
     result = await db.execute(select(PaymentModel).where(PaymentModel.id == payment_id))
     return result.scalar_one_or_none()
 
+async def get_user_payments(user_id: int, db: AsyncSession = Depends(get_db)) -> any:
+    result = await db.execute(select(PaymentModel).where(PaymentModel.user_id == user_id))
 
-async def get_user_payments(
-    user_id: int,
-    db: AsyncSession,
-    skip: int = 0,
-    limit: int = 10
-) -> list[PaymentModel]:
-    result = await db.execute(
-        select(PaymentModel)
-        .where(PaymentModel.user_id == user_id)
-        .offset(skip)
-        .limit(limit)
-    )
     return result.scalars().all()
 
 
