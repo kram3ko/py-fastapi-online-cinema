@@ -18,3 +18,12 @@ from schemas.accounts import (
     TokenRefreshResponseSchema,
     ResendActivationRequestSchema
 )
+from schemas.shopping_cart import (
+    CartItemBase,
+    CartItemCreate,
+    CartItemResponse,
+    CartBase,
+    CartCreate,
+    CartResponse,
+    CartUpdate
+)
