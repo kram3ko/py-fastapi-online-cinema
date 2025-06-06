@@ -744,7 +744,7 @@ MINIO_ROOT_USER=minioadmin
 MINIO_ROOT_PASSWORD=some_password
 MINIO_HOST=minio-theater
 MINIO_PORT=9000
-MINIO_STORAGE=online_cinema_storage
+MINIO_STORAGE=online-cinema-storage
 ```
 
 ---
