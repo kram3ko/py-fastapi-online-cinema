@@ -63,9 +63,7 @@ Welcome to the **Movie Theater API** project! This educational assignment is des
       - [1. MovieModel](#1-moviemodel)
       - [2. GenreModel](#2-genremodel)
       - [3. ActorModel](#3-actormodel)
-      - [4. CountryModel](#4-countrymodel)
-      - [5. LanguageModel](#5-languagemodel)
-      - [6. Association Tables](#6-association-tables)
+   - [4. Association Tables](#6-association-tables)
   - [Task Description: Extending the Cinema Application](#task-description-extending-the-cinema-application)
   - [Tasks: Implementing Email Notifications for User Registration and Password Reset](#tasks-implementing-email-notifications-for-user-registration-and-password-reset)
   - [Task: Implement User Profile Creation and Validation Schema](#task-implement-user-profile-creation-and-validation-schema)
@@ -746,7 +744,7 @@ MINIO_ROOT_USER=minioadmin
 MINIO_ROOT_PASSWORD=some_password
 MINIO_HOST=minio-theater
 MINIO_PORT=9000
-MINIO_STORAGE=theater-storage
+MINIO_STORAGE=online-cinema-storage
 ```
 
 ---
@@ -1029,10 +1027,7 @@ Represents a movie in the database.
     - `country_id`: Foreign key linking to the `countries` table.
 
 - **Relationships**:
-    - `country`: Links to the `CountryModel`.
     - `genres`: Many-to-many relationship with `GenreModel`.
-    - `actors`: Many-to-many relationship with `ActorModel`.
-    - `languages`: Many-to-many relationship with `LanguageModel`.
 
 - **Constraints**:
     - Unique constraint on `name` and `date` to prevent duplicate entries.
@@ -1049,44 +1044,8 @@ Represents a genre (e.g., Action, Comedy).
 - **Relationships**:
     - `movies`: Many-to-many relationship with `MovieModel`.
 
-#### **3. ActorModel**
 
-Represents an actor in the database.
-
-- **Table Name**: `actors`
-- **Fields**:
-    - `id` (Primary Key): Unique identifier for each actor.
-    - `name`: Name of the actor.
-
-- **Relationships**:
-    - `movies`: Many-to-many relationship with `MovieModel`.
-
-#### **4. CountryModel**
-
-Represents a country associated with a movie (e.g., production country).
-
-- **Table Name**: `countries`
-- **Fields**:
-    - `id` (Primary Key): Unique identifier for each country.
-    - `code`: ISO 3166-1 alpha-3 country code (e.g., USA, FRA).
-    - `name`: Full name of the country.
-
-- **Relationships**:
-    - `movies`: One-to-many relationship with `MovieModel`.
-
-#### **5. LanguageModel**
-
-Represents a language spoken in a movie.
-
-- **Table Name**: `languages`
-- **Fields**:
-    - `id` (Primary Key): Unique identifier for each language.
-    - `name`: Name of the language (e.g., English, French).
-
-- **Relationships**:
-    - `movies`: Many-to-many relationship with `MovieModel`.
-
-#### **6. Association Tables**
+#### **3. Association Tables**
 
 Used to establish many-to-many relationships between entities.
 

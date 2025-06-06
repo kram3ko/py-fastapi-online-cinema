@@ -19,7 +19,7 @@ services:
       - MINIO_ROOT_PASSWORD=some_password
       - MINIO_HOST=minio-theater-test
       - MINIO_PORT=9000
-      - MINIO_STORAGE=theater-storage
+      - MINIO_STORAGE=online-cinema-storage
     depends_on:
       mailhog:
         condition: service_started
@@ -51,7 +51,7 @@ services:
       - MINIO_ROOT_PASSWORD=some_password
       - MINIO_HOST=minio-theater-test
       - MINIO_PORT=9000
-      - MINIO_STORAGE=theater-storage
+      - MINIO_STORAGE=online-cinema-storage
     volumes:
       - minio_data_test:/data
     healthcheck:
@@ -76,7 +76,7 @@ services:
       - MINIO_ROOT_PASSWORD=some_password
       - MINIO_HOST=minio-theater-test
       - MINIO_PORT=9000
-      - MINIO_STORAGE=theater-storage
+      - MINIO_STORAGE=online-cinema-storage
     networks:
       - theater_network_test
 

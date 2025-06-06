@@ -1,50 +1,44 @@
-FROM python:3.13-alpine
+# Stage Builder
+FROM python:3.13-alpine AS builder
 
-# Setting environment variables for Python
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=off
-ENV ALEMBIC_CONFIG=/usr/src/alembic/alembic.ini
 
-# Install system dependencies using apk
-RUN apk update && apk add --no-cache \
+RUN apk add --no-cache \
     gcc \
     musl-dev \
     postgresql-dev \
+    build-base
+
+WORKDIR /usr/src/poetry
+
+COPY ./poetry.lock ./pyproject.toml ./
+RUN pip install poetry && \
+    poetry config virtualenvs.create false && \
+    poetry install --no-root --only main
+
+# Final Image
+FROM python:3.13-alpine
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV ALEMBIC_CONFIG=/usr/src/alembic/alembic.ini
+
+RUN apk add --no-cache \
+    postgresql-client \
     libpq \
     netcat-openbsd \
     dos2unix \
     bash \
-    curl \
-    build-base \
-    && rm -rf /var/cache/apk/*
+    curl
 
-# Install Poetry
-RUN python -m pip install --upgrade pip && \
-    pip install poetry
-
-# Copy dependency files
-COPY ./poetry.lock /usr/src/poetry/poetry.lock
-COPY ./pyproject.toml /usr/src/poetry/pyproject.toml
-COPY ./alembic.ini /usr/src/alembic/alembic.ini
-
-# Configure Poetry to avoid creating a virtual environment
-RUN poetry config virtualenvs.create false
-
-# Set working directory to install dependencies
-WORKDIR /usr/src/poetry
-
-# Install dependencies
-RUN poetry install --no-root --only main
-
-# Set working directory for application
 WORKDIR /usr/src/fastapi
 
-# Copy the source code
+COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
+COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY ./src .
-
-# Copy command scripts
 COPY ./commands /commands
+COPY ./alembic.ini /usr/src/alembic/alembic.ini
 
-# Ensure Unix-style line endings and executable permissions for scripts
 RUN dos2unix /commands/*.sh && chmod +x /commands/*.sh

@@ -1,0 +1,42 @@
+from datetime import datetime
+from decimal import Decimal
+from enum import Enum
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
+
+
+class PaymentItemBaseSchema(BaseModel):
+    id: int
+    order_item_id: int
+    price_at_payment: Decimal
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaymentStatusSchema(str, Enum):
+    successful = "successful"
+    canceled = "canceled"
+    refunded = "refunded"
+
+
+class PaymentCreateSchema(BaseModel):
+    order_id: int
+    amount: Decimal
+
+
+class PaymentBaseSchema(BaseModel):
+    id: int
+    user_id: int
+    order_id: int
+    created_at: datetime
+    status: PaymentStatusSchema
+    amount: Decimal
+    external_payment_id: Optional[str] = None
+    payment_items: list[PaymentItemBaseSchema] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaymentListSchema(BaseModel):
+    payments: list[PaymentBaseSchema]

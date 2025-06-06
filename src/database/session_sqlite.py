@@ -1,9 +1,9 @@
+from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
-from typing import AsyncGenerator, Generator
 
 from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from config import get_settings
 from database import Base
@@ -13,19 +13,13 @@ settings = get_settings()
 SQLITE_DATABASE_URL = f"sqlite+aiosqlite:///{settings.PATH_TO_DB}"
 sqlite_engine = create_async_engine(SQLITE_DATABASE_URL, echo=False)
 AsyncSQLiteSessionLocal = sessionmaker(  # type: ignore
-    bind=sqlite_engine,
-    class_=AsyncSession,
-    expire_on_commit=False
+    bind=sqlite_engine, class_=AsyncSession, expire_on_commit=False
 )
 
 SYNC_SQLITE_DATABASE_URL = f"sqlite:///{settings.PATH_TO_DB}"
 sync_sqlite_engine = create_engine(SYNC_SQLITE_DATABASE_URL, echo=False)
 
-SyncSQLiteSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=sync_sqlite_engine
-)
+SyncSQLiteSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_sqlite_engine)
 
 
 async def get_sqlite_db() -> AsyncGenerator[AsyncSession, None]:
