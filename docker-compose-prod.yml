@@ -10,7 +10,7 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 #      - postgres_online_cinema_data:/var/lib/postgresql/data/
     networks:
-      - theater_network
+      - online_cinema_network
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB -h 127.0.0.1 || exit 1" ]
       interval: 10s
