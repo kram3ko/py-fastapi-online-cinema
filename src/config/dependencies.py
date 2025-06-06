@@ -1,12 +1,16 @@
 import os
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.settings import BaseAppSettings, Settings, TestingSettings
+from database.models.accounts import UserModel
 from notifications import EmailSender, EmailSenderInterface
+from security.http import get_token
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
 from storages import S3StorageClient, S3StorageInterface
+from database.deps import get_db
 
 
 def get_settings() -> Settings:
@@ -105,3 +109,38 @@ def get_s3_storage_client(
         secret_key=settings.S3_STORAGE_SECRET_KEY,
         bucket_name=settings.S3_BUCKET_NAME,
     )
+
+
+async def get_current_user(
+    db: AsyncSession = Depends(get_db),
+    token: str = Depends(get_token),
+    jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
+) -> UserModel:
+    """
+    Dependency that verifies the JWT token and returns the current user.
+    """
+    try:
+        payload = jwt_manager.decode_access_token(token)
+        user_id: int = payload.get("sub")
+
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+            )
+
+        user = await db.get(UserModel, user_id)
+
+        if not isinstance(user, UserModel):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+            )
+
+        return user
+
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+        )

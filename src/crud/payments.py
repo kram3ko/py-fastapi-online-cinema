@@ -3,7 +3,7 @@ from fastapi.params import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from database import get_db
+from database.deps import get_db
 from database.models.orders import OrderItemModel, OrderModel
 from database.models.payments import PaymentItemModel, PaymentModel
 from schemas.payments import PaymentCreateSchema, PaymentStatusSchema
