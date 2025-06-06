@@ -17,7 +17,7 @@ from crud.movie_service import (
     update_movie,
     update_star,
 )
-from database import get_db
+from database.deps import get_db
 from pagination import Page
 from schemas.movies import (
     GenreCreateSchema,
