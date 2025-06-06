@@ -1,12 +1,11 @@
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config.settings import settings
 from database import get_db
 from database.models.accounts import UserModel
 from security.http import get_token
 from security.token_manager import JWTAuthManager
-from config.settings import settings
-
 
 auth_manager = JWTAuthManager(
     secret_key_access=settings.JWT_SECRET_KEY_ACCESS,
@@ -52,7 +51,7 @@ async def get_current_user(
 
         return user
 
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
