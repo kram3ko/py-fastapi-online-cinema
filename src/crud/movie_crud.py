@@ -1,8 +1,16 @@
-from sqlalchemy import select, delete, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from database.models.movies import MovieModel, GenreModel, StarModel
-from schemas.movies import GenreCreateSchema, GenreUpdateSchema, StarCreateSchema, StarUpdateSchema, MovieCreateSchema, MovieUpdateSchema
 from sqlalchemy.orm import selectinload
+
+from database.models.movies import GenreModel, MovieModel, StarModel
+from schemas.movies import (
+    GenreCreateSchema,
+    GenreUpdateSchema,
+    MovieCreateSchema,
+    MovieUpdateSchema,
+    StarCreateSchema,
+    StarUpdateSchema,
+)
 
 
 async def get_all_genres(db: AsyncSession) -> list[GenreModel]:

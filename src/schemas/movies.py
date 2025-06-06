@@ -1,15 +1,17 @@
-from typing import Optional, List
-from pydantic import BaseModel, Field, ConfigDict
+from typing import List, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+
 from schemas.examples.movies import (
-    genre_schema_example,
-    star_schema_example,
-    director_schema_example,
     certification_schema_example,
-    movie_item_schema_example,
-    movie_list_response_schema_example,
+    director_schema_example,
+    genre_schema_example,
     movie_create_schema_example,
     movie_detail_schema_example,
-    movie_update_schema_example
+    movie_item_schema_example,
+    movie_list_response_schema_example,
+    movie_update_schema_example,
+    star_schema_example,
 )
 
 

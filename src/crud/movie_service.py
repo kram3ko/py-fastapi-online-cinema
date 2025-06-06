@@ -1,20 +1,22 @@
+from typing import Dict, List
+
 from fastapi import HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi_pagination import Params, Page
+from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from crud import movie_crud
+from database.models.movies import GenreModel, MovieModel, StarModel
 from schemas.movies import (
-    MovieListItemSchema,
-    MovieDetailSchema,
-    MovieCreateSchema,
-    MovieUpdateSchema,
     GenreCreateSchema,
     GenreUpdateSchema,
+    MovieCreateSchema,
+    MovieDetailSchema,
+    MovieListItemSchema,
+    MovieUpdateSchema,
     StarCreateSchema,
-    StarUpdateSchema
+    StarUpdateSchema,
 )
-from database.models.movies import GenreModel, StarModel, MovieModel
-from typing import List, Dict
 
 
 async def list_genres(db: AsyncSession) -> List[GenreModel]:

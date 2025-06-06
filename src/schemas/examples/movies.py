@@ -53,7 +53,7 @@ director_schema_example = {"id": 1, "name": "Christopher Nolan"}
 
 certification_schema_example = {"id": 1, "name": "PG-13"}
 
-genre_schema_example = {"id": 1, "genre": "Comedy"}
+genre_schema_example = {"genre": "Comedy"}
 
 star_schema_example = {
     "id": 1,
