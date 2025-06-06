@@ -1,12 +1,13 @@
 from fastapi import HTTPException, status
 from fastapi.params import Depends
+from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from database import get_db
 from database.models.orders import OrderItemModel, OrderModel
 from database.models.payments import PaymentItemModel, PaymentModel
-from schemas.payments import PaymentCreateSchema, PaymentStatusSchema
+from schemas.payments import PaymentCreateSchema, PaymentStatusSchema, AdminPaymentFilter
 
 
 async def create_payment(
@@ -69,5 +70,29 @@ async def get_all_payments(db: AsyncSession = Depends(get_db), payment_status: P
     query = select(PaymentModel)
     if status:
         query.where(PaymentModel.status == payment_status)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+
+async def get_filtered_payments(
+    filters: AdminPaymentFilter,
+    db: AsyncSession
+) -> list[PaymentModel]:
+    query = select(PaymentModel)
+
+    conditions = []
+
+    if filters.user_id:
+        conditions.append(PaymentModel.user_id == filters.user_id)
+    if filters.status:
+        conditions.append(PaymentModel.status == filters.status)
+    if filters.start_date:
+        conditions.append(PaymentModel.created_at >= filters.start_date)
+    if filters.end_date:
+        conditions.append(PaymentModel.created_at <= filters.end_date)
+
+    if conditions:
+        query = query.where(and_(*conditions))
+
     result = await db.execute(query)
     return result.scalars().all()

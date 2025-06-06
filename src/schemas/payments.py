@@ -40,3 +40,10 @@ class PaymentBaseSchema(BaseModel):
 
 class PaymentListSchema(BaseModel):
     payments: list[PaymentBaseSchema]
+
+
+class AdminPaymentFilter(BaseModel):
+    user_id: Optional[int] = None
+    status: Optional[PaymentStatusSchema] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
