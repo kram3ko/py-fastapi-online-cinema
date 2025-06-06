@@ -28,9 +28,9 @@ jobs:
           pip install poetry
           poetry install
 
-      - name: Run flake8
+      - name: Run ruff
         run: |
-          poetry run flake8 src
+          poetry run ruff check src
 
       - name: Run accounts tests
         run: |
@@ -53,9 +53,9 @@ jobs:
           pip install poetry
           poetry install
 
-      - name: Run flake8
+      - name: Run ruff
         run: |
-          poetry run flake8 src
+          poetry run ruff check src
 
 #      - name: Run movies tests
 #        run: |
@@ -78,9 +78,9 @@ jobs:
           pip install poetry
           poetry install
 
-      - name: Run flake8
+      - name: Run ruff
         run: |
-          poetry run flake8 src
+          poetry run ruff check src
 
       - name: Run movies tests
         run: |

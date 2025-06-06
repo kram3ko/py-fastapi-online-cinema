@@ -1,19 +1,17 @@
-from typing import Optional
-from sqlalchemy import String, Text, DECIMAL, UniqueConstraint, ForeignKey, Table, Column
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import mapped_column, Mapped, relationship
-from database import Base
 import uuid
+from typing import Optional
+
+from sqlalchemy import DECIMAL, Column, ForeignKey, String, Table, Text, UniqueConstraint
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from database import Base
 
 MovieGenresModel = Table(
     "movie_genres",
     Base.metadata,
-    Column(
-        "movie_id",
-        ForeignKey("movies.id", ondelete="CASCADE"), primary_key=True, nullable=False),
-    Column(
-        "genre_id",
-        ForeignKey("genres.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    Column("movie_id", ForeignKey("movies.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    Column("genre_id", ForeignKey("genres.id", ondelete="CASCADE"), primary_key=True, nullable=False),
 )
 """ Association table linking movies and genres (many_to_many)."""
 
@@ -28,12 +26,8 @@ MovieDirectorsModel = Table(
 MovieStarsModel = Table(
     "movie_stars",
     Base.metadata,
-    Column(
-        "movie_id",
-        ForeignKey("movies.id", ondelete="CASCADE"), primary_key=True, nullable=False),
-    Column(
-        "star_id",
-        ForeignKey("stars.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    Column("movie_id", ForeignKey("movies.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    Column("star_id", ForeignKey("stars.id", ondelete="CASCADE"), primary_key=True, nullable=False),
 )
 """ Association table linking movies and stars (many_to_many)."""
 
@@ -47,15 +41,14 @@ class GenreModel(Base):
         name (str): Unique name of the genre.
         movies (list[MovieModel]): Movies associated with this genre.
     """
+
     __tablename__ = "genres"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
     movies: Mapped[list["MovieModel"]] = relationship(
-        "MovieModel",
-        secondary=MovieGenresModel,
-        back_populates="genres"
+        "MovieModel", secondary=MovieGenresModel, back_populates="genres"
     )
 
     def __repr__(self):
@@ -71,16 +64,13 @@ class StarModel(Base):
         name (str): Unique name of the star.
         movies (list[MovieModel]): Movies this star appears in.
     """
+
     __tablename__ = "stars"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
-    movies: Mapped[list["MovieModel"]] = relationship(
-        "MovieModel",
-        secondary=MovieStarsModel,
-        back_populates="stars"
-    )
+    movies: Mapped[list["MovieModel"]] = relationship("MovieModel", secondary=MovieStarsModel, back_populates="stars")
 
     def __repr__(self):
         return f"<Star(name='{self.name}')>"
@@ -95,14 +85,13 @@ class DirectorModel(Base):
         name (Optional[str]): Unique name of the director.
         movies (list[MovieModel]): Movies directed by this person.
     """
+
     __tablename__ = "directors"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
     movies: Mapped[list["MovieModel"]] = relationship(
-        "MovieModel",
-        secondary=MovieDirectorsModel,
-        back_populates="directors"
+        "MovieModel", secondary=MovieDirectorsModel, back_populates="directors"
     )
 
 
@@ -115,15 +104,13 @@ class CertificationModel(Base):
         name (str): Certification label.
         movies (list[MovieModel]): Movies with this certification.
     """
+
     __tablename__ = "certifications"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
 
-    movies: Mapped[list["MovieModel"]] = relationship(
-        "MovieModel",
-        back_populates="certification"
-    )
+    movies: Mapped[list["MovieModel"]] = relationship("MovieModel", back_populates="certification")
 
 
 class MovieModel(Base):
@@ -150,6 +137,7 @@ class MovieModel(Base):
         stars (list[StarModel]): Stars features in the movie.
         directors (list[DirectorModel]): Directors of the movie.
     """
+
     __tablename__ = "movies"
     __table_args__ = (UniqueConstraint("name", "year", "time"),)
 
@@ -169,19 +157,11 @@ class MovieModel(Base):
     certification: Mapped["CertificationModel"] = relationship("CertificationModel", back_populates="movies")
 
     genres: Mapped[list["GenreModel"]] = relationship(
-        "GenreModel",
-        secondary=MovieGenresModel,
-        back_populates="movies"
+        "GenreModel", secondary=MovieGenresModel, back_populates="movies"
     )
 
-    stars: Mapped[list["StarModel"]] = relationship(
-        "StarModel",
-        secondary=MovieStarsModel,
-        back_populates="movies"
-    )
+    stars: Mapped[list["StarModel"]] = relationship("StarModel", secondary=MovieStarsModel, back_populates="movies")
 
     directors: Mapped[list["DirectorModel"]] = relationship(
-        "DirectorModel",
-        secondary=MovieDirectorsModel,
-        back_populates="movies"
+        "DirectorModel", secondary=MovieDirectorsModel, back_populates="movies"
     )
