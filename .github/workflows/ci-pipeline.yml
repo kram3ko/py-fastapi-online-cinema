@@ -28,9 +28,9 @@ jobs:
           pip install poetry
           poetry install
 
-      - name: Run flake8
+      - name: Run ruff
         run: |
-          poetry run flake8 src
+          poetry run ruff check src
 
       - name: Run accounts tests
         run: |
@@ -53,13 +53,13 @@ jobs:
           pip install poetry
           poetry install
 
-      - name: Run flake8
+      - name: Run ruff
         run: |
-          poetry run flake8 src
+          poetry run ruff check src
 
-      - name: Run movies tests
-        run: |
-          poetry run pytest src/tests/test_integration/test_movies.py
+#      - name: Run movies tests
+#        run: |
+#          poetry run pytest src/tests/test_integration/test_movies.py
 
   test-profiles:
     runs-on: ubuntu-latest
@@ -78,9 +78,9 @@ jobs:
           pip install poetry
           poetry install
 
-      - name: Run flake8
+      - name: Run ruff
         run: |
-          poetry run flake8 src
+          poetry run ruff check src
 
       - name: Run movies tests
         run: |

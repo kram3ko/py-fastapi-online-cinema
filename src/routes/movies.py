@@ -5,19 +5,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from database import (
-    CountryModel,
-    GenreModel,
-    ActorModel,
-    LanguageModel
-)
-from database import get_db, MovieModel
+from database import get_db
+from database.models.accounts import UserModel
+from database.models.movies import MovieModel
 from pagination import Page, Params
-from schemas import (
-    MovieDetailSchema,
-    MovieListItemSchema
-)
-from schemas.movies import MovieCreateSchema, MovieUpdateSchema
+from pagination.pages import T
+from schemas.movies import MovieCreateSchema, MovieDetailSchema, MovieListItemSchema, MovieUpdateSchema
 
 router = APIRouter()
 
@@ -35,19 +28,15 @@ router = APIRouter()
     responses={
         404: {
             "description": "No movies found.",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "No movies found."}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "No movies found."}}},
         }
-    }
+    },
 )
 async def get_movie_list(
     request: Request,
     params: Params = Depends(),
     db: AsyncSession = Depends(get_db),
-) -> Page:
+) -> None:
     """
     Fetch a paginated list of movies from the database (asynchronously).
 
@@ -67,24 +56,7 @@ async def get_movie_list(
 
     :raises HTTPException: Raises a 404 error if no movies are found for the requested page.
     """
-    result = await apaginate(
-        db,
-        select(MovieModel).order_by(MovieModel.id.desc()),
-        params=params,
-        additional_data={
-            "url": request.url.path.replace('/api/v1', '', 1),
-        },
-    )
-
-    if not result.results:
-        raise HTTPException(status_code=404, detail="No movies found.")
-
-    result.results = [
-        MovieListItemSchema.model_validate(movie)
-        for movie in result.results
-    ]
-
-    return result
+    return None
 
 
 @router.post(
@@ -103,19 +75,12 @@ async def get_movie_list(
         },
         400: {
             "description": "Invalid input.",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Invalid input data."}
-                }
-            },
-        }
+            "content": {"application/json": {"example": {"detail": "Invalid input data."}}},
+        },
     },
-    status_code=201
+    status_code=201,
 )
-async def create_movie(
-    movie_data: MovieCreateSchema,
-    db: AsyncSession = Depends(get_db)
-) -> MovieDetailSchema:
+async def create_movie(movie_data: MovieCreateSchema, db: AsyncSession = Depends(get_db)) -> MovieDetailSchema | None:
     """
     Add a new movie to the database.
 
@@ -135,89 +100,7 @@ async def create_movie(
         - 409 if a movie with the same name and date already exists.
         - 400 if input data is invalid (e.g., violating a constraint).
     """
-    existing_stmt = select(MovieModel).where(
-        (MovieModel.name == movie_data.name),
-        (MovieModel.date == movie_data.date)
-    )
-    existing_result = await db.execute(existing_stmt)
-    existing_movie = existing_result.scalars().first()
-
-    if existing_movie:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"A movie with the name '{movie_data.name}' and release date "
-                f"'{movie_data.date}' already exists."
-            )
-        )
-
-    try:
-        country_stmt = select(CountryModel).where(CountryModel.code == movie_data.country)
-        country_result = await db.execute(country_stmt)
-        country = country_result.scalars().first()
-        if not country:
-            country = CountryModel(code=movie_data.country)
-            db.add(country)
-            await db.flush()
-
-        genres = []
-        for genre_name in movie_data.genres:
-            genre_stmt = select(GenreModel).where(GenreModel.name == genre_name)
-            genre_result = await db.execute(genre_stmt)
-            genre = genre_result.scalars().first()
-
-            if not genre:
-                genre = GenreModel(name=genre_name)
-                db.add(genre)
-                await db.flush()
-            genres.append(genre)
-
-        actors = []
-        for actor_name in movie_data.actors:
-            actor_stmt = select(ActorModel).where(ActorModel.name == actor_name)
-            actor_result = await db.execute(actor_stmt)
-            actor = actor_result.scalars().first()
-
-            if not actor:
-                actor = ActorModel(name=actor_name)
-                db.add(actor)
-                await db.flush()
-            actors.append(actor)
-
-        languages = []
-        for language_name in movie_data.languages:
-            lang_stmt = select(LanguageModel).where(LanguageModel.name == language_name)
-            lang_result = await db.execute(lang_stmt)
-            language = lang_result.scalars().first()
-
-            if not language:
-                language = LanguageModel(name=language_name)
-                db.add(language)
-                await db.flush()
-            languages.append(language)
-
-        movie = MovieModel(
-            name=movie_data.name,
-            date=movie_data.date,
-            score=movie_data.score,
-            overview=movie_data.overview,
-            status=movie_data.status,
-            budget=movie_data.budget,
-            revenue=movie_data.revenue,
-            country=country,
-            genres=genres,
-            actors=actors,
-            languages=languages,
-        )
-        db.add(movie)
-        await db.commit()
-        await db.refresh(movie, ["genres", "actors", "languages"])
-
-        return MovieDetailSchema.model_validate(movie)
-
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(status_code=400, detail="Invalid input data.")
+    return None
 
 
 @router.get(
@@ -233,18 +116,14 @@ async def create_movie(
     responses={
         404: {
             "description": "Movie not found.",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Movie with the given ID was not found."}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "Movie with the given ID was not found."}}},
         }
-    }
+    },
 )
 async def get_movie_by_id(
     movie_id: int,
     db: AsyncSession = Depends(get_db),
-) -> MovieDetailSchema:
+) -> MovieDetailSchema | None:
     """
     Retrieve detailed information about a specific movie by its ID.
 
@@ -261,27 +140,7 @@ async def get_movie_by_id(
 
     :raises HTTPException: Raises a 404 error if the movie with the given ID is not found.
     """
-    stmt = (
-        select(MovieModel)
-        .options(
-            joinedload(MovieModel.country),
-            joinedload(MovieModel.genres),
-            joinedload(MovieModel.actors),
-            joinedload(MovieModel.languages),
-        )
-        .where(MovieModel.id == movie_id)
-    )
-
-    result = await db.execute(stmt)
-    movie = result.scalars().first()
-
-    if not movie:
-        raise HTTPException(
-            status_code=404,
-            detail="Movie with the given ID was not found."
-        )
-
-    return MovieDetailSchema.model_validate(movie)
+    return None
 
 
 @router.delete(
@@ -293,24 +152,18 @@ async def get_movie_by_id(
         "a 404 error will be returned.</p>"
     ),
     responses={
-        204: {
-            "description": "Movie deleted successfully."
-        },
+        204: {"description": "Movie deleted successfully."},
         404: {
             "description": "Movie not found.",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Movie with the given ID was not found."}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "Movie with the given ID was not found."}}},
         },
     },
-    status_code=204
+    status_code=204,
 )
 async def delete_movie(
     movie_id: int,
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """
     Delete a specific movie by its ID.
 
@@ -327,20 +180,7 @@ async def delete_movie(
     :return: A response indicating the successful deletion of the movie.
     :rtype: None
     """
-    stmt = select(MovieModel).where(MovieModel.id == movie_id)
-    result = await db.execute(stmt)
-    movie = result.scalars().first()
-
-    if not movie:
-        raise HTTPException(
-            status_code=404,
-            detail="Movie with the given ID was not found."
-        )
-
-    await db.delete(movie)
-    await db.commit()
-
-    return {"detail": "Movie deleted successfully."}
+    pass
 
 
 @router.patch(
@@ -354,27 +194,19 @@ async def delete_movie(
     responses={
         200: {
             "description": "Movie updated successfully.",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Movie updated successfully."}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "Movie updated successfully."}}},
         },
         404: {
             "description": "Movie not found.",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Movie with the given ID was not found."}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "Movie with the given ID was not found."}}},
         },
-    }
+    },
 )
 async def update_movie(
     movie_id: int,
     movie_data: MovieUpdateSchema,
     db: AsyncSession = Depends(get_db),
-):
+) -> None:
     """
     Update a specific movie by its ID.
 
@@ -393,24 +225,4 @@ async def update_movie(
     :return: A response indicating the successful update of the movie.
     :rtype: None
     """
-    stmt = select(MovieModel).where(MovieModel.id == movie_id)
-    result = await db.execute(stmt)
-    movie = result.scalars().first()
-
-    if not movie:
-        raise HTTPException(
-            status_code=404,
-            detail="Movie with the given ID was not found."
-        )
-
-    for field, value in movie_data.model_dump(exclude_unset=True).items():
-        setattr(movie, field, value)
-
-    try:
-        await db.commit()
-        await db.refresh(movie)
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(status_code=400, detail="Invalid input data.")
-
-    return {"detail": "Movie updated successfully."}
+    pass
