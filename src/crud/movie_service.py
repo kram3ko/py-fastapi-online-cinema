@@ -1,5 +1,3 @@
-from typing import Dict, List
-
 from fastapi import HTTPException
 from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
@@ -19,7 +17,7 @@ from schemas.movies import (
 )
 
 
-async def list_genres(db: AsyncSession) -> List[GenreModel]:
+async def list_genres(db: AsyncSession) -> list[GenreModel]:
     """
     Retrieve all movie genres from the database.
     :param db: Async database session.
@@ -67,7 +65,7 @@ async def update_genre(db: AsyncSession, genre_id: int, genre_data: GenreUpdateS
     return updated
 
 
-async def delete_genre(db: AsyncSession, genre_id: int) -> Dict[str, str]:
+async def delete_genre(db: AsyncSession, genre_id: int) -> dict[str, str]:
     """
     Delete a genre by ID.
     :param db: Async database session.
@@ -81,7 +79,7 @@ async def delete_genre(db: AsyncSession, genre_id: int) -> Dict[str, str]:
     return {"detail": "Genre deleted successfully."}
 
 
-async def list_stars(db: AsyncSession) -> List[StarModel]:
+async def list_stars(db: AsyncSession) -> list[StarModel]:
     """
     Retrieve all movie stars from the database.
     :param db: Async database session.
@@ -129,7 +127,7 @@ async def update_star(db: AsyncSession, star_id: int, star_data: StarUpdateSchem
     return updated
 
 
-async def delete_star(db: AsyncSession, star_id: int) -> Dict[str, str]:
+async def delete_star(db: AsyncSession, star_id: int) -> dict[str, str]:
     """
     Delete a movie star by ID.
     :param db: Async database session.
@@ -143,7 +141,7 @@ async def delete_star(db: AsyncSession, star_id: int) -> Dict[str, str]:
     return {"detail": "Star deleted successfully."}
 
 
-async def list_movies(db: AsyncSession) -> List[MovieModel]:
+async def list_movies(db: AsyncSession) -> list[MovieModel]:
     """
     Retrieve all movies from the database.
     :param db: Async database session.
@@ -228,7 +226,7 @@ async def update_movie(db: AsyncSession, movie_id: int, data: MovieUpdateSchema)
     return movie
 
 
-async def delete_movie(db: AsyncSession, movie_id: int) -> Dict[str, str]:
+async def delete_movie(db: AsyncSession, movie_id: int) -> dict[str, str]:
     """
     Delete a movie by ID.
     :param db: Async database session.
