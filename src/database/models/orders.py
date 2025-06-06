@@ -5,8 +5,7 @@ from sqlalchemy import DECIMAL, Column, DateTime, Enum, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.functions import func
 
-from database import Base
-from database.models.accounts import UserModel
+from database.models.base import Base
 from database.models.movies import MovieModel
 
 
