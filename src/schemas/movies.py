@@ -1,7 +1,5 @@
 from typing import Optional
-
 from pydantic import BaseModel, ConfigDict, Field
-
 from schemas.examples.movies import (
     certification_schema_example,
     director_schema_example,
@@ -11,14 +9,24 @@ from schemas.examples.movies import (
     movie_item_schema_example,
     movie_list_response_schema_example,
     movie_update_schema_example,
-    star_schema_example,
+    star_schema_example, movie_list_schema_example,
 )
+import uuid
+
 
 
 class GenreBaseSchema(BaseModel):
     name: str
 
-    model_config = ConfigDict(from_attributes=True, json_schema_extra={"examples": [genre_schema_example]})
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": [
+                genre_schema_example
+            ]
+        }
+    )
+
 
 
 class GenreCreateSchema(GenreBaseSchema):
@@ -26,11 +34,11 @@ class GenreCreateSchema(GenreBaseSchema):
 
 
 class GenreUpdateSchema(GenreBaseSchema):
-    id: int
+    pass
 
 
 class GenreDeleteSchema(GenreBaseSchema):
-    id: int
+    pass
 
 
 class GenreReadSchema(GenreBaseSchema):
@@ -43,7 +51,16 @@ class GenreReadSchema(GenreBaseSchema):
 class StarBaseSchema(BaseModel):
     name: str
 
-    model_config = ConfigDict(from_attributes=True, json_schema_extra={"examples": [star_schema_example]})
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": [
+                star_schema_example
+            ]
+        }
+    )
+
 
 
 class StarCreateSchema(StarBaseSchema):
@@ -51,11 +68,11 @@ class StarCreateSchema(StarBaseSchema):
 
 
 class StarUpdateSchema(StarBaseSchema):
-    id: int
+    pass
 
 
 class StarDeleteSchema(StarBaseSchema):
-    id: int
+    pass
 
 
 class StarReadSchema(StarBaseSchema):
@@ -67,7 +84,16 @@ class StarReadSchema(StarBaseSchema):
 class DirectorBaseSchema(BaseModel):
     name: str
 
-    model_config = ConfigDict(from_attributes=True, json_schema_extra={"examples": [director_schema_example]})
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": [
+                director_schema_example
+            ]
+        }
+    )
+
 
 
 class DirectorCreateSchema(DirectorBaseSchema):
@@ -75,11 +101,11 @@ class DirectorCreateSchema(DirectorBaseSchema):
 
 
 class DirectorUpdateSchema(DirectorBaseSchema):
-    id: int
+    pass
 
 
 class DirectorDeleteSchema(DirectorBaseSchema):
-    id: int
+    pass
 
 
 class DirectorReadSchema(DirectorBaseSchema):
@@ -91,7 +117,16 @@ class DirectorReadSchema(DirectorBaseSchema):
 class CertificationBaseSchema(BaseModel):
     name: str
 
-    model_config = ConfigDict(from_attributes=True, json_schema_extra={"examples": [certification_schema_example]})
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": [
+                certification_schema_example
+            ]
+        }
+    )
+
 
 
 class CertificationCreateSchema(CertificationBaseSchema):
@@ -99,11 +134,11 @@ class CertificationCreateSchema(CertificationBaseSchema):
 
 
 class CertificationUpdateSchema(CertificationBaseSchema):
-    id: int
+    pass
 
 
 class CertificationDeleteSchema(CertificationBaseSchema):
-    id: int
+    pass
 
 
 class CertificationReadSchema(CertificationBaseSchema):
@@ -113,6 +148,7 @@ class CertificationReadSchema(CertificationBaseSchema):
 
 
 class MovieBaseSchema(BaseModel):
+    uuid_movie: uuid.UUID
     name: str
     year: int
     time: int
@@ -124,7 +160,16 @@ class MovieBaseSchema(BaseModel):
     price: float
     certification_id: int
 
-    model_config = ConfigDict(from_attributes=True, json_schema_extra={"examples": [movie_item_schema_example]})
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": [
+                movie_item_schema_example
+            ]
+        }
+    )
+
 
 
 class MovieDetailSchema(MovieBaseSchema):
@@ -133,7 +178,12 @@ class MovieDetailSchema(MovieBaseSchema):
     stars: list[StarBaseSchema]
     directors: list[DirectorBaseSchema]
 
-    model_config = ConfigDict(from_attributes=True, json_schema_extra={"example": movie_detail_schema_example})
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": movie_detail_schema_example
+        }
+    )
 
 
 class MovieListItemSchema(BaseModel):
@@ -142,8 +192,14 @@ class MovieListItemSchema(BaseModel):
     year: int
     imdb: float
     time: int
+    genres: list[GenreBaseSchema]
 
-    model_config = ConfigDict(from_attributes=True, json_schema_extra={"example": movie_item_schema_example})
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": movie_list_schema_example
+        }
+    )
 
 
 class MovieListResponseSchema(BaseModel):
@@ -154,16 +210,40 @@ class MovieListResponseSchema(BaseModel):
     total_items: int
 
     model_config = ConfigDict(
-        from_attributes=True, json_schema_extra={"examples": [movie_list_response_schema_example]}
+
+        from_attributes=True,
+        json_schema_extra={
+            "example": [
+                movie_list_response_schema_example
+            ]
+        }
+
     )
 
 
-class MovieCreateSchema(MovieBaseSchema):
+class MovieCreateSchema(BaseModel):
+    name: str
+    year: int
+    time: int
+    gross: Optional[float]
+    descriptions: str
+    price: float
+    certification_id: int
     genre_ids: list[int]
     star_ids: list[int]
     director_ids: list[int]
 
-    model_config = ConfigDict(from_attributes=True, json_schema_extra={"examples": [movie_create_schema_example]})
+
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": [
+                movie_create_schema_example
+            ]
+        }
+    )
+
 
 
 class MovieUpdateSchema(BaseModel):
@@ -181,7 +261,16 @@ class MovieUpdateSchema(BaseModel):
     star_ids: Optional[list[int]] = None
     director_ids: Optional[list[int]] = None
 
-    model_config = ConfigDict(from_attributes=True, json_schema_extra={"examples": [movie_update_schema_example]})
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": [
+                movie_update_schema_example
+            ]
+        }
+    )
+
 
 
 class MovieDeleteSchema(MovieBaseSchema):
