@@ -28,6 +28,7 @@ class GenreBaseSchema(BaseModel):
     )
 
 
+
 class GenreCreateSchema(GenreBaseSchema):
     pass
 
@@ -50,6 +51,7 @@ class GenreReadSchema(GenreBaseSchema):
 class StarBaseSchema(BaseModel):
     name: str
 
+
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -58,6 +60,7 @@ class StarBaseSchema(BaseModel):
             ]
         }
     )
+
 
 
 class StarCreateSchema(StarBaseSchema):
@@ -81,6 +84,7 @@ class StarReadSchema(StarBaseSchema):
 class DirectorBaseSchema(BaseModel):
     name: str
 
+
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -89,6 +93,7 @@ class DirectorBaseSchema(BaseModel):
             ]
         }
     )
+
 
 
 class DirectorCreateSchema(DirectorBaseSchema):
@@ -112,6 +117,7 @@ class DirectorReadSchema(DirectorBaseSchema):
 class CertificationBaseSchema(BaseModel):
     name: str
 
+
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -120,6 +126,7 @@ class CertificationBaseSchema(BaseModel):
             ]
         }
     )
+
 
 
 class CertificationCreateSchema(CertificationBaseSchema):
@@ -153,6 +160,7 @@ class MovieBaseSchema(BaseModel):
     price: float
     certification_id: int
 
+
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -161,6 +169,7 @@ class MovieBaseSchema(BaseModel):
             ]
         }
     )
+
 
 
 class MovieDetailSchema(MovieBaseSchema):
@@ -201,12 +210,14 @@ class MovieListResponseSchema(BaseModel):
     total_items: int
 
     model_config = ConfigDict(
+
         from_attributes=True,
         json_schema_extra={
             "example": [
                 movie_list_response_schema_example
             ]
         }
+
     )
 
 
@@ -223,6 +234,7 @@ class MovieCreateSchema(BaseModel):
     director_ids: list[int]
 
 
+
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -231,6 +243,7 @@ class MovieCreateSchema(BaseModel):
             ]
         }
     )
+
 
 
 class MovieUpdateSchema(BaseModel):
@@ -248,6 +261,7 @@ class MovieUpdateSchema(BaseModel):
     star_ids: Optional[list[int]] = None
     director_ids: Optional[list[int]] = None
 
+
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -256,6 +270,7 @@ class MovieUpdateSchema(BaseModel):
             ]
         }
     )
+
 
 
 class MovieDeleteSchema(MovieBaseSchema):

@@ -388,6 +388,7 @@ async def create_movie(
     """
     Create a new movie including relationships to genres, stars, and directors.
     """
+
     movie = MovieModel(
         **movie_data.model_dump(
             exclude={"genre_ids", "star_ids", "director_ids"}
@@ -421,6 +422,8 @@ async def create_movie(
     directors_result = await db.execute(
         select(DirectorModel)
         .where(DirectorModel.id.in_(movie_data.director_ids))
+
+  
     )
     directors = directors_result.scalars().all()
     if len(directors) != len(set(movie_data.director_ids)):
@@ -476,6 +479,7 @@ async def update_movie(
 
     if data.genre_ids:
         movie.genres = await db.execute(
+
             select(MovieModel.genres.property.mapper.class_)
             .filter(MovieModel.genres
                     .property.mapper.class_.id.in_(data.genre_ids))
@@ -491,7 +495,7 @@ async def update_movie(
             select(MovieModel.directors.property.mapper.class_)
             .filter(MovieModel.directors
                     .property.mapper.class_.id.in_(data.director_ids))
-        )
+
 
     await db.commit()
     await db.refresh(movie)

@@ -3,16 +3,14 @@ from fastapi.params import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from database import get_db
+from database.deps import get_db
 from database.models.orders import OrderItemModel, OrderModel
 from database.models.payments import PaymentItemModel, PaymentModel
 from schemas.payments import PaymentCreateSchema, PaymentStatusSchema
 
 
 async def create_payment(
-    payment_data: PaymentCreateSchema,
-    user_id: int,
-    db: AsyncSession = Depends(get_db)
+    payment_data: PaymentCreateSchema, user_id: int, db: AsyncSession = Depends(get_db)
 ) -> PaymentModel:
     result = await db.execute(select(OrderModel).where(OrderModel.id == payment_data.order_id))
     order = result.scalar_one_or_none()
@@ -30,7 +28,8 @@ async def create_payment(
     if total_amount != payment_data.amount:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Incorrect payment ammount. Expected: {total_amount}, Got: {payment_data.amount}")
+            detail=f"Incorrect payment ammount. Expected: {total_amount}, Got: {payment_data.amount}",
+        )
 
     payment = PaymentModel(
         user_id=user_id,
@@ -56,10 +55,7 @@ async def create_payment(
     return payment
 
 
-async def get_user_payments(
-    user_id: int,
-    db: AsyncSession = Depends(get_db)
-) -> any:
+async def get_user_payments(user_id: int, db: AsyncSession = Depends(get_db)) -> any:
     result = await db.execute(select(PaymentModel).where(PaymentModel.user_id == user_id))
 
     return result.scalars().all()

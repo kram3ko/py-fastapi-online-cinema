@@ -85,5 +85,5 @@ movie_update_schema_example = {
     "certification_id": 2,
     "genres_id": [1, 4],
     "stars_id": [1],
-    "directors_id": [1]
+    "directors_id": [1],
 }
