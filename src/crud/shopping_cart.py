@@ -137,7 +137,6 @@ async def remove_movie_from_cart(
     If successful, returns (True, None).
     If error occurs, returns (False, error).
     """
-    # Check if cart exists
     cart = await db.get(Cart, cart_id)
     if not cart:
         return False, CartNotFoundError()
