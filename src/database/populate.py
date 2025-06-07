@@ -1,5 +1,6 @@
 import asyncio
 import math
+import os
 
 import pandas as pd
 from sqlalchemy import func, insert, select
@@ -11,6 +12,8 @@ from config import get_settings
 from database.deps import get_db_contextmanager
 from database.models.accounts import UserGroupEnum, UserGroupModel
 from database.models.movies import MovieModel, StarModel
+from database.models.orders import OrderModel
+from database.models.shopping_cart import Cart
 
 CHUNK_SIZE = 1000
 
@@ -21,9 +24,9 @@ class CSVDatabaseSeeder:
         self._db_session = db_session
 
     async def is_db_populated(self) -> bool:
-        result = await self._db_session.execute(select(MovieModel).limit(1))
-        first_movie = result.scalars().first()
-        return first_movie is not None
+        result = await self._db_session.execute(select(UserGroupModel).limit(1))
+        first_group = result.scalars().first()
+        return first_group is not None
 
     def _preprocess_csv(self) -> pd.DataFrame:
         data = pd.read_csv(self._csv_file_path)
@@ -50,13 +53,13 @@ class CSVDatabaseSeeder:
         return data
 
     async def _seed_user_groups(self) -> None:
-        count_stmt = select(func.count(UserGroupModel.id))
-        result = await self._db_session.execute(count_stmt)
-        existing_groups = result.scalar()
-
-        if existing_groups == 0:
-            groups = [{"name": group.value} for group in UserGroupEnum]
-            await self._db_session.execute(insert(UserGroupModel).values(groups))
+        """
+        Seeds user groups from enums.
+        """
+        # Seed user groups
+        user_groups = [{"name": group.value} for group in UserGroupEnum]
+        if user_groups:
+            await self._db_session.execute(insert(UserGroupModel).values(user_groups))
             await self._db_session.flush()
             print("User groups seeded successfully.")
 
@@ -154,7 +157,6 @@ class CSVDatabaseSeeder:
                 await self._db_session.rollback()
 
             await self._seed_user_groups()
-
             await self._db_session.commit()
             print("Seeding completed.")
 
@@ -181,5 +183,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    pass
-    # asyncio.run(main())
+    asyncio.run(main())

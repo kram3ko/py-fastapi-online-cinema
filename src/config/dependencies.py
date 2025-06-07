@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.settings import BaseAppSettings, Settings, TestingSettings
 from database.deps import get_db
 from database.models.accounts import UserModel
-from notifications import EmailSender, EmailSenderInterface
+from notifications.emails import EmailSender, EmailSenderInterface
 from security.http import get_token
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
@@ -56,7 +56,7 @@ def get_jwt_auth_manager(
 
 
 def get_accounts_email_notificator(
-    settings: BaseAppSettings = Depends(get_settings),
+    settings: BaseAppSettings,
 ) -> EmailSenderInterface:
     """
     Retrieve an instance of the EmailSenderInterface configured with the application settings.
@@ -66,8 +66,7 @@ def get_accounts_email_notificator(
     to send various email notifications (e.g., activation, password reset) as required.
 
     Args:
-        settings (BaseAppSettings, optional): The application settings,
-        provided via dependency injection from `get_settings`.
+        settings (BaseAppSettings): The application settings.
 
     Returns:
         EmailSenderInterface: An instance of EmailSender configured with the appropriate email settings.
