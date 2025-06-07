@@ -355,8 +355,9 @@ async def reset_password(
 
     now_utc = datetime.now(timezone.utc)
     if not token_record or cast(datetime, token_record.expires_at).replace(tzinfo=timezone.utc) < now_utc:
-        if token_record:
-            await db.delete(token_record)
+        user = await db.scalar(select(UserModel).where(UserModel.email == data.email))
+        if user:
+            await db.execute(delete(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == user.id))
             await db.commit()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email or token.")
 
@@ -365,7 +366,7 @@ async def reset_password(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User account is not active.")
 
     try:
-        user.password = data.new_password
+        user.password = data.password
         await db.delete(token_record)
         await db.commit()
     except SQLAlchemyError as e:
@@ -376,7 +377,6 @@ async def reset_password(
 
     login_link = f"{settings.FRONTEND_URL}/accounts/login/"
 
-    # Отправляем письмо через Celery
     send_password_reset_complete_email_task.delay(str(data.email), login_link)
 
     return MessageResponseSchema(message="Password has been reset successfully.")
@@ -387,7 +387,7 @@ async def reset_password(
     response_model=UserLoginResponseSchema,
     summary="User Login",
     description="Authenticate a user and return access and refresh tokens.",
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
     responses={
         401: {
             "description": "Unauthorized - Invalid email or password.",
