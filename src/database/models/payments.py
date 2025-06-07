@@ -5,9 +5,7 @@ from enum import Enum as PyEnum
 from sqlalchemy import DECIMAL, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.models.accounts import UserModel
 from database.models.base import Base
-from database.models.orders import OrderItemModel, OrderModel
 
 
 class PaymentStatus(PyEnum):
@@ -29,8 +27,8 @@ class PaymentModel(Base):
     amount: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)
     external_payment_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
-    user: Mapped[UserModel] = relationship(back_populates="payments")
-    order: Mapped[OrderModel] = relationship(back_populates="payments")
+    user: Mapped["UserModel"] = relationship(back_populates="payments")
+    order: Mapped["OrderModel"] = relationship(back_populates="payments")
     payment_items: Mapped[list["PaymentItemModel"]] = relationship(back_populates="payment")
 
 
