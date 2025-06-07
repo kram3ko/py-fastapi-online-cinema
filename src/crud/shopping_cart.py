@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,31 +11,37 @@ from database.models.shopping_cart import Cart, CartItem
 
 class CartError(Exception):
     """Base exception for cart-related errors."""
+
     pass
 
 
 class MovieNotFoundError(CartError):
     """Raised when movie doesn't exist."""
+
     pass
 
 
 class MovieAlreadyInCartError(CartError):
     """Raised when movie is already in cart."""
+
     pass
 
 
 class MovieAlreadyPurchasedError(CartError):
     """Raised when movie was already purchased by user."""
+
     pass
 
 
 class CartNotFoundError(CartError):
     """Raised when cart doesn't exist."""
+
     pass
 
 
 class MovieNotInCartError(CartError):
     """Raised when trying to remove a movie that's not in the cart."""
+
     pass
 
 
@@ -44,7 +50,11 @@ async def get_user_cart(db: AsyncSession, user_id: int) -> Optional[Cart]:
     Get user's shopping cart with all items.
     If cart doesn't exist, returns None.
     """
-    query = select(Cart).options(selectinload(Cart.items).selectinload(CartItem.movie)).where(Cart.user_id == user_id)
+    query = (
+        select(Cart)
+        .options(selectinload(Cart.items).selectinload(CartItem.movie))
+        .where(Cart.user_id == user_id)
+    )
     result = await db.execute(query)
     return result.scalar_one_or_none()
 
@@ -66,7 +76,9 @@ async def get_or_create_cart(db: AsyncSession, user_id: int) -> Cart:
     return cart
 
 
-async def is_movie_purchased(db: AsyncSession, user_id: int, movie_id: int) -> bool:
+async def is_movie_purchased(
+    db: AsyncSession, user_id: int, movie_id: int
+) -> bool:
     """
     Check if user has already purchased the movie.
     Returns True if movie was purchased, False otherwise.
@@ -86,7 +98,9 @@ async def is_movie_purchased(db: AsyncSession, user_id: int, movie_id: int) -> b
     return result.scalar_one_or_none() is not None
 
 
-async def add_movie_to_cart(db: AsyncSession, cart_id: int, movie_id: int, user_id: int) -> Tuple[Optional[CartItem], Optional[CartError]]:
+async def add_movie_to_cart(
+    db: AsyncSession, cart_id: int, movie_id: int, user_id: int
+) -> tuple[Optional[CartItem], Optional[CartError]]:
     """
     Add movie to cart.
     Returns a tuple of (cart_item, error).
@@ -97,7 +111,9 @@ async def add_movie_to_cart(db: AsyncSession, cart_id: int, movie_id: int, user_
     if not movie:
         return None, MovieNotFoundError()
 
-    query = select(CartItem).where(CartItem.cart_id == cart_id, CartItem.movie_id == movie_id)
+    query = select(CartItem).where(
+        CartItem.cart_id == cart_id, CartItem.movie_id == movie_id
+    )
     result = await db.execute(query)
     if result.scalar_one_or_none():
         return None, MovieAlreadyInCartError()
@@ -112,7 +128,9 @@ async def add_movie_to_cart(db: AsyncSession, cart_id: int, movie_id: int, user_
     return cart_item, None
 
 
-async def remove_movie_from_cart(db: AsyncSession, cart_id: int, movie_id: int) -> Tuple[bool, Optional[CartError]]:
+async def remove_movie_from_cart(
+    db: AsyncSession, cart_id: int, movie_id: int
+) -> tuple[bool, Optional[CartError]]:
     """
     Remove movie from cart.
     Returns a tuple of (success, error).
@@ -124,26 +142,27 @@ async def remove_movie_from_cart(db: AsyncSession, cart_id: int, movie_id: int) 
     if not cart:
         return False, CartNotFoundError()
 
-    # Check if movie exists
     movie = await db.get(MovieModel, movie_id)
     if not movie:
         return False, MovieNotFoundError()
 
-    # Check if movie is in cart
-    query = select(CartItem).where(CartItem.cart_id == cart_id, CartItem.movie_id == movie_id)
+    query = select(CartItem).where(
+        CartItem.cart_id == cart_id, CartItem.movie_id == movie_id
+    )
     result = await db.execute(query)
     cart_item = result.scalar_one_or_none()
 
     if not cart_item:
         return False, MovieNotInCartError()
 
-    # Remove movie from cart
     await db.delete(cart_item)
     await db.commit()
     return True, None
 
 
-async def clear_cart(db: AsyncSession, cart_id: int) -> Tuple[bool, Optional[CartError]]:
+async def clear_cart(
+    db: AsyncSession, cart_id: int
+) -> tuple[bool, Optional[CartError]]:
     """
     Remove all items from cart.
     Returns a tuple of (success, error).

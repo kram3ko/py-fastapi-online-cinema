@@ -4,10 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.dependencies import get_current_user
 from crud import shopping_cart as cart_crud
 from crud.shopping_cart import (
+    CartNotFoundError,
     MovieAlreadyInCartError,
     MovieAlreadyPurchasedError,
     MovieNotFoundError,
-    CartNotFoundError,
     MovieNotInCartError,
 )
 from database.deps import get_db
