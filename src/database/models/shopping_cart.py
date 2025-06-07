@@ -1,11 +1,14 @@
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database.models.accounts import UserModel
 from database.models.base import Base
-from database.models.movies import MovieModel
+
+if TYPE_CHECKING:
+    from database.models.accounts import UserModel
+    from database.models.movies import MovieModel
 
 
 class Cart(Base):
@@ -43,8 +46,8 @@ class CartItem(Base):
     movie_id: Mapped[int] = mapped_column(Integer, ForeignKey("movies.id", ondelete="CASCADE"), nullable=False)
     added_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now(timezone.utc))
 
-    cart: Mapped[list["Cart"]] = relationship("Cart", back_populates="items")
-    movie: Mapped[list["MovieModel"]] = relationship("MovieModel")
+    cart: Mapped["Cart"] = relationship("Cart", back_populates="items")
+    movie: Mapped["MovieModel"] = relationship("MovieModel")
 
     __table_args__ = (UniqueConstraint("cart_id", "movie_id", name="uix_cart_movie"),)
 
