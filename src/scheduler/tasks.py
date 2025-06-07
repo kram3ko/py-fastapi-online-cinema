@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
+
 @celery_app.task
 def delete_expired_activation_tokens() -> int | None:
     with get_sync_db_contextmanager() as db:
@@ -28,6 +29,7 @@ def delete_expired_activation_tokens() -> int | None:
             logger.error(f"Error deleting tokens: {e}")
     return None
 
+
 @celery_app.task(name="send_activation_email")
 def send_activation_email_task(email: str, activation_link: str) -> None:
     """Send activation email."""
@@ -37,6 +39,7 @@ def send_activation_email_task(email: str, activation_link: str) -> None:
         logger.info(f"Activation email sent to {email}")
     except Exception as e:
         logger.error(f"Error sending activation email to {email}: {e}")
+
 
 @celery_app.task(name="send_activation_complete_email")
 def send_activation_complete_email_task(email: str, login_link: str) -> None:
@@ -48,6 +51,7 @@ def send_activation_complete_email_task(email: str, login_link: str) -> None:
     except Exception as e:
         logger.error(f"Error sending activation complete email to {email}: {e}")
 
+
 @celery_app.task(name="send_password_reset_email")
 def send_password_reset_email_task(email: str, reset_link: str) -> None:
     """Send password reset email."""
@@ -57,6 +61,7 @@ def send_password_reset_email_task(email: str, reset_link: str) -> None:
         logger.info(f"Password reset email sent to {email}")
     except Exception as e:
         logger.error(f"Error sending password reset email to {email}: {e}")
+
 
 @celery_app.task(name="send_password_reset_complete_email")
 def send_password_reset_complete_email_task(email: str, login_link: str) -> None:

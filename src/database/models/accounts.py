@@ -1,6 +1,6 @@
 import enum
 from datetime import date, datetime, timedelta, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
@@ -9,6 +9,11 @@ from database.models.base import Base
 from database.validators import accounts as validators
 from security.passwords import hash_password, verify_password
 from security.utils import generate_secure_token
+
+if TYPE_CHECKING:
+    from database.models.orders import OrderModel
+    from database.models.payments import PaymentModel
+    from database.models.shopping_cart import Cart
 
 
 class UserGroupEnum(str, enum.Enum):
@@ -28,7 +33,7 @@ class UserGroupModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[UserGroupEnum] = mapped_column(Enum(UserGroupEnum), nullable=False, unique=True)
 
-    users: Mapped[list["UserModel"]] = relationship("UserModel", back_populates="group")
+    users: Mapped[Optional["UserModel"]] = relationship("UserModel", back_populates="group")
 
     def __repr__(self):
         return f"<UserGroupModel(id={self.id}, name={self.name})>"
@@ -114,12 +119,12 @@ class UserProfileModel(Base):
     __tablename__ = "user_profiles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    first_name: Mapped[Optional[str]] = mapped_column(String(100))
-    last_name: Mapped[Optional[str]] = mapped_column(String(100))
-    avatar: Mapped[Optional[str]] = mapped_column(String(255))
-    gender: Mapped[Optional[GenderEnum]] = mapped_column(Enum(GenderEnum))
-    date_of_birth: Mapped[Optional[date]] = mapped_column(Date)
-    info: Mapped[Optional[str]] = mapped_column(Text)
+    first_name: Mapped[str | None] = mapped_column(String(100))
+    last_name: Mapped[str | None] = mapped_column(String(100))
+    avatar: Mapped[str | None] = mapped_column(String(255))
+    gender: Mapped[GenderEnum | None] = mapped_column(Enum(GenderEnum))
+    date_of_birth: Mapped[date | None] = mapped_column(Date)
+    info: Mapped[str | None] = mapped_column(Text)
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
     user: Mapped["UserModel"] = relationship("UserModel", back_populates="profile")

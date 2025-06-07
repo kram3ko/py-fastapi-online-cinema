@@ -1,38 +1,38 @@
 # Account related models
 from database.models.accounts import (
-    UserModel,
-    UserGroupModel,
-    UserProfileModel,
     ActivationTokenModel,
+    GenderEnum,
     PasswordResetTokenModel,
     RefreshTokenModel,
     UserGroupEnum,
-    GenderEnum,
+    UserGroupModel,
+    UserModel,
+    UserProfileModel,
 )
 
 # Movie related models
 from database.models.movies import (
-    MovieModel,
-    GenreModel,
-    StarModel,
-    DirectorModel,
     CertificationModel,
-    MovieGenresModel,
+    DirectorModel,
+    GenreModel,
     MovieDirectorsModel,
+    MovieGenresModel,
+    MovieModel,
     MovieStarsModel,
+    StarModel,
 )
 
 # Order related models
 from database.models.orders import (
-    OrderModel,
     OrderItemModel,
+    OrderModel,
     OrderStatus,
 )
 
 # Payment related models
 from database.models.payments import (
-    PaymentModel,
     PaymentItemModel,
+    PaymentModel,
     PaymentStatus,
 )
 

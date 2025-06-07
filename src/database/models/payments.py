@@ -1,11 +1,16 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from enum import Enum as PyEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DECIMAL, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.models.base import Base
+
+if TYPE_CHECKING:
+    from database.models.accounts import UserModel
+    from database.models.orders import OrderItemModel, OrderModel
 
 
 class PaymentStatus(PyEnum):

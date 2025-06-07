@@ -18,6 +18,12 @@ from database.models.accounts import (
     UserModel,
 )
 from exceptions import BaseSecurityError
+from scheduler.tasks import (
+    send_activation_complete_email_task,
+    send_activation_email_task,
+    send_password_reset_complete_email_task,
+    send_password_reset_email_task,
+)
 from schemas.accounts import (
     MessageResponseSchema,
     PasswordResetCompleteRequestSchema,
@@ -32,12 +38,6 @@ from schemas.accounts import (
     UserRegistrationResponseSchema,
 )
 from security.interfaces import JWTAuthManagerInterface
-from scheduler.tasks import (
-    send_activation_email_task,
-    send_activation_complete_email_task,
-    send_password_reset_email_task,
-    send_password_reset_complete_email_task,
-)
 
 router = APIRouter()
 
@@ -257,7 +257,7 @@ async def resend_activation_email(
 
     # Удаляем старый токен, если он есть
     await db.execute(delete(ActivationTokenModel).where(ActivationTokenModel.user_id == user.id))
-    
+
     # Создаем новый токен
     activation_token = ActivationTokenModel(user_id=user.id)
     db.add(activation_token)
@@ -292,7 +292,7 @@ async def request_password_reset_token(
 
     # Удаляем старый токен, если он есть
     await db.execute(delete(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == user.id))
-    
+
     # Создаем новый токен
     reset_token = PasswordResetTokenModel(user_id=user.id)
     db.add(reset_token)

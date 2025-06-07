@@ -1,11 +1,17 @@
 import enum
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DECIMAL, Column, DateTime, Enum, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.functions import func
 
 from database.models.base import Base
+
+if TYPE_CHECKING:
+    from database.models.accounts import UserModel
+    from database.models.movies import MovieModel
+    from database.models.payments import PaymentItemModel, PaymentModel
 
 
 class OrderStatus(enum.Enum):
