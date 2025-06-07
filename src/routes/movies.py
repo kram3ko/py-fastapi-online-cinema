@@ -1,8 +1,8 @@
-from typing import Dict
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
+from fastapi_pagination import Params
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from crud.movie_crud import count_movies
 from crud.movie_service import (
     create_genre,
     create_movie,
@@ -10,15 +10,24 @@ from crud.movie_service import (
     delete_genre,
     delete_movie,
     delete_star,
-    get_genre_by_id as get_genre,
-    get_star_by_id as get_star,
-    get_all_genres as list_genres,
-    get_all_movies as list_movies,
-    get_all_stars as list_stars,
-    get_movie_by_id as get_movie,
+    get_genre,
+    get_star,
+    list_genres,
+    list_movies,
+    list_stars,
     update_genre,
     update_movie,
     update_star,
+    get_director,
+    create_director,
+    update_director,
+    delete_director,
+    list_directors,
+    delete_certification,
+    update_certification,
+    create_certification,
+    get_certification,
+    list_certifications,
 )
 from database import get_db
 from pagination import Page
@@ -33,6 +42,12 @@ from schemas.movies import (
     StarCreateSchema,
     StarReadSchema,
     StarUpdateSchema,
+    DirectorReadSchema,
+    DirectorCreateSchema,
+    DirectorUpdateSchema,
+    CertificationUpdateSchema,
+    CertificationReadSchema,
+    CertificationCreateSchema,
 )
 
 router = APIRouter()
@@ -42,7 +57,9 @@ router = APIRouter()
     "/genres/",
     response_model=list[GenreReadSchema]
 )
-async def get_genres(db: AsyncSession = Depends(get_db)) -> list[GenreReadSchema]:
+async def get_genres(
+        db: AsyncSession = Depends(get_db)
+) -> list[GenreReadSchema]:
     """
     Get a list of all movie genres.
     """
@@ -128,7 +145,10 @@ async def get_star_by_id(
     return await get_star(db, star_id)
 
 
-@router.post("/stars/", response_model=StarReadSchema, status_code=201)
+@router.post("/stars/",
+             response_model=StarReadSchema,
+             status_code=201
+             )
 async def create_movie_star(
         star_data: StarCreateSchema,
         db: AsyncSession = Depends(get_db)
@@ -139,7 +159,9 @@ async def create_movie_star(
     return await create_star(db, star_data)
 
 
-@router.put("/stars/{star_id}/", response_model=StarReadSchema)
+@router.put("/stars/{star_id}/",
+            response_model=StarReadSchema
+            )
 async def update_movie_star(
         star_id: int,
         star_data: StarUpdateSchema,
@@ -165,17 +187,160 @@ async def delete_movie_star(
     return {"detail": "Star not found."}
 
 
+@router.get("/directors/",
+            response_model=list[DirectorReadSchema]
+            )
+async def get_directors(
+        db: AsyncSession = Depends(get_db)
+) -> list[DirectorReadSchema]:
+    """
+    Get a list of all movie directors.
+    """
+    return await list_directors(db)
+
+
+@router.get("/directors/{director_id}/",
+            response_model=DirectorReadSchema
+            )
+async def get_director_by_id(
+        director_id: int,
+        db: AsyncSession = Depends(get_db)
+) -> DirectorReadSchema:
+    """
+    Retrieve a movie director by ID.
+    """
+    return await get_director(db, director_id)
+
+
+@router.post("/directors/",
+             response_model=DirectorReadSchema,
+             status_code=201
+             )
+async def create_movie_director(
+        director_data: DirectorCreateSchema,
+        db: AsyncSession = Depends(get_db)
+) -> DirectorReadSchema:
+    """
+    Create a new movie director.
+    """
+    return await create_director(db, director_data)
+
+
+@router.put("/director/{director_id}/",
+            response_model=DirectorReadSchema
+            )
+async def update_movie_director(
+        director_id: int,
+        director_data: DirectorUpdateSchema,
+        db: AsyncSession = Depends(get_db)
+) -> DirectorReadSchema:
+    """
+    Update a movie director by ID.
+    """
+    return await update_director(db, director_id, director_data)
+
+
+@router.delete("/directors/{director_id}/")
+async def delete_movie_director(
+        director_id: int,
+        db: AsyncSession = Depends(get_db)
+) -> dict[str, str]:
+    """
+    Delete a movie director by ID.
+    """
+    return await delete_director(db, director_id)
+
+
+@router.get("/certifications/",
+            response_model=list[CertificationReadSchema]
+            )
+async def get_certifications(
+        db: AsyncSession = Depends(get_db)
+) -> list[CertificationReadSchema]:
+    """
+    Get a list of all movie certifications.
+    """
+    return await list_certifications(db)
+
+
+@router.get("/certifications/{certification_id}/",
+            response_model=CertificationReadSchema)
+async def get_certification_by_id(
+        certification_id: int,
+        db: AsyncSession = Depends(get_db)
+) -> CertificationReadSchema:
+    """
+    Retrieve a movie certification by ID.
+    """
+    return await get_certification(db, certification_id)
+
+
+@router.post("/certifications/",
+             response_model=CertificationReadSchema,
+             status_code=201
+             )
+async def create_movie_certification(
+        certification_data: CertificationCreateSchema,
+        db: AsyncSession = Depends(get_db)
+) -> CertificationReadSchema:
+    """
+    Create a new movie certification.
+    """
+    return await create_certification(db, certification_data)
+
+
+@router.put("/certification/{certification_id}/",
+            response_model=CertificationReadSchema
+            )
+async def update_movie_certification(
+        certification_id: int,
+        certification_data: CertificationUpdateSchema,
+        db: AsyncSession = Depends(get_db)
+) -> CertificationReadSchema:
+    """
+    Update a movie certification by ID.
+    """
+    return await update_certification(
+        db,
+        certification_id,
+        certification_data
+    )
+
+
+@router.delete("/certifications/{certification_id}/")
+async def delete_movie_certification(
+        certification_id: int,
+        db: AsyncSession = Depends(get_db)
+) -> dict[str, str]:
+    """
+    Delete a movie certification by ID.
+    """
+    return await delete_certification(
+        db, certification_id
+    )
+
+
 @router.get(
     "/movies/",
     response_model=Page[MovieListItemSchema]
 )
 async def get_movies(
+    request: Request,
     db: AsyncSession = Depends(get_db),
+    params: Params = Depends(),
 ) -> Page[MovieListItemSchema]:
     """
     Get a paginated list of movies.
     """
-    return await list_movies(db)
+    movies = await list_movies(db, params)
+    total = await count_movies(db)
+
+    return Page.create(
+        items=movies,
+        params=params,
+        total=total,
+        url=str(request.url.path),
+    )
 
 
 @router.get(
@@ -189,10 +354,13 @@ async def get_movie_by_id(
     """
     Get detailed information about a movie by its ID.
     """
-    return await get_movie(db, movie_id)
+    return await get_movies(db, movie_id)
 
 
-@router.post("/movies/", response_model=MovieDetailSchema, status_code=201)
+@router.post("/movies/",
+             response_model=MovieDetailSchema,
+             status_code=201
+             )
 async def create_one_movie(
         data: MovieCreateSchema,
         db: AsyncSession = Depends(get_db)
@@ -203,11 +371,13 @@ async def create_one_movie(
     return await create_movie(db, data)
 
 
-@router.put("/movies/{movie_id}/", response_model=MovieDetailSchema)
+@router.put("/movies/{movie_id}/",
+            response_model=MovieDetailSchema
+            )
 async def update_one_movie(
-        movie_id: int,
-        data: MovieUpdateSchema,
-        db: AsyncSession = Depends(get_db)
+    movie_id: int,
+    data: MovieUpdateSchema,
+    db: AsyncSession = Depends(get_db)
 ) -> MovieDetailSchema:
     """
     Update an existing movie by ID.
