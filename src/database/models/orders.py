@@ -6,7 +6,6 @@ from sqlalchemy.orm import Mapped, relationship
 from sqlalchemy.sql.functions import func
 
 from database.models.base import Base
-from database.models.movies import MovieModel
 
 
 class OrderStatus(enum.Enum):
@@ -25,6 +24,7 @@ class OrderModel(Base):
 
     user: Mapped["UserModel"] = relationship("UserModel", back_populates="orders")
     order_items: Mapped[list["OrderItemModel"]] = relationship("OrderItemModel", back_populates="order")
+    payments: Mapped[list["PaymentModel"]] = relationship("PaymentModel", back_populates="order")
 
 
 class OrderItemModel(Base):
@@ -36,3 +36,4 @@ class OrderItemModel(Base):
 
     order: Mapped["OrderModel"] = relationship("OrderModel", back_populates="order_items")
     movie: Mapped["MovieModel"] = relationship("MovieModel", back_populates="order_items")
+    payment_items: Mapped[list["PaymentItemModel"]] = relationship("PaymentItemModel", back_populates="order_item")

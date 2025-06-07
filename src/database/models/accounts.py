@@ -51,6 +51,7 @@ class UserModel(Base):
 
     orders: Mapped[list["OrderModel"]] = relationship("OrderModel", back_populates="user")
     cart: Mapped["Cart"] = relationship("Cart", back_populates="user", uselist=False)
+    payments: Mapped[list["PaymentModel"]] = relationship("PaymentModel", back_populates="user")
 
     activation_token: Mapped[Optional["ActivationTokenModel"]] = relationship(
         "ActivationTokenModel", back_populates="user", cascade="all, delete-orphan"
@@ -121,7 +122,7 @@ class UserProfileModel(Base):
     info: Mapped[Optional[str]] = mapped_column(Text)
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
-    user: Mapped[UserModel] = relationship("UserModel", back_populates="profile")
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="profile")
 
     __table_args__ = (UniqueConstraint("user_id"),)
 
@@ -147,7 +148,7 @@ class TokenBaseModel(Base):
 class ActivationTokenModel(TokenBaseModel):
     __tablename__ = "activation_tokens"
 
-    user: Mapped[UserModel] = relationship("UserModel", back_populates="activation_token")
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="activation_token")
 
     __table_args__ = (UniqueConstraint("user_id"),)
 
@@ -158,7 +159,7 @@ class ActivationTokenModel(TokenBaseModel):
 class PasswordResetTokenModel(TokenBaseModel):
     __tablename__ = "password_reset_tokens"
 
-    user: Mapped[UserModel] = relationship("UserModel", back_populates="password_reset_token")
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="password_reset_token")
 
     __table_args__ = (UniqueConstraint("user_id"),)
 
@@ -169,7 +170,7 @@ class PasswordResetTokenModel(TokenBaseModel):
 class RefreshTokenModel(TokenBaseModel):
     __tablename__ = "refresh_tokens"
 
-    user: Mapped[UserModel] = relationship("UserModel", back_populates="refresh_tokens")
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="refresh_tokens")
     token: Mapped[str] = mapped_column(String(512), unique=True, nullable=False, default=generate_secure_token)
 
     @classmethod
