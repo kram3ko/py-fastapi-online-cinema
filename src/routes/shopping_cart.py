@@ -3,6 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.dependencies import get_current_user
 from crud import shopping_cart as cart_crud
+from crud.shopping_cart import (
+    MovieAlreadyInCartError,
+    MovieAlreadyPurchasedError,
+    MovieNotFoundError,
+)
 from database.deps import get_db
 from database.models.accounts import UserModel
 from schemas.accounts import MessageResponseSchema
@@ -33,13 +38,29 @@ async def add_movie_to_cart(
 ) -> CartItemResponse:
     """Add movie to cart."""
     cart = await cart_crud.get_or_create_cart(db, current_user.id)
-    cart_item = await cart_crud.add_movie_to_cart(db, cart.id, item.movie_id, current_user.id)
+    cart_item, error = await cart_crud.add_movie_to_cart(db, cart.id, item.movie_id, current_user.id)
 
-    if not cart_item:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Movie is already in cart, doesn't exist, or was already purchased",
-        )
+    if error:
+        if isinstance(error, MovieNotFoundError):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Movie not found",
+            )
+        elif isinstance(error, MovieAlreadyInCartError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Movie is already in cart",
+            )
+        elif isinstance(error, MovieAlreadyPurchasedError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This movie has already been purchased. Repurchase is not possible.",
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to add movie to cart",
+            )
 
     return cart_item
 

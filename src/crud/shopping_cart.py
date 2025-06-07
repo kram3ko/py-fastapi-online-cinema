@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +7,26 @@ from sqlalchemy.orm import selectinload
 from database.models.movies import MovieModel
 from database.models.orders import OrderItemModel, OrderModel, OrderStatus
 from database.models.shopping_cart import Cart, CartItem
+
+
+class CartError(Exception):
+    """Base exception for cart-related errors."""
+    pass
+
+
+class MovieNotFoundError(CartError):
+    """Raised when movie doesn't exist."""
+    pass
+
+
+class MovieAlreadyInCartError(CartError):
+    """Raised when movie is already in cart."""
+    pass
+
+
+class MovieAlreadyPurchasedError(CartError):
+    """Raised when movie was already purchased by user."""
+    pass
 
 
 async def get_user_cart(db: AsyncSession, user_id: int) -> Optional[Cart]:
@@ -56,32 +76,30 @@ async def is_movie_purchased(db: AsyncSession, user_id: int, movie_id: int) -> b
     return result.scalar_one_or_none() is not None
 
 
-async def add_movie_to_cart(db: AsyncSession, cart_id: int, movie_id: int, user_id: int) -> Optional[CartItem]:
+async def add_movie_to_cart(db: AsyncSession, cart_id: int, movie_id: int, user_id: int) -> Tuple[Optional[CartItem], Optional[CartError]]:
     """
     Add movie to cart.
-    Returns None if:
-    - movie is already in cart
-    - movie doesn't exist
-    - movie was already purchased by user
+    Returns a tuple of (cart_item, error).
+    If successful, returns (cart_item, None).
+    If error occurs, returns (None, error).
     """
-
     movie = await db.get(MovieModel, movie_id)
     if not movie:
-        return None
+        return None, MovieNotFoundError()
 
     query = select(CartItem).where(CartItem.cart_id == cart_id, CartItem.movie_id == movie_id)
     result = await db.execute(query)
     if result.scalar_one_or_none():
-        return None
+        return None, MovieAlreadyInCartError()
 
     if await is_movie_purchased(db, user_id, movie_id):
-        return None
+        return None, MovieAlreadyPurchasedError()
 
     cart_item = CartItem(cart_id=cart_id, movie_id=movie_id)
     db.add(cart_item)
     await db.commit()
     await db.refresh(cart_item)
-    return cart_item
+    return cart_item, None
 
 
 async def remove_movie_from_cart(db: AsyncSession, cart_id: int, movie_id: int) -> bool:
