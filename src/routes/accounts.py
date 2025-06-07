@@ -2,12 +2,14 @@ from datetime import datetime, timezone
 from typing import cast
 
 from fastapi import APIRouter, Depends, status, HTTPException, BackgroundTasks
+from fastapi.responses import JSONResponse
 from sqlalchemy import select, delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from config import BaseAppSettings, get_accounts_email_notificator, get_jwt_auth_manager, get_settings
+from config.dependencies import get_current_user
 from database.deps import get_db
 from database.models.accounts import (
     ActivationTokenModel,
@@ -610,6 +612,49 @@ async def login_user(
         access_token=jwt_access_token,
         refresh_token=jwt_refresh_token,
     )
+
+
+@router.post(
+    "/logout/",
+    response_model=MessageResponseSchema,
+    summary="User Logout",
+    description="Logs out the user by clearing authentication cookies and deleting refresh tokens.",
+    status_code=status.HTTP_200_OK,
+)
+async def logout_user(
+    current_user: UserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """
+    Endpoint for user logout.
+
+    Logs out the authenticated user by clearing their authentication cookies and deleting
+    all associated refresh tokens from the database.
+
+    Args:
+        current_user (UserModel): The currently authenticated user.
+        db (AsyncSession): The asynchronous database session.
+
+    Returns:
+        JSONResponse: A success message indicating the user has been logged out.
+    """
+    await db.execute(delete(RefreshTokenModel).where(RefreshTokenModel.user_id == current_user.id))
+    await db.commit()
+
+    response = JSONResponse(
+        content={"message": "User logged out successfully."},
+        status_code=status.HTTP_200_OK,
+    )
+    response.set_cookie(
+        key="Authorization",
+        value="",
+        max_age=0,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+    )
+
+    return response
 
 
 @router.post(
