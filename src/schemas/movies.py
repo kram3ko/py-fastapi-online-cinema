@@ -172,7 +172,9 @@ class MovieDetailSchema(MovieBaseSchema):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "examples": movie_detail_schema_example
+            "examples": [
+                movie_detail_schema_example
+            ]
         }
     )
 
@@ -181,14 +183,16 @@ class MovieListItemSchema(BaseModel):
     id: int
     name: str
     year: int
-    imdb: float
+    imdb: Optional[float]
     time: int
     genres: list[GenreBaseSchema]
 
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "examples": movie_list_schema_example
+            "examples": [
+                movie_list_schema_example
+            ]
         }
     )
 

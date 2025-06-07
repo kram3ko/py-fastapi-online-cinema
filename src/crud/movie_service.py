@@ -1,9 +1,11 @@
 from fastapi import HTTPException
 from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud import movie_crud
+from crud.movie_crud import get_all_movies
 from database.models.movies import (
     GenreModel,
     MovieModel,
@@ -23,7 +25,7 @@ from schemas.movies import (
     DirectorCreateSchema,
     DirectorUpdateSchema,
     CertificationCreateSchema,
-    CertificationUpdateSchema,
+    CertificationUpdateSchema, MovieListResponseSchema,
 )
 
 
@@ -68,7 +70,7 @@ async def create_genre(
     :param genre_data: Genre creation schema.
     :return: Created GenreModel instance.
     """
-    return await movie_crud.create_genre(db, genre_data)
+    return await movie_crud.add_genre(db, genre_data)
 
 
 async def update_genre(
@@ -84,7 +86,7 @@ async def update_genre(
     :raises HTTPException: If genre is not found.
     :return: Updated GenreModel instance.
     """
-    updated = await movie_crud.update_genre(
+    updated = await movie_crud.edit_genre(
         db,
         genre_id,
         genre_data
@@ -108,7 +110,7 @@ async def delete_genre(
     :raises HTTPException: If genre is not found.
     :return: Success message dict.
     """
-    deleted = await movie_crud.delete_genre(db, genre_id)
+    deleted = await movie_crud.remove_genre(db, genre_id)
     if not deleted:
         raise HTTPException(
             status_code=404,
@@ -158,7 +160,7 @@ async def create_star(
     :param star_data: Star creation schema.
     :return: Created StarModel instance.
     """
-    return await movie_crud.create_star(db, star_data)
+    return await movie_crud.add_star(db, star_data)
 
 
 async def update_star(
@@ -174,7 +176,7 @@ async def update_star(
     :raises HTTPException: If star is not found.
     :return: Updated StarModel instance.
      """
-    updated = await movie_crud.update_star(db, star_id, star_data)
+    updated = await movie_crud.edit_star(db, star_id, star_data)
     if not updated:
         raise HTTPException(
             status_code=404,
@@ -194,7 +196,7 @@ async def delete_star(
     :raises HTTPException: If star is not found.
     :return: Success message dict.
     """
-    deleted = await movie_crud.delete_star(db, star_id)
+    deleted = await movie_crud.remove_star(db, star_id)
     if not deleted:
         raise HTTPException(
             status_code=404,
@@ -247,7 +249,7 @@ async def create_director(
     :param director_data: Data for the new director.
     :return: Created director instance.
     """
-    return await movie_crud.create_director(db, director_data)
+    return await movie_crud.add_director(db, director_data)
 
 
 async def update_director(
@@ -263,7 +265,7 @@ async def update_director(
     :raises HTTPException: If director is not found.
     :return: Updated director instance.
     """
-    updated = await movie_crud.update_director(
+    updated = await movie_crud.edit_director(
         db,
         director_id,
         director_data
@@ -287,7 +289,7 @@ async def delete_director(
     :raises HTTPException: If director is not found.
     :return: Success message dict.
     """
-    deleted = await movie_crud.delete_director(db, director_id)
+    deleted = await movie_crud.remove_director(db, director_id)
     if not deleted:
         raise HTTPException(
             status_code=404,
@@ -339,7 +341,7 @@ async def create_certification(
     :param certification_data: Data for the new certification.
     :return: Created certification instance.
     """
-    return await movie_crud.create_certification(
+    return await movie_crud.add_certification(
         db,
         certification_data
     )
@@ -358,7 +360,7 @@ async def update_certification(
     :raises HTTPException: If certification is not found.
     :return: Updated certification instance.
     """
-    updated = await movie_crud.update_certification(
+    updated = await movie_crud.edit_certification(
         db, certification_id,
         certification_data
     )
@@ -381,7 +383,7 @@ async def delete_certification(
     :raises HTTPException: If certification is not found.
     :return: Success message dict.
     """
-    deleted = await movie_crud.delete_certification(
+    deleted = await movie_crud.remove_certification(
         db,
         certification_id
     )
@@ -393,48 +395,73 @@ async def delete_certification(
     return {"detail": "Certification deleted successfully."}
 
 
-async def list_movies(db: AsyncSession) -> list[MovieModel]:
-    """
-    Retrieve all movies from the database.
-    :param db: Async database session.
-    :return: List of MovieModel instances.
-    """
-    return await movie_crud.list_movies(db)
+async def count_movies(db: AsyncSession) -> int:
+    stmt = select(func.count(MovieModel.id))
+    result = await db.execute(stmt)
+    return result.scalar() or 0
 
 
-async def get_paginated_movies(
+async def list_movies(
         db: AsyncSession,
-        params: Params
-) -> Page[MovieListItemSchema]:
-    """
-    Retrieve paginated list of movies using FastAPI pagination.
-    :param db: Async database session.
-    :param params: Pagination parameters.
-    :raises HTTPException: If no movies found.
-    :return: Paginated result with validated MovieListItemSchema items.
-    """
-    result = await apaginate(
-        db, movie_crud.get_all_movies_stmt(),
-        params=params
+        page: int, per_page: int
+) -> MovieListResponseSchema:
+
+    total_items = await count_movies(db)
+    if total_items == 0:
+        raise HTTPException(status_code=404, detail="No movies found.")
+
+    total_pages = (total_items + per_page - 1) // per_page
+    offset = (page - 1) * per_page
+
+    movies = await get_all_movies(db=db, offset=offset, limit=per_page)
+
+    if not movies:
+        raise HTTPException(status_code=404, detail="No movies found.")
+
+    movie_list = [MovieListItemSchema.model_validate(movie) for movie in movies]
+
+    return MovieListResponseSchema(
+        movies=movie_list,
+        prev_page=f"/movies/?page={page - 1}&per_page={per_page}" if page > 1 else None,
+        next_page=f"/movies/?page={page + 1}&per_page={per_page}" if page < total_pages else None,
+        total_pages=total_pages,
+        total_items=total_items,
     )
 
-    if not result.results:
-        raise HTTPException(
-            status_code=404,
-            detail="No movies found."
-        )
 
-    result.results = [
-        MovieListItemSchema.model_validate(movie)
-        for movie in result.results
-    ]
-
-    return result
+# async def get_paginated_movies(
+#         db: AsyncSession,
+#         params: Params
+# ) -> Page[MovieListItemSchema]:
+#     """
+#     Retrieve paginated list of movies using FastAPI pagination.
+#     :param db: Async database session.
+#     :param params: Pagination parameters.
+#     :raises HTTPException: If no movies found.
+#     :return: Paginated result with validated MovieListItemSchema items.
+#     """
+#     result = await apaginate(
+#         db, movie_crud.get_all_movies_stmt(),
+#         params=params
+#     )
+#
+#     if not result.results:
+#         raise HTTPException(
+#             status_code=404,
+#             detail="No movies found."
+#         )
+#
+#     result.results = [
+#         MovieListItemSchema.model_validate(movie)
+#         for movie in result.results
+#     ]
+#
+#     return result
 
 
 async def get_movie_detail(
         movie_id: int, db: AsyncSession
-) -> MovieDetailSchema:
+) -> MovieModel:
     """
     Get detailed movie info by ID with related data.
     :param movie_id: ID of the movie.
@@ -463,7 +490,7 @@ async def create_movie(
     :param data: Movie creation schema.
     :return: Created MovieModel instance.
     """
-    return await movie_crud.create_movie(db, data)
+    return await movie_crud.add_movie(db, data)
 
 
 async def update_movie(
@@ -478,7 +505,7 @@ async def update_movie(
     :raises HTTPException: If movie is not found.
     :return: Updated MovieModel instance.
     """
-    movie = await movie_crud.update_movie(db, movie_id, data)
+    movie = await movie_crud.edit_movie(db, movie_id, data)
     if not movie:
         raise HTTPException(
             status_code=404,
@@ -498,7 +525,7 @@ async def delete_movie(
     :raises HTTPException: If movie is not found.
     :return: Success message dict.
     """
-    deleted = await movie_crud.delete_movie(db, movie_id)
+    deleted = await movie_crud.remove_movie(db, movie_id)
     if not deleted:
         raise HTTPException(
             status_code=404,

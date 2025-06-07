@@ -1,4 +1,4 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, params
 from sqlalchemy import delete, select, update, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +10,7 @@ from database.models.movies import (
     DirectorModel,
     CertificationModel
 )
+from pagination import Params
 from schemas.movies import (
     GenreCreateSchema,
     GenreUpdateSchema,
@@ -21,6 +22,7 @@ from schemas.movies import (
     CertificationCreateSchema,
     CertificationUpdateSchema,
 )
+from pagination import Page, Params
 
 
 async def get_all_genres(
@@ -46,7 +48,7 @@ async def get_genre_by_id(
     return result.scalar_one_or_none()
 
 
-async def create_genre(
+async def add_genre(
         db: AsyncSession,
         genre_data: GenreCreateSchema
 ) -> GenreModel:
@@ -58,7 +60,7 @@ async def create_genre(
     return genre
 
 
-async def update_genre(
+async def edit_genre(
         db: AsyncSession,
         genre_id: int,
         genre_data: GenreUpdateSchema
@@ -81,7 +83,7 @@ async def update_genre(
     return genre
 
 
-async def delete_genre(
+async def remove_genre(
         db: AsyncSession,
         genre_id: int
 ) -> bool:
@@ -117,7 +119,7 @@ async def get_star_by_id(
     return result.scalar_one_or_none()
 
 
-async def create_star(
+async def add_star(
         db: AsyncSession,
         star_data: StarCreateSchema
 ) -> StarModel:
@@ -136,7 +138,7 @@ async def create_star(
         )
 
 
-async def update_star(
+async def edit_star(
         db: AsyncSession,
         star_id: int,
         star_data: StarUpdateSchema
@@ -159,7 +161,7 @@ async def update_star(
     return star
 
 
-async def delete_star(
+async def remove_star(
         db: AsyncSession,
         star_id: int
 ) -> bool:
@@ -195,7 +197,7 @@ async def get_director_by_id(
     return result.scalar_one_or_none()
 
 
-async def create_director(
+async def add_director(
         db: AsyncSession,
         director_data: DirectorCreateSchema
 ) -> DirectorModel:
@@ -214,7 +216,7 @@ async def create_director(
         )
 
 
-async def update_director(
+async def edit_director(
         db: AsyncSession,
         director_id: int,
         director_data: DirectorCreateSchema
@@ -239,7 +241,7 @@ async def update_director(
     return director
 
 
-async def delete_director(
+async def remove_director(
         db: AsyncSession,
         director_id: int
 ) -> bool:
@@ -275,7 +277,7 @@ async def get_certification_by_id(
     return result.scalar_one_or_none()
 
 
-async def create_certification(
+async def add_certification(
         db: AsyncSession,
         certification_data: CertificationCreateSchema
 ) -> CertificationModel:
@@ -296,7 +298,7 @@ async def create_certification(
         )
 
 
-async def update_certification(
+async def edit_certification(
         db: AsyncSession,
         certification_id: int,
         certification_data: CertificationUpdateSchema
@@ -322,7 +324,7 @@ async def update_certification(
     return certification
 
 
-async def delete_certification(
+async def remove_certification(
         db: AsyncSession,
         certification_id: int
 ) -> bool:
@@ -335,11 +337,13 @@ async def delete_certification(
     return result.rowcount > 0
 
 
-async def list_movies(
-        db: AsyncSession
+async def get_all_movies(
+        db: AsyncSession,
+        offset: int, limit: int
 ) -> list[MovieModel]:
     """Retrieve all movies from the database, ordered by ID."""
-    result = await db.execute(
+
+    stmt = (
         select(MovieModel)
         .options(
             selectinload(MovieModel.genres),
@@ -347,17 +351,12 @@ async def list_movies(
             selectinload(MovieModel.stars),
             selectinload(MovieModel.certification)
         )
+        .offset(offset)
+        .limit(limit)
         .order_by(MovieModel.id)
     )
+    result = await db.execute(stmt)
     return result.scalars().all()
-
-
-async def count_movies(db: Session) -> int:
-    return (db.query(
-        func.count())
-            .select_from(MovieModel)
-            .scalar()
-            )
 
 
 async def get_movie_by_id(
@@ -381,7 +380,7 @@ async def get_movie_by_id(
     return result.scalar_one_or_none()
 
 
-async def create_movie(
+async def add_movie(
         db: AsyncSession,
         movie_data: MovieCreateSchema
 ) -> MovieModel:
@@ -455,7 +454,7 @@ async def create_movie(
     return movie_with_relations
 
 
-async def update_movie(
+async def edit_movie(
         db: AsyncSession,
         movie_id: int,
         data: MovieUpdateSchema
@@ -498,7 +497,7 @@ async def update_movie(
     return movie
 
 
-async def delete_movie(
+async def remove_movie(
         db: AsyncSession,
         movie_id: int
 ) -> bool:

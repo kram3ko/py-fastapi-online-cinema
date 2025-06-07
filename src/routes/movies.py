@@ -1,8 +1,12 @@
-from fastapi import APIRouter, Depends, Request, Body
-from fastapi_pagination import Params
+from fastapi import APIRouter, Depends, Request, Body, HTTPException, Query
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi_pagination import add_pagination, paginate
 
-from crud.movie_crud import count_movies
+from database.models.movies import MovieModel
+from pagination import Page, Params
+
+# from crud.movie_crud import count_movies
 from crud.movie_service import (
     create_genre,
     create_movie,
@@ -27,7 +31,7 @@ from crud.movie_service import (
     update_certification,
     create_certification,
     get_certification,
-    list_certifications,
+    list_certifications, get_movie_detail,
 )
 from database import get_db
 from pagination import Page
@@ -47,7 +51,7 @@ from schemas.movies import (
     DirectorUpdateSchema,
     CertificationUpdateSchema,
     CertificationReadSchema,
-    CertificationCreateSchema,
+    CertificationCreateSchema, MovieListResponseSchema,
 )
 
 router = APIRouter()
@@ -322,25 +326,17 @@ async def delete_movie_certification(
 
 @router.get(
     "/movies/",
-    response_model=Page[MovieListItemSchema]
+    response_model=MovieListResponseSchema
 )
 async def get_movies(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    params: Params = Depends(),
-) -> Page[MovieListItemSchema]:
+        page: int = Query(1, ge=1, description="Page number (1-based index)"),
+        per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
+        db: AsyncSession = Depends(get_db),
+) -> MovieListResponseSchema:
     """
     Get a paginated list of movies.
     """
-    movies = await list_movies(db, params)
-    total = await count_movies(db)
-
-    return Page.create(
-        items=movies,
-        params=params,
-        total=total,
-        url=str(request.url.path),
-    )
+    return await list_movies(db=db, page=page, per_page=per_page)
 
 
 @router.get(
@@ -354,7 +350,7 @@ async def get_movie_by_id(
     """
     Get detailed information about a movie by its ID.
     """
-    return await get_movies(db, movie_id)
+    return await get_movie_detail(db, movie_id)
 
 
 @router.post("/movies/",
@@ -364,7 +360,7 @@ async def get_movie_by_id(
 async def create_one_movie(
         data: MovieCreateSchema,
         db: AsyncSession = Depends(get_db)
-) -> MovieDetailSchema:
+) -> MovieCreateSchema:
     """
     Create a new movie.
     """
@@ -378,7 +374,7 @@ async def update_one_movie(
     movie_id: int,
     data: MovieUpdateSchema,
     db: AsyncSession = Depends(get_db)
-) -> MovieDetailSchema:
+) -> MovieUpdateSchema:
     """
     Update an existing movie by ID.
     """
