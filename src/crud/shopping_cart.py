@@ -29,6 +29,16 @@ class MovieAlreadyPurchasedError(CartError):
     pass
 
 
+class CartNotFoundError(CartError):
+    """Raised when cart doesn't exist."""
+    pass
+
+
+class MovieNotInCartError(CartError):
+    """Raised when trying to remove a movie that's not in the cart."""
+    pass
+
+
 async def get_user_cart(db: AsyncSession, user_id: int) -> Optional[Cart]:
     """
     Get user's shopping cart with all items.
@@ -102,31 +112,47 @@ async def add_movie_to_cart(db: AsyncSession, cart_id: int, movie_id: int, user_
     return cart_item, None
 
 
-async def remove_movie_from_cart(db: AsyncSession, cart_id: int, movie_id: int) -> bool:
+async def remove_movie_from_cart(db: AsyncSession, cart_id: int, movie_id: int) -> Tuple[bool, Optional[CartError]]:
     """
     Remove movie from cart.
-    Returns True if movie was removed, False if it wasn't in cart.
+    Returns a tuple of (success, error).
+    If successful, returns (True, None).
+    If error occurs, returns (False, error).
     """
+    # Check if cart exists
+    cart = await db.get(Cart, cart_id)
+    if not cart:
+        return False, CartNotFoundError()
+
+    # Check if movie exists
+    movie = await db.get(MovieModel, movie_id)
+    if not movie:
+        return False, MovieNotFoundError()
+
+    # Check if movie is in cart
     query = select(CartItem).where(CartItem.cart_id == cart_id, CartItem.movie_id == movie_id)
     result = await db.execute(query)
     cart_item = result.scalar_one_or_none()
 
     if not cart_item:
-        return False
+        return False, MovieNotInCartError()
 
+    # Remove movie from cart
     await db.delete(cart_item)
     await db.commit()
-    return True
+    return True, None
 
 
-async def clear_cart(db: AsyncSession, cart_id: int) -> bool:
+async def clear_cart(db: AsyncSession, cart_id: int) -> Tuple[bool, Optional[CartError]]:
     """
     Remove all items from cart.
-    Returns True if cart was cleared, False if cart doesn't exist.
+    Returns a tuple of (success, error).
+    If successful, returns (True, None).
+    If error occurs, returns (False, error).
     """
     cart = await db.get(Cart, cart_id)
     if not cart:
-        return False
+        return False, CartNotFoundError()
 
     query = select(CartItem).where(CartItem.cart_id == cart_id)
     result = await db.execute(query)
@@ -136,4 +162,4 @@ async def clear_cart(db: AsyncSession, cart_id: int) -> bool:
         await db.delete(item)
 
     await db.commit()
-    return True
+    return True, None
