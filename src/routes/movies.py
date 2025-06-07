@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Body
 from fastapi_pagination import Params
 from sqlalchemy.ext.asyncio import AsyncSession
 

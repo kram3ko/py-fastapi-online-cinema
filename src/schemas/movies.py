@@ -21,7 +21,7 @@ class GenreBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 genre_schema_example
             ]
         }
@@ -53,7 +53,7 @@ class StarBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 star_schema_example
             ]
         }
@@ -84,7 +84,7 @@ class DirectorBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 director_schema_example
             ]
         }
@@ -115,7 +115,7 @@ class CertificationBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 certification_schema_example
             ]
         }
@@ -156,7 +156,7 @@ class MovieBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 movie_item_schema_example
             ]
         }
@@ -172,7 +172,7 @@ class MovieDetailSchema(MovieBaseSchema):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": movie_detail_schema_example
+            "examples": movie_detail_schema_example
         }
     )
 
@@ -188,7 +188,7 @@ class MovieListItemSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": movie_list_schema_example
+            "examples": movie_list_schema_example
         }
     )
 
@@ -203,7 +203,7 @@ class MovieListResponseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 movie_list_response_schema_example
             ]
         }
@@ -226,7 +226,7 @@ class MovieCreateSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 movie_create_schema_example
             ]
         }
@@ -251,7 +251,7 @@ class MovieUpdateSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 movie_update_schema_example
             ]
         }
