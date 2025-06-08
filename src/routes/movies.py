@@ -1,37 +1,47 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi_pagination import Params
+from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud.movie_crud import count_movies
 from crud.movie_service import (
+    create_certification,
+    create_director,
     create_genre,
     create_movie,
     create_star,
+    delete_certification,
+    delete_director,
     delete_genre,
     delete_movie,
     delete_star,
+    get_certification,
+    get_director,
     get_genre,
+    get_movie_detail,
     get_star,
+    list_certifications,
+    list_directors,
     list_genres,
     list_movies,
     list_stars,
+    update_certification,
+    update_director,
     update_genre,
     update_movie,
     update_star,
-    get_director,
-    create_director,
-    update_director,
-    delete_director,
-    list_directors,
-    delete_certification,
-    update_certification,
-    create_certification,
-    get_certification,
-    list_certifications,
 )
 from database.deps import get_db
-from pagination import Page
+from database.models import MovieModel
+from pagination.pages import MoviesPage
 from schemas.movies import (
+    CertificationCreateSchema,
+    CertificationReadSchema,
+    CertificationUpdateSchema,
+    DirectorCreateSchema,
+    DirectorReadSchema,
+    DirectorUpdateSchema,
     GenreCreateSchema,
     GenreReadSchema,
     GenreUpdateSchema,
@@ -42,16 +52,9 @@ from schemas.movies import (
     StarCreateSchema,
     StarReadSchema,
     StarUpdateSchema,
-    DirectorReadSchema,
-    DirectorCreateSchema,
-    DirectorUpdateSchema,
-    CertificationUpdateSchema,
-    CertificationReadSchema,
-    CertificationCreateSchema,
 )
 
 router = APIRouter()
-
 
 
 @router.get(
@@ -68,7 +71,6 @@ async def get_genres(
     return await list_genres(db)
 
 
-
 @router.get(
     "/genres/{genre_id}/",
     response_model=GenreReadSchema
@@ -78,12 +80,10 @@ async def get_genre_by_id(
         db: AsyncSession = Depends(get_db)
 ) -> GenreReadSchema:
 
-
     """
     Retrieve a genre by its ID.
     """
     return await get_genre(db, genre_id)
-
 
 
 @router.post(
@@ -99,8 +99,7 @@ async def create_movie_genre(
     """
     Create a new genre.
     """
-    return await create_genre(db, genre_data)
-
+    return GenreReadSchema.model_validate(await create_genre(db, genre_data))
 
 
 @router.put(
@@ -330,24 +329,33 @@ async def delete_movie_certification(
     )
 
 
-@router.get("/movies/", response_model=Page[MovieListItemSchema])
+@router.get("/movies/", response_model=MoviesPage)
 async def get_movies(
     request: Request,
     db: AsyncSession = Depends(get_db),
     params: Params = Depends(),
-) -> Page[MovieListItemSchema]:
+) -> MoviesPage:
     """
     Get a paginated list of movies.
     """
-    movies = await list_movies(db, params)
-    total = await count_movies(db)
-
-    return Page.create(
-        items=movies,
+    result = await apaginate(
+        db,
+        select(MovieModel).order_by(MovieModel.id.desc()),
         params=params,
-        total=total,
-        url=str(request.url.path),
+        additional_data={
+            "url": request.url.path.replace("/api/v1", "", 1),
+        },
     )
+
+    if not result.results:
+        raise HTTPException(status_code=404, detail="No movies found.")
+
+    result.results = [
+        MovieListItemSchema.model_validate(movie)
+        for movie in result.results
+    ]
+
+    return result
 
 
 @router.get("/movies/{movie_id}/", response_model=MovieDetailSchema)
@@ -358,7 +366,7 @@ async def get_movie_by_id(
     """
     Get detailed information about a movie by its ID.
     """
-    return await get_movies(db, movie_id)
+    return await get_movie_detail(movie_id, db)
 
 
 @router.post("/movies/",
