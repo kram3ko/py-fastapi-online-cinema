@@ -60,4 +60,3 @@ class Page(AbstractPage[T], Generic[T]):
             if params.page > 1
             else None,
         )
-

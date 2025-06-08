@@ -1,10 +1,11 @@
 import logging
 import smtplib
+from abc import ABC
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from abc import ABC
 
 from jinja2 import Environment, FileSystemLoader
+
 from exceptions import BaseEmailError
 
 

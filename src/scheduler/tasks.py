@@ -73,6 +73,7 @@ def send_password_reset_complete_email_task(email: str, login_link: str) -> None
     except Exception as e:
         logger.error(f"Error sending password reset complete email to {email}: {e}")
 
+
 @celery_app.task(name="send_stripe_payment_success_email")
 def send_stripe_payment_success_email_task(email: str, payment_details: dict) -> None:
     """Send Stripe payment success email."""
