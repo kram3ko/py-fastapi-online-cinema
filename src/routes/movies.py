@@ -4,7 +4,6 @@ from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from crud.movie_crud import count_movies
 from crud.movie_service import (
     create_certification,
     create_director,
@@ -34,7 +33,7 @@ from crud.movie_service import (
 )
 from database.deps import get_db
 from database.models import MovieModel
-from pagination.pages import MoviesPage
+from pagination.pages import Page
 from schemas.movies import (
     CertificationCreateSchema,
     CertificationReadSchema,
@@ -329,12 +328,12 @@ async def delete_movie_certification(
     )
 
 
-@router.get("/movies/", response_model=MoviesPage)
+@router.get("/movies/", response_model=Page)
 async def get_movies(
     request: Request,
     db: AsyncSession = Depends(get_db),
     params: Params = Depends(),
-) -> MoviesPage:
+) -> Page:
     """
     Get a paginated list of movies.
     """

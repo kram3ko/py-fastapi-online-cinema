@@ -5,7 +5,7 @@ from sqlalchemy import delete
 from sqlalchemy.exc import SQLAlchemyError
 
 from config import get_settings
-from config.dependencies import get_accounts_email_notificator
+from config.dependencies import get_accounts_email_notificator, get_stripe_email_notificator
 from database.deps import get_sync_db_contextmanager
 from database.models.accounts import ActivationTokenModel
 from scheduler.celery_app import celery_app
@@ -72,3 +72,13 @@ def send_password_reset_complete_email_task(email: str, login_link: str) -> None
         logger.info(f"Password reset complete email sent to {email}")
     except Exception as e:
         logger.error(f"Error sending password reset complete email to {email}: {e}")
+
+@celery_app.task(name="send_stripe_payment_success_email")
+def send_stripe_payment_success_email_task(email: str, payment_details: dict) -> None:
+    """Send Stripe payment success email."""
+    try:
+        email_sender = get_stripe_email_notificator(settings)
+        email_sender.send_payment_success_email(email, payment_details)
+        logger.info(f"Stripe payment success email sent to {email}")
+    except Exception as e:
+        logger.error(f"Error sending Stripe payment success email to {email}: {e}")
