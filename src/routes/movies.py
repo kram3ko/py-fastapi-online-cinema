@@ -21,7 +21,6 @@ from crud.movie_service import (
     delete_star,
     get_certification,
     get_director,
-    get_genre,
     get_movie_detail,
     get_star,
     list_certifications,
@@ -33,7 +32,7 @@ from crud.movie_service import (
     update_genre,
     update_movie,
     update_star,
-    get_filtered_movies, search_movies_stmt
+    get_filtered_movies, search_movies_stmt, get_all_movies_by_genre
 )
 from database.deps import get_db
 from database.models import MovieModel
@@ -75,18 +74,20 @@ async def get_genres(
 
 
 @router.get(
-    "/genres/{genre_id}/",
-    response_model=GenreReadSchema
+    "/genres/{genre_id}/movies/",
+    response_model=list[MovieListItemSchema]
 )
-async def get_genre_by_id(
+async def get_movies_by_genre(
         genre_id: int,
         db: AsyncSession = Depends(get_db)
-) -> GenreReadSchema:
+) -> list[MovieListItemSchema]:
 
     """
     Retrieve a genre by its ID.
     """
-    return await get_genre(db, genre_id)
+
+    movies = await get_all_movies_by_genre(db, genre_id)
+    return [MovieListItemSchema.model_validate(movie) for movie in movies]
 
 
 @router.post(

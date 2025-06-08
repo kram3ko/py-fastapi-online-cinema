@@ -39,10 +39,10 @@ async def list_genres(
     return await movie_crud.get_all_genres(db)
 
 
-async def get_genre(
+async def get_all_movies_by_genre(
         db: AsyncSession,
         genre_id: int
-) -> GenreModel:
+) -> list[MovieModel]:
     """
     Get a specific genre by its ID.
     :param db: Async database session.
@@ -50,7 +50,7 @@ async def get_genre(
     :raises HTTPException: If genre is not found.
     :return: GenreModel instance.
     """
-    genre = await movie_crud.get_genre_by_id(db, genre_id)
+    genre = await movie_crud.get_movie_by_genre(db, genre_id)
     if not genre:
         raise HTTPException(
             status_code=404,
