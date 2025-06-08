@@ -614,7 +614,7 @@ async def login_user(
     )
 
 
-@router.post(
+@router.get(
     "/logout/",
     response_model=MessageResponseSchema,
     summary="User Logout",
