@@ -3,7 +3,7 @@ import math
 import uuid
 
 import pandas as pd
-from sqlalchemy import func, insert, select
+from sqlalchemy import insert, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from tqdm import tqdm
@@ -31,6 +31,15 @@ class CSVDatabaseSeeder:
         Seeds movies from CSV file.
         """
         data = pd.read_csv(self._csv_file_path)
+
+        # Create stars
+        all_stars: set[str] = set()
+        for stars_str in data["star"].dropna():
+            all_stars.update(star.strip() for star in stars_str.split(","))
+        stars = {star: StarModel(name=star) for star in all_stars}
+        for star in stars.values():
+            self._db_session.add(star)
+        await self._db_session.flush()
 
         # Create certifications
         certifications = {cert: CertificationModel(name=cert) for cert in data["certification"].unique()}
@@ -71,7 +80,8 @@ class CSVDatabaseSeeder:
                 price=row["price"],
                 certification_id=certifications[row["certification"]].id,
                 genres=[genres[genre.strip()] for genre in row["genres"].split(",")],
-                directors=[directors[director.strip()] for director in row["directors"].split(",")]
+                directors=[directors[director.strip()] for director in row["directors"].split(",")],
+                stars=[stars[star.strip()] for star in row["star"].split(",")] if pd.notna(row["star"]) else []
             )
             self._db_session.add(movie)
 
@@ -84,7 +94,7 @@ class CSVDatabaseSeeder:
         # Ensure all required columns are present
         required_columns = ["name", "year", "time", "imdb", "votes", "meta_score",
                           "gross", "descriptions", "price", "certification",
-                          "genres", "directors"]
+                          "genres", "directors", "star"]
 
         for col in required_columns:
             if col not in data.columns:
@@ -103,10 +113,12 @@ class CSVDatabaseSeeder:
         data["certification"] = data["certification"].astype(str)
         data["genres"] = data["genres"].astype(str)
         data["directors"] = data["directors"].astype(str)
+        data["star"] = data["star"].astype(str)
 
-        # Clean up genres and directors
+        # Clean up genres, directors and stars
         data["genres"] = data["genres"].apply(lambda x: ",".join(sorted(set(g.strip() for g in x.split(",")))))
         data["directors"] = data["directors"].apply(lambda x: ",".join(sorted(set(d.strip() for d in x.split(",")))))
+        data["star"] = data["star"].apply(lambda x: ",".join(sorted(set(s.strip() for s in x.split(",")))))
 
         print("Preprocessing CSV file...")
         data.to_csv(self._csv_file_path, index=False)
