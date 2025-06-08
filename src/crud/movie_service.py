@@ -1,8 +1,9 @@
 from fastapi import HTTPException
 from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Query
 
 from crud import movie_crud
 from crud.movie_crud import get_all_movies
@@ -401,33 +402,81 @@ async def count_movies(db: AsyncSession) -> int:
     return result.scalar() or 0
 
 
-async def list_movies(
-        db: AsyncSession,
-        page: int, per_page: int
-) -> MovieListResponseSchema:
+# async def list_movies(
+#         db: AsyncSession,
+#         page: int, per_page: int, url: str
+# ) -> MovieListResponseSchema:
+#
+#     total_items = await count_movies(db)
+#     if total_items == 0:
+#         raise HTTPException(status_code=404, detail="No movies found.")
+#
+#     total_pages = (total_items + per_page - 1) // per_page
+#     offset = (page - 1) * per_page
+#
+#     movies = await get_all_movies(db=db, offset=offset, limit=per_page)
+#
+#     if not movies:
+#         raise HTTPException(status_code=404, detail="No movies found.")
+#
+#     movie_list = [MovieListItemSchema.model_validate(movie) for movie in movies]
+#
+#     return MovieListResponseSchema(
+#         movies=movie_list,
+#         prev_page=f"{url}?page={page - 1}&per_page={per_page}" if page > 1 else None,
+#         next_page=f"{url}?page={page + 1}&per_page={per_page}" if page < total_pages else None,
+#         total_pages=total_pages,
+#         total_items=total_items,
+#     )
 
-    total_items = await count_movies(db)
-    if total_items == 0:
-        raise HTTPException(status_code=404, detail="No movies found.")
+def search_movies(query: Query, search: str | None) -> Query:
+    if search:
+        query = query.join(MovieModel.stars).join(MovieModel.directors).filter(
+            or_(
+                MovieModel.name.ilike(f"%{search}%"),
+                MovieModel.descriptions.ilike(f"%{search}%"),
+                StarModel.name.ilike(f"%{search}%"),
+                DirectorModel.name.ilike(f"%{search}%")
+            )
+        )
+    return query
 
-    total_pages = (total_items + per_page - 1) // per_page
-    offset = (page - 1) * per_page
+def filter_movies(query: Query, year: int | None, min_rating: float | None, max_rating: float | None) -> Query:
+    if year:
+        query = query.filter(MovieModel.year == year)
+    if min_rating:
+        query = query.filter(MovieModel.imdb >= min_rating)
+    if max_rating:
+        query = query.filter(MovieModel.imdb <= max_rating)
+    return query
 
-    movies = await get_all_movies(db=db, offset=offset, limit=per_page)
+def sort_movies(query: Query, sort_by: str = "release_year", order: str = "asc") -> Query:
+    sort_column = {
+        "price": MovieModel.price,
+        "release_year": MovieModel.year,
+        "popularity": MovieModel.imdb
+    }.get(sort_by)
 
-    if not movies:
-        raise HTTPException(status_code=404, detail="No movies found.")
+    if sort_column is not None:
+        query = query.order_by(sort_column.desc() if order == "desc" else sort_column.asc())
+    return query
 
-    movie_list = [MovieListItemSchema.model_validate(movie) for movie in movies]
-
-    return MovieListResponseSchema(
-        movies=movie_list,
-        prev_page=f"/movies/?page={page - 1}&per_page={per_page}" if page > 1 else None,
-        next_page=f"/movies/?page={page + 1}&per_page={per_page}" if page < total_pages else None,
-        total_pages=total_pages,
-        total_items=total_items,
-    )
-
+def list_movies_service(
+    db,
+    search: str | None = None,
+    release_year: int | None = None,
+    min_rating: float | None = None,
+    max_rating: float | None = None,
+    sort_by: str = "release_year",
+    order: str = "asc",
+    skip: int = 0,
+    limit: int = 10
+):
+    query = db.query(MovieModel)
+    query = search_movies(query, search)
+    query = filter_movies(query, release_year, min_rating, max_rating)
+    query = sort_movies(query, sort_by, order)
+    return query.offset(skip).limit(limit).all()
 
 # async def get_paginated_movies(
 #         db: AsyncSession,

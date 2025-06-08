@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, Request, Body, HTTPException, Query
+from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi_pagination import add_pagination, paginate
+from sqlalchemy.orm import Session
 
 from database.models.movies import MovieModel
 from pagination import Page, Params
@@ -31,7 +33,7 @@ from crud.movie_service import (
     update_certification,
     create_certification,
     get_certification,
-    list_certifications, get_movie_detail,
+    list_certifications, get_movie_detail, list_movies_service,
 )
 from database import get_db
 from pagination import Page
@@ -324,19 +326,58 @@ async def delete_movie_certification(
     )
 
 
-@router.get(
-    "/movies/",
-    response_model=MovieListResponseSchema
-)
+@router.get("/movies/", response_model=Page)
 async def get_movies(
-        page: int = Query(1, ge=1, description="Page number (1-based index)"),
-        per_page: int = Query(10, ge=1, le=20, description="Number of items per page"),
-        db: AsyncSession = Depends(get_db),
-) -> MovieListResponseSchema:
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    params: Params = Depends(),
+) -> Page:
     """
     Get a paginated list of movies.
     """
-    return await list_movies(db=db, page=page, per_page=per_page)
+    result = await apaginate(
+        db,
+        select(MovieModel).order_by(MovieModel.id.desc()),
+        params=params,
+        additional_data={
+            "url": request.url.path.replace("/api/v1", "", 1),
+        },
+    )
+
+    if not result.results:
+        raise HTTPException(status_code=404, detail="No movies found.")
+
+    result.results = [
+        MovieListItemSchema.model_validate(movie)
+        for movie in result.results
+    ]
+
+    return result
+
+
+@router.get("/movies/", response_model=list[MovieListItemSchema])
+def list_movies_with_filters(
+    search: str = Query(None),
+    release_year: int = Query(None),
+    min_rating: float = Query(None),
+    max_rating: float = Query(None),
+    sort_by: str = Query("release_date"),
+    order: str = Query("asc"),
+    skip: int = 0,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    return list_movies_service(
+        db=db,
+        search=search,
+        release_year=release_year,
+        min_rating=min_rating,
+        max_rating=max_rating,
+        sort_by=sort_by,
+        order=order,
+        skip=skip,
+        limit=limit
+    )
 
 
 @router.get(
