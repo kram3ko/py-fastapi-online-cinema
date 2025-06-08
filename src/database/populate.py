@@ -13,7 +13,6 @@ from database.deps import get_db_contextmanager
 from database.models.accounts import UserGroupEnum, UserGroupModel
 from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
 
-
 CHUNK_SIZE = 1000
 
 

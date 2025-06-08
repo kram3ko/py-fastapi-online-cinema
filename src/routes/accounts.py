@@ -205,7 +205,6 @@ async def activate_account(
 
     login_link = f"{settings.FRONTEND_URL}/accounts/login/"
 
-    # Отправляем письмо через Celery
     send_activation_complete_email_task.delay(str(activation_data.email), login_link)
 
     return MessageResponseSchema(message="User account activated successfully.")
@@ -255,17 +254,14 @@ async def resend_activation_email(
     if user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User account is already active.")
 
-    # Удаляем старый токен, если он есть
     await db.execute(delete(ActivationTokenModel).where(ActivationTokenModel.user_id == user.id))
 
-    # Создаем новый токен
     activation_token = ActivationTokenModel(user_id=user.id)
     db.add(activation_token)
     await db.commit()
 
     activation_link = f"{settings.FRONTEND_URL}/accounts/activate/"
 
-    # Отправляем письмо через Celery
     send_activation_email_task.delay(user.email, activation_link)
 
     return MessageResponseSchema(message="If you are registered, you will receive an email with instructions.")
