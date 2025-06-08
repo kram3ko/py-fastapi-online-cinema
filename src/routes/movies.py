@@ -1,3 +1,5 @@
+from typing import Optional, List
+
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi_pagination import Params, add_pagination, paginate
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
@@ -25,13 +27,13 @@ from crud.movie_service import (
     list_certifications,
     list_directors,
     list_genres,
-    list_movies_service,
     list_stars,
     update_certification,
     update_director,
     update_genre,
     update_movie,
     update_star,
+    get_filtered_movies, search_movies_stmt
 )
 from database.deps import get_db
 from database.models import MovieModel
@@ -52,7 +54,7 @@ from schemas.movies import (
     MovieUpdateSchema,
     StarCreateSchema,
     StarReadSchema,
-    StarUpdateSchema,
+    StarUpdateSchema, MovieFilterParamsSchema, SortOptions,
 )
 
 router = APIRouter()
@@ -330,18 +332,26 @@ async def delete_movie_certification(
     )
 
 
-@router.get("/movies/", response_model=Page)
+@router.get("/movies/", response_model=Page[MovieListItemSchema])
 async def get_movies(
     request: Request,
     db: AsyncSession = Depends(get_db),
+    sort_by: SortOptions | None = Query(None),
     params: Params = Depends(),
-) -> Page:
+    filters: MovieFilterParamsSchema = Depends()
+) -> Page[MovieListItemSchema]:
     """
     Get a paginated list of movies.
     """
+    stmt = await get_filtered_movies(
+        db=db,
+        filters=filters,
+        sort_by=sort_by
+    )
+
     result = await apaginate(
         db,
-        select(MovieModel).order_by(MovieModel.id.desc()),
+        stmt,
         params=params,
         additional_data={
             "url": request.url.path.replace("/api/v1", "", 1),
@@ -352,46 +362,30 @@ async def get_movies(
         raise HTTPException(status_code=404, detail="No movies found.")
 
     result.results = [
-        MovieListItemSchema.model_validate(movie)
+        MovieListItemSchema(
+            id=movie.id,
+            name=movie.name,
+            year=movie.year,
+            imdb=movie.imdb,
+            time=movie.time,
+            price=movie.price,
+            genres=movie.genres
+        )
         for movie in result.results
     ]
 
     return result
 
 
-@router.get("/moviess/", response_model=list[MovieListItemSchema])
-def list_movies_with_filters(
-    search: str = Query(None),
-    release_year: int = Query(None),
-    min_rating: float = Query(None),
-    max_rating: float = Query(None),
-    sort_by: str = Query("release_date"),
-    order: str = Query("asc"),
-    skip: int = 0,
-    limit: int = 10,
-    db: Session = Depends(get_db)
-) -> MovieListItemSchema:
-    return list_movies_service(
-        db=db,
-        search=search,
-        release_year=release_year,
-        min_rating=min_rating,
-        max_rating=max_rating,
-        sort_by=sort_by,
-        order=order,
-        skip=skip,
-        limit=limit
-    )
-
-    if not result.results:
-        raise HTTPException(status_code=404, detail="No movies found.")
-
-    result.results = [
-        MovieListItemSchema.model_validate(movie)
-        for movie in result.results
-    ]
-
-    return result
+@router.get("/movies/search/", response_model=List[MovieDetailSchema])
+async def search_movies(
+    search: str = Query(..., min_length=2, example="nolan"),
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = await search_movies_stmt(db=db, search=search)
+    result = await db.execute(stmt)
+    movies = result.scalars().unique().all()
+    return movies
 
 
 @router.get("/movies/{movie_id}/", response_model=MovieDetailSchema)
@@ -402,7 +396,7 @@ async def get_movie_by_id(
     """
     Get detailed information about a movie by its ID.
     """
-    return await get_movie_detail(movie_id, db)
+    return await get_movie_detail(db, movie_id)
     return await get_movie_detail(db, movie_id)
 
 

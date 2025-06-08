@@ -1,6 +1,8 @@
 import uuid
+from enum import Enum
 from typing import Optional
 
+from fastapi import Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from schemas.examples.movies import (
@@ -187,6 +189,7 @@ class MovieListItemSchema(BaseModel):
     year: int
     imdb: Optional[float]
     time: int
+    price: float
     genres: list[GenreBaseSchema]
 
     model_config = ConfigDict(
@@ -265,3 +268,23 @@ class MovieUpdateSchema(BaseModel):
 
 class MovieDeleteSchema(MovieBaseSchema):
     pass
+
+
+class MovieFilterParamsSchema:
+    def __init__(
+        self,
+        year: Optional[int] = Query(default=None),
+        genre_ids: Optional[list[int]] = Query(default=None),
+        min_imdb: Optional[float] = Query(default=None),
+    ):
+        self.year = year
+        self.genre_ids = genre_ids
+        self.min_imdb = min_imdb
+
+
+class SortOptions(str, Enum):
+    price_asc = "price_asc"
+    price_desc = "price_desc"
+    release_date_asc = "release_date_asc"
+    release_date_desc = "release_date_desc"
+    # popularity_desc = "popularity_desc"

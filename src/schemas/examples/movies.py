@@ -46,15 +46,19 @@ movie_create_schema_example = {
 }
 
 
-director_schema_example = {"name": "Christopher Nolan"}
+director_schema_example = [
+    {"name": "Christopher Nolan"},
+    {"name": "Steven Spielberg"}
+]
 
 certification_schema_example = {"name": "PG-13"}
 
-genre_schema_example = {"name": "Comedy"}
+genre_schema_example = [{"name": "Action"}, {"name": "Drama"}]
 
-star_schema_example = {
+star_schema_example = [{
     "name": "Leonardo DiCaprio",
-}
+    "name": "Joseph Gordon-Levitt",
+}]
 
 movie_detail_schema_example = {
     **movie_item_schema_example,
@@ -69,6 +73,7 @@ movie_list_schema_example = {
     "year": 2025,
     "imdb": 8.8,
     "time": 120,
+    "price": 12.99,
     "genres": [genre_schema_example],
 }
 
