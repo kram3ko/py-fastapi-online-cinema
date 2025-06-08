@@ -1,7 +1,7 @@
 from datetime import date
 
 from fastapi import HTTPException, UploadFile
-from pydantic import BaseModel, HttpUrl, ValidationInfo, field_validator
+from pydantic import BaseModel, HttpUrl, ValidationInfo, field_validator, ConfigDict
 from starlette import status
 
 from validation import validate_birth_date, validate_gender, validate_image, validate_name
@@ -90,3 +90,19 @@ class ProfileResponseSchema(BaseModel):
     date_of_birth: date | None
     info: str | None
     avatar: HttpUrl
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": [
+                {
+                    "id": 1,
+                    "first_name": "John",
+                    "last_name": "Doe",
+                    "gender": "male",
+                    "date_of_birth": "1990-01-01",
+                    "info": "Some info",
+                    "avatar": "https://example.com/avatar.jpg"
+                }
+            ]
+        }
+    )
