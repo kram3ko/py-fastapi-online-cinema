@@ -5,10 +5,7 @@ from typing import Any, Generic, TypeVar, cast
 
 from fastapi import Query
 from fastapi_pagination.bases import AbstractPage, AbstractParams, RawParams
-from fastapi_pagination.customization import CustomizedPage, UseFieldsAliases
 from pydantic import BaseModel, Field
-
-from schemas.movies import MovieDetailSchema
 
 T = TypeVar("T")
 
@@ -64,8 +61,3 @@ class Page(AbstractPage[T], Generic[T]):
             else None,
         )
 
-
-MoviesPage = CustomizedPage[
-    Page[MovieDetailSchema],
-    UseFieldsAliases(results="movies"),
-]

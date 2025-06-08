@@ -7,6 +7,7 @@ from config.settings import BaseAppSettings, Settings, TestingSettings
 from database.deps import get_db
 from database.models.accounts import UserModel
 from notifications.emails import EmailSender, EmailSenderInterface
+from notifications.stripe_notificator import StripeEmailNotificator, StripeEmailSenderInterface
 from security.http import get_token
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
@@ -107,6 +108,36 @@ def get_s3_storage_client(
         access_key=settings.S3_STORAGE_ACCESS_KEY,
         secret_key=settings.S3_STORAGE_SECRET_KEY,
         bucket_name=settings.S3_BUCKET_NAME,
+    )
+
+
+def get_stripe_email_notificator(
+    settings: BaseAppSettings = Depends(get_settings),
+) -> StripeEmailSenderInterface:
+    """
+    Retrieve an instance of the StripeEmailSenderInterface configured with the application settings.
+
+    This function creates a StripeEmailNotificator using the provided settings, which include details such as the email host,
+    port, credentials, TLS usage, and the directory for email templates. This allows the application
+    to send payment-related email notifications.
+
+    Args:
+        settings (BaseAppSettings): The application settings.
+
+    Returns:
+        StripeEmailSenderInterface: An instance of StripeEmailNotificator configured with the appropriate email settings.
+    """
+    return StripeEmailNotificator(
+        hostname=settings.EMAIL_HOST,
+        port=settings.EMAIL_PORT,
+        email=settings.EMAIL_HOST_USER,
+        password=settings.EMAIL_HOST_PASSWORD,
+        use_tls=settings.EMAIL_USE_TLS,
+        template_dir=settings.PATH_TO_EMAIL_TEMPLATES_DIR,
+        activation_email_template_name=settings.ACTIVATION_EMAIL_TEMPLATE_NAME,
+        activation_complete_email_template_name=settings.ACTIVATION_COMPLETE_EMAIL_TEMPLATE_NAME,
+        password_email_template_name=settings.PASSWORD_RESET_TEMPLATE_NAME,
+        password_complete_email_template_name=settings.PASSWORD_RESET_COMPLETE_TEMPLATE_NAME,
     )
 
 
