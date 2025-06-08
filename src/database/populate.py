@@ -68,26 +68,28 @@ class CSVDatabaseSeeder:
 
         if items:
             for i in range(0, len(items), CHUNK_SIZE):
-                chunk = items[i : i + CHUNK_SIZE]
-                result = await self._db_session.execute(select(model).where(getattr(model, unique_field).in_(chunk)))
+                chunk_str: list[str] = items[i : i + CHUNK_SIZE]
+                result = await self._db_session.execute(
+                    select(model).where(getattr(model, unique_field).in_(chunk_str))
+                )
                 existing_in_chunk = result.scalars().all()
                 for obj in existing_in_chunk:
                     key = getattr(obj, unique_field)
                     existing_dict[key] = obj
 
-        new_items = [item for item in items if item not in existing_dict]
-        new_records = [{unique_field: item} for item in new_items]
+        new_items: list[str] = [item for item in items if item not in existing_dict]
+        new_records: list[dict[str, str]] = [{unique_field: item} for item in new_items]
 
         if new_records:
             for i in range(0, len(new_records), CHUNK_SIZE):
-                chunk = new_records[i : i + CHUNK_SIZE]
-                await self._db_session.execute(insert(model).values(chunk))
+                chunk_dict: list[dict[str, str]] = new_records[i : i + CHUNK_SIZE]
+                await self._db_session.execute(insert(model).values(chunk_dict))
                 await self._db_session.flush()
 
             for i in range(0, len(new_items), CHUNK_SIZE):
-                chunk = new_items[i : i + CHUNK_SIZE]
+                chunk_str_new: list[str] = new_items[i : i + CHUNK_SIZE]
                 result_new = await self._db_session.execute(
-                    select(model).where(getattr(model, unique_field).in_(chunk))
+                    select(model).where(getattr(model, unique_field).in_(chunk_str_new))
                 )
                 inserted_in_chunk = result_new.scalars().all()
                 for obj in inserted_in_chunk:
@@ -122,7 +124,7 @@ class CSVDatabaseSeeder:
         self,
         data: pd.DataFrame,
         movie_ids: list[int],
-        star_map: dict[str, object],
+        star_map: dict[str, StarModel],
     ) -> list[dict[str, int]]:
         movie_stars_data: list[dict[str, int]] = []
 
@@ -136,16 +138,16 @@ class CSVDatabaseSeeder:
 
         return movie_stars_data
 
-    def _prepare_movies_data(self, data: pd.DataFrame) -> list[dict]:
-        movies_data = []
+    def _prepare_movies_data(self, data: pd.DataFrame) -> list[dict[str, int | str]]:
+        movies_data: list[dict[str, int | str]] = []
         for _, row in data.iterrows():
             movies_data.append(
                 {
-                    "names": row["names"],
-                    "date_x": row["date_x"],
-                    "country": row["country"],
-                    "orig_lang": row["orig_lang"],
-                    "status": row["status"],
+                    "names": str(row["names"]),
+                    "date_x": str(row["date_x"]),
+                    "country": str(row["country"]),
+                    "orig_lang": str(row["orig_lang"]),
+                    "status": str(row["status"]),
                 }
             )
         return movies_data

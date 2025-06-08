@@ -4,14 +4,12 @@ from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from crud import movie_crud
-from database.models.movies import (
-    GenreModel,
-    MovieModel,
-    StarModel,
-    DirectorModel,
-    CertificationModel
-)
+from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
 from schemas.movies import (
+    CertificationCreateSchema,
+    CertificationUpdateSchema,
+    DirectorCreateSchema,
+    DirectorUpdateSchema,
     GenreCreateSchema,
     GenreUpdateSchema,
     MovieCreateSchema,
@@ -20,10 +18,6 @@ from schemas.movies import (
     MovieUpdateSchema,
     StarCreateSchema,
     StarUpdateSchema,
-    DirectorCreateSchema,
-    DirectorUpdateSchema,
-    CertificationCreateSchema,
-    CertificationUpdateSchema,
 )
 
 
@@ -393,40 +387,26 @@ async def delete_certification(
     return {"detail": "Certification deleted successfully."}
 
 
-async def list_movies(db: AsyncSession) -> list[MovieModel]:
+async def list_movies(
+    db: AsyncSession,
+    params: Params
+) -> list[MovieListItemSchema]:
     """
-    Retrieve all movies from the database.
-    :param db: Async database session.
-    :return: List of MovieModel instances.
-    """
-    return await movie_crud.list_movies(db)
-
-
-async def get_paginated_movies(
-        db: AsyncSession,
-        params: Params
-) -> Page[MovieListItemSchema]:
-    """
-    Retrieve paginated list of movies using FastAPI pagination.
+    Retrieve paginated list of movies.
     :param db: Async database session.
     :param params: Pagination parameters.
-    :raises HTTPException: If no movies found.
-    :return: Paginated result with validated MovieListItemSchema items.
+    :return: List of MovieListItemSchema instances.
     """
     result = await apaginate(
-        db, movie_crud.get_all_movies_stmt(),
+        db,
+        movie_crud.get_all_movies_stmt(),
         params=params
     )
 
     if not result.results:
-        raise HTTPException(
-            status_code=404,
-            detail="No movies found."
-        )
+        return []
 
-    result.results = [MovieListItemSchema.model_validate(movie) for movie in result.results]
-
-    return result
+    return [MovieListItemSchema.model_validate(movie) for movie in result.results]
 
 
 async def get_movie_detail(

@@ -1,5 +1,8 @@
+import uuid
 from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, Field
+
 from schemas.examples.movies import (
     certification_schema_example,
     director_schema_example,
@@ -8,11 +11,10 @@ from schemas.examples.movies import (
     movie_detail_schema_example,
     movie_item_schema_example,
     movie_list_response_schema_example,
+    movie_list_schema_example,
     movie_update_schema_example,
-    star_schema_example, movie_list_schema_example,
+    star_schema_example,
 )
-import uuid
-
 
 
 class GenreBaseSchema(BaseModel):
@@ -26,7 +28,6 @@ class GenreBaseSchema(BaseModel):
             ]
         }
     )
-
 
 
 class GenreCreateSchema(GenreBaseSchema):
@@ -43,14 +44,13 @@ class GenreDeleteSchema(GenreBaseSchema):
 
 class GenreReadSchema(GenreBaseSchema):
     id: int
-    movie_count: Optional[int] = Field(None, example=12)
+    movie_count: Optional[int] = Field(default=None)
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={"example": [genre_schema_example]})
 
 
 class StarBaseSchema(BaseModel):
     name: str
-
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -60,7 +60,6 @@ class StarBaseSchema(BaseModel):
             ]
         }
     )
-
 
 
 class StarCreateSchema(StarBaseSchema):
@@ -84,7 +83,6 @@ class StarReadSchema(StarBaseSchema):
 class DirectorBaseSchema(BaseModel):
     name: str
 
-
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -93,7 +91,6 @@ class DirectorBaseSchema(BaseModel):
             ]
         }
     )
-
 
 
 class DirectorCreateSchema(DirectorBaseSchema):
@@ -117,7 +114,6 @@ class DirectorReadSchema(DirectorBaseSchema):
 class CertificationBaseSchema(BaseModel):
     name: str
 
-
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -126,7 +122,6 @@ class CertificationBaseSchema(BaseModel):
             ]
         }
     )
-
 
 
 class CertificationCreateSchema(CertificationBaseSchema):
@@ -152,14 +147,13 @@ class MovieBaseSchema(BaseModel):
     name: str
     year: int
     time: int
-    imdb: Optional[float]
-    votes: Optional[int]
-    meta_score: Optional[float]
-    gross: Optional[float]
+    imdb: Optional[float] = Field(default=None)
+    votes: Optional[int] = Field(default=None)
+    meta_score: Optional[float] = Field(default=None)
+    gross: Optional[float] = Field(default=None)
     descriptions: str
     price: float
     certification_id: int
-
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -169,7 +163,6 @@ class MovieBaseSchema(BaseModel):
             ]
         }
     )
-
 
 
 class MovieDetailSchema(MovieBaseSchema):
@@ -210,14 +203,12 @@ class MovieListResponseSchema(BaseModel):
     total_items: int
 
     model_config = ConfigDict(
-
         from_attributes=True,
         json_schema_extra={
             "example": [
                 movie_list_response_schema_example
             ]
         }
-
     )
 
 
@@ -233,8 +224,6 @@ class MovieCreateSchema(BaseModel):
     star_ids: list[int]
     director_ids: list[int]
 
-
-
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -243,7 +232,6 @@ class MovieCreateSchema(BaseModel):
             ]
         }
     )
-
 
 
 class MovieUpdateSchema(BaseModel):
@@ -261,7 +249,6 @@ class MovieUpdateSchema(BaseModel):
     star_ids: Optional[list[int]] = None
     director_ids: Optional[list[int]] = None
 
-
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -270,7 +257,6 @@ class MovieUpdateSchema(BaseModel):
             ]
         }
     )
-
 
 
 class MovieDeleteSchema(MovieBaseSchema):
