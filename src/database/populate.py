@@ -1,6 +1,5 @@
 import asyncio
 import math
-import os
 import uuid
 
 import pandas as pd
@@ -13,8 +12,7 @@ from config import get_settings
 from database.deps import get_db_contextmanager
 from database.models.accounts import UserGroupEnum, UserGroupModel
 from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
-from database.models.orders import OrderModel
-from database.models.shopping_cart import Cart
+
 
 CHUNK_SIZE = 1000
 
@@ -42,7 +40,7 @@ class CSVDatabaseSeeder:
         await self._db_session.flush()
 
         # Create genres
-        all_genres = set()
+        all_genres: set[str] = set()
         for genres_str in data["genres"]:
             all_genres.update(genre.strip() for genre in genres_str.split(","))
         genres = {genre: GenreModel(name=genre) for genre in all_genres}
@@ -51,7 +49,7 @@ class CSVDatabaseSeeder:
         await self._db_session.flush()
 
         # Create directors
-        all_directors = set()
+        all_directors: set[str] = set()
         for directors_str in data["directors"]:
             all_directors.update(director.strip() for director in directors_str.split(","))
         directors = {director: DirectorModel(name=director) for director in all_directors}
