@@ -32,7 +32,7 @@ class Page(AbstractPage[T], Generic[T]):
         default=None, examples=["/url_path/?page=3&size=10"]
     )
 
-    params_type = Params
+    __params_type__ = Params
 
     @classmethod
     def create(

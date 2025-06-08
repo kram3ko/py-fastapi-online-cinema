@@ -1,43 +1,48 @@
-from fastapi import APIRouter, Depends, Request, Body, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi_pagination import Params
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi_pagination import add_pagination, paginate
 from sqlalchemy.orm import Session
 
-from database.models.movies import MovieModel
-from pagination import Page, Params
-
-# from crud.movie_crud import count_movies
 from crud.movie_service import (
+    create_certification,
+    create_director,
     create_genre,
     create_movie,
     create_star,
+    delete_certification,
+    delete_director,
     delete_genre,
     delete_movie,
     delete_star,
+    get_certification,
+    get_director,
     get_genre,
+    get_movie_detail,
     get_star,
+    list_certifications,
+    list_directors,
     list_genres,
     list_movies,
     list_stars,
+    update_certification,
+    update_director,
     update_genre,
     update_movie,
     update_star,
-    get_director,
-    create_director,
-    update_director,
-    delete_director,
-    list_directors,
-    delete_certification,
-    update_certification,
-    create_certification,
-    get_certification,
-    list_certifications, get_movie_detail, list_movies_service,
 )
-from database import get_db
-from pagination import Page
+from database.deps import get_db
+from database.models import MovieModel
+from pagination.pages import Page
 from schemas.movies import (
+    CertificationCreateSchema,
+    CertificationReadSchema,
+    CertificationUpdateSchema,
+    DirectorCreateSchema,
+    DirectorReadSchema,
+    DirectorUpdateSchema,
     GenreCreateSchema,
     GenreReadSchema,
     GenreUpdateSchema,
@@ -48,12 +53,6 @@ from schemas.movies import (
     StarCreateSchema,
     StarReadSchema,
     StarUpdateSchema,
-    DirectorReadSchema,
-    DirectorCreateSchema,
-    DirectorUpdateSchema,
-    CertificationUpdateSchema,
-    CertificationReadSchema,
-    CertificationCreateSchema, MovieListResponseSchema,
 )
 
 router = APIRouter()
@@ -66,6 +65,7 @@ router = APIRouter()
 async def get_genres(
         db: AsyncSession = Depends(get_db)
 ) -> list[GenreReadSchema]:
+
     """
     Get a list of all movie genres.
     """
@@ -80,6 +80,7 @@ async def get_genre_by_id(
         genre_id: int,
         db: AsyncSession = Depends(get_db)
 ) -> GenreReadSchema:
+
     """
     Retrieve a genre by its ID.
     """
@@ -95,10 +96,11 @@ async def create_movie_genre(
         genre_data: GenreCreateSchema,
         db: AsyncSession = Depends(get_db)
 ) -> GenreReadSchema:
+
     """
     Create a new genre.
     """
-    return await create_genre(db, genre_data)
+    return GenreReadSchema.model_validate(await create_genre(db, genre_data))
 
 
 @router.put(
@@ -109,6 +111,7 @@ async def update_movie_genre(
         genre_id: int,
         genre_data: GenreUpdateSchema,
         db: AsyncSession = Depends(get_db)
+
 ) -> GenreReadSchema:
     """
     Update an existing genre by ID.
@@ -172,6 +175,7 @@ async def update_movie_star(
         star_id: int,
         star_data: StarUpdateSchema,
         db: AsyncSession = Depends(get_db)
+
 ) -> StarReadSchema:
     """
     Update a movie star by ID.
@@ -342,6 +346,9 @@ async def get_movies(
         additional_data={
             "url": request.url.path.replace("/api/v1", "", 1),
         },
+        additional_data={
+            "url": request.url.path.replace("/api/v1", "", 1),
+        },
     )
 
     if not result.results:
@@ -379,11 +386,18 @@ def list_movies_with_filters(
         limit=limit
     )
 
+    if not result.results:
+        raise HTTPException(status_code=404, detail="No movies found.")
 
-@router.get(
-    "/movies/{movie_id}/",
-    response_model=MovieDetailSchema
-)
+    result.results = [
+        MovieListItemSchema.model_validate(movie)
+        for movie in result.results
+    ]
+
+    return result
+
+
+@router.get("/movies/{movie_id}/", response_model=MovieDetailSchema)
 async def get_movie_by_id(
     movie_id: int,
     db: AsyncSession = Depends(get_db),
@@ -391,6 +405,7 @@ async def get_movie_by_id(
     """
     Get detailed information about a movie by its ID.
     """
+    return await get_movie_detail(movie_id, db)
     return await get_movie_detail(db, movie_id)
 
 
@@ -412,6 +427,8 @@ async def create_one_movie(
             response_model=MovieDetailSchema
             )
 async def update_one_movie(
+    movie_id: int, data: MovieUpdateSchema, db: AsyncSession = Depends(get_db)
+) -> MovieDetailSchema:
     movie_id: int,
     data: MovieUpdateSchema,
     db: AsyncSession = Depends(get_db)

@@ -1,7 +1,12 @@
+from fastapi import HTTPException
+from sqlalchemy import delete, func, select, update
 from fastapi import HTTPException, params
 from sqlalchemy import delete, select, update, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session, selectinload
+
+from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
 from sqlalchemy.orm import selectinload, Session
 from database.models.movies import (
     GenreModel,
@@ -12,15 +17,15 @@ from database.models.movies import (
 )
 from pagination import Params
 from schemas.movies import (
+    CertificationCreateSchema,
+    CertificationUpdateSchema,
+    DirectorCreateSchema,
     GenreCreateSchema,
     GenreUpdateSchema,
     MovieCreateSchema,
     MovieUpdateSchema,
     StarCreateSchema,
     StarUpdateSchema,
-    DirectorCreateSchema,
-    CertificationCreateSchema,
-    CertificationUpdateSchema,
 )
 from pagination import Page, Params
 
@@ -33,7 +38,7 @@ async def get_all_genres(
         select(GenreModel)
         .order_by(GenreModel.id)
     )
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def get_genre_by_id(
@@ -104,7 +109,7 @@ async def get_all_stars(
         select(StarModel)
         .order_by(StarModel.id)
     )
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def get_star_by_id(
@@ -182,7 +187,7 @@ async def get_all_directors(
         select(DirectorModel)
         .order_by(DirectorModel.id)
     )
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def get_director_by_id(
@@ -262,7 +267,7 @@ async def get_all_certifications(
         select(CertificationModel)
         .order_by(CertificationModel.id)
     )
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def get_certification_by_id(
@@ -355,6 +360,7 @@ async def get_all_movies(
         .limit(limit)
         .order_by(MovieModel.id)
     )
+    return list(result.scalars().all())
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -387,6 +393,7 @@ async def add_movie(
     """
     Create a new movie including relationships to genres, stars, and directors.
     """
+
     movie = MovieModel(
         **movie_data.model_dump(
             exclude={"genre_ids", "star_ids", "director_ids"}
@@ -420,6 +427,8 @@ async def add_movie(
     directors_result = await db.execute(
         select(DirectorModel)
         .where(DirectorModel.id.in_(movie_data.director_ids))
+
+
     )
     directors = directors_result.scalars().all()
     if len(directors) != len(set(movie_data.director_ids)):
@@ -475,6 +484,7 @@ async def edit_movie(
 
     if data.genre_ids:
         movie.genres = await db.execute(
+
             select(MovieModel.genres.property.mapper.class_)
             .filter(MovieModel.genres
                     .property.mapper.class_.id.in_(data.genre_ids))

@@ -1,14 +1,14 @@
 from datetime import datetime, timezone
 from typing import cast
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import delete, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from config import BaseAppSettings, get_accounts_email_notificator, get_jwt_auth_manager, get_settings
-from database import get_db
+from config import BaseAppSettings, get_jwt_auth_manager, get_settings
+from database.deps import get_db
 from database.models.accounts import (
     ActivationTokenModel,
     PasswordResetTokenModel,
@@ -18,7 +18,12 @@ from database.models.accounts import (
     UserModel,
 )
 from exceptions import BaseSecurityError
-from notifications import EmailSenderInterface
+from scheduler.tasks import (
+    send_activation_complete_email_task,
+    send_activation_email_task,
+    send_password_reset_complete_email_task,
+    send_password_reset_email_task,
+)
 from schemas.accounts import (
     MessageResponseSchema,
     PasswordResetCompleteRequestSchema,
@@ -59,7 +64,6 @@ router = APIRouter()
 async def register_user(
     user_data: UserRegistrationRequestSchema,
     db: AsyncSession = Depends(get_db),
-    email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
     settings: BaseAppSettings = Depends(get_settings),
 ) -> UserRegistrationResponseSchema:
     """
@@ -72,7 +76,6 @@ async def register_user(
     Args:
         user_data (UserRegistrationRequestSchema): The registration details including email and password.
         db (AsyncSession): The asynchronous database session.
-        email_sender (EmailSenderInterface): The asynchronous email sender.
         settings (BaseAppSettings): The application settings.
 
     Returns:
@@ -119,7 +122,8 @@ async def register_user(
     else:
         activation_link = f"{settings.FRONTEND_URL}/accounts/activate/"
 
-        await email_sender.send_activation_email(new_user.email, activation_link)
+        # Отправляем письмо через Celery
+        send_activation_email_task.delay(new_user.email, activation_link)
 
         return UserRegistrationResponseSchema.model_validate(new_user)
 
@@ -154,7 +158,6 @@ async def register_user(
 async def activate_account(
     activation_data: UserActivationRequestSchema,
     db: AsyncSession = Depends(get_db),
-    email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
     settings: BaseAppSettings = Depends(get_settings),
 ) -> MessageResponseSchema:
     """
@@ -168,7 +171,6 @@ async def activate_account(
     Args:
         activation_data (UserActivationRequestSchema): Contains the user's email and activation token.
         db (AsyncSession): The asynchronous database session.
-        email_sender (EmailSenderInterface): The asynchronous email sender.
         settings (BaseAppSettings): The application settings.
 
     Returns:
@@ -203,7 +205,8 @@ async def activate_account(
 
     login_link = f"{settings.FRONTEND_URL}/accounts/login/"
 
-    await email_sender.send_activation_complete_email(str(activation_data.email), login_link)
+    # Отправляем письмо через Celery
+    send_activation_complete_email_task.delay(str(activation_data.email), login_link)
 
     return MessageResponseSchema(message="User account activated successfully.")
 
@@ -223,13 +226,11 @@ async def activate_account(
 )
 async def resend_activation_email(
     data: ResendActivationRequestSchema,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
     settings: BaseAppSettings = Depends(get_settings),
 ) -> MessageResponseSchema:
     """
-    Endpoint to reactivate
+    Endpoint to resend activation email.
 
     This endpoint verifies the activation token for a user by checking that the token record exists
     and that it has not expired. If the token is valid and the user's account is not already active,
@@ -238,9 +239,7 @@ async def resend_activation_email(
 
     Args:
         data (ResendActivationRequestSchema): Contains the user's email.
-        background_tasks (BackgroundTasks): Background tasks for sending emails.
         db (AsyncSession): The asynchronous database session.
-        email_sender (EmailSenderInterface): The asynchronous email sender.
         settings (BaseAppSettings): The application settings.
     Returns:
         MessageResponseSchema: A response message confirming that an email will be sent with instructions.
@@ -256,15 +255,18 @@ async def resend_activation_email(
     if user.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User account is already active.")
 
+    # Удаляем старый токен, если он есть
     await db.execute(delete(ActivationTokenModel).where(ActivationTokenModel.user_id == user.id))
 
+    # Создаем новый токен
     activation_token = ActivationTokenModel(user_id=user.id)
     db.add(activation_token)
     await db.commit()
 
     activation_link = f"{settings.FRONTEND_URL}/accounts/activate/"
 
-    background_tasks.add_task(email_sender.send_activation_email, user.email, activation_link)
+    # Отправляем письмо через Celery
+    send_activation_email_task.delay(user.email, activation_link)
 
     return MessageResponseSchema(message="If you are registered, you will receive an email with instructions.")
 
@@ -273,49 +275,33 @@ async def resend_activation_email(
     "/password-reset/request/",
     response_model=MessageResponseSchema,
     summary="Request Password Reset Token",
-    description=(
-        "Allows a user to request a password reset token. If the user exists and is active, "
-        "a new token will be generated and any existing tokens will be invalidated."
-    ),
+    description="Allows a user to request a password reset token.",
     status_code=status.HTTP_200_OK,
 )
 async def request_password_reset_token(
     data: PasswordResetRequestSchema,
     db: AsyncSession = Depends(get_db),
-    email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
     settings: BaseAppSettings = Depends(get_settings),
 ) -> MessageResponseSchema:
     """
     Endpoint to request a password reset token.
-
-    If the user exists and is active, invalidates any existing password reset tokens and generates a new one.
-    Always responds with a success message to avoid leaking user information.
-
-    Args:
-        data (PasswordResetRequestSchema): The request data containing the user's email.
-        db (AsyncSession): The asynchronous database session.
-        email_sender (EmailSenderInterface): The asynchronous email sender.
-        settings (BaseAppSettings): The application settings.
-
-    Returns:
-        MessageResponseSchema: A success message indicating that instructions will be sent.
     """
-    stmt = select(UserModel).filter_by(email=data.email)
-    result = await db.execute(stmt)
-    user = result.scalars().first()
-
+    user = await db.scalar(select(UserModel).where(UserModel.email == data.email))
     if not user or not user.is_active:
         return MessageResponseSchema(message="If you are registered, you will receive an email with instructions.")
 
+    # Удаляем старый токен, если он есть
     await db.execute(delete(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == user.id))
 
-    reset_token = PasswordResetTokenModel(user_id=cast(int, user.id))
+    # Создаем новый токен
+    reset_token = PasswordResetTokenModel(user_id=user.id)
     db.add(reset_token)
     await db.commit()
 
-    password_reset_complete_link = f"{settings.FRONTEND_URL}/accounts/reset-password/complete/"
+    reset_link = f"{settings.FRONTEND_URL}/accounts/reset-password/"
 
-    await email_sender.send_password_reset_email(str(data.email), password_reset_complete_link)
+    # Отправляем письмо через Celery
+    send_password_reset_email_task.delay(str(data.email), reset_link)
 
     return MessageResponseSchema(message="If you are registered, you will receive an email with instructions.")
 
@@ -355,67 +341,45 @@ async def request_password_reset_token(
 async def reset_password(
     data: PasswordResetCompleteRequestSchema,
     db: AsyncSession = Depends(get_db),
-    email_sender: EmailSenderInterface = Depends(get_accounts_email_notificator),
     settings: BaseAppSettings = Depends(get_settings),
 ) -> MessageResponseSchema:
     """
-    Endpoint for resetting a user's password.
-
-    Validates the token and updates the user's password if the token is valid and not expired.
-    Deletes the token after a successful password reset.
-
-    Args:
-        data (PasswordResetCompleteRequestSchema): The request data containing the user's email,
-         token, and new password.
-        db (AsyncSession): The asynchronous database session.
-        email_sender (EmailSenderInterface): The asynchronous email sender.
-        settings (BaseAppSettings): The application settings.
-
-    Returns:
-        MessageResponseSchema: A response message indicating successful password reset.
-
-    Raises:
-        HTTPException:
-            - 400 Bad Request if the email or token is invalid, or the token has expired.
-            - 500 Internal Server Error if an error occurs during the password reset process.
+    Endpoint to reset a user's password.
     """
-    stmt = select(UserModel).filter_by(email=data.email)
-    result = await db.execute(stmt)
-    user = result.scalars().first()
-    if not user or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email or token.")
+    token_record = await db.scalar(
+        select(PasswordResetTokenModel)
+        .options(joinedload(PasswordResetTokenModel.user))
+        .join(UserModel)
+        .where(UserModel.email == data.email, PasswordResetTokenModel.token == data.token)
+    )
 
-    stmt = select(PasswordResetTokenModel).filter_by(user_id=user.id)
-    result = await db.execute(stmt)
-    token_record = result.scalars().first()
-
-    if not token_record or token_record.token != data.token:
-        if token_record:
-            await db.run_sync(lambda s: s.delete(token_record))
+    now_utc = datetime.now(timezone.utc)
+    if not token_record or cast(datetime, token_record.expires_at).replace(tzinfo=timezone.utc) < now_utc:
+        user = await db.scalar(select(UserModel).where(UserModel.email == data.email))
+        if user:
+            await db.execute(delete(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == user.id))
             await db.commit()
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email or token.")
 
-    expires_at = cast(datetime, token_record.expires_at).replace(tzinfo=timezone.utc)
-    if expires_at < datetime.now(timezone.utc):
-        await db.run_sync(lambda s: s.delete(token_record))
-        await db.commit()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email or token.")
+    user = token_record.user
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User account is not active.")
 
     try:
         user.password = data.password
-        await db.run_sync(lambda s: s.delete(token_record))
+        await db.delete(token_record)
         await db.commit()
-    except SQLAlchemyError:
+    except SQLAlchemyError as e:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An error occurred while resetting the password."
-        )
+        ) from e
 
     login_link = f"{settings.FRONTEND_URL}/accounts/login/"
 
-    await email_sender.send_password_reset_complete_email(str(data.email), login_link)
+    send_password_reset_complete_email_task.delay(str(data.email), login_link)
 
-    return MessageResponseSchema(message="Password reset successfully.")
+    return MessageResponseSchema(message="Password has been reset successfully.")
 
 
 @router.post(
@@ -423,7 +387,7 @@ async def reset_password(
     response_model=UserLoginResponseSchema,
     summary="User Login",
     description="Authenticate a user and return access and refresh tokens.",
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
     responses={
         401: {
             "description": "Unauthorized - Invalid email or password.",

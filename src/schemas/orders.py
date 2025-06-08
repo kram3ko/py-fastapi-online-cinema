@@ -1,25 +1,38 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, condecimal
+from pydantic import BaseModel, ConfigDict, Field
 
 from database.models.accounts import UserModel
-from src.database.models.orders import OrderStatus
+from database.models.orders import OrderStatus
 
 
 class OrderItemResponse(BaseModel):
     id: int
     movie_id: int
-    price_at_order: condecimal(max_digits=10, decimal_places=2)
+    price_at_order: Decimal = Field(..., ge=0, max_digits=10, decimal_places=2)
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class OrderCreate(BaseModel):
+class OrderBase(BaseModel):
+    user_id: int
+    movie_id: int
+    price: Decimal = Field(default=Decimal("0.00"), ge=0, max_digits=10, decimal_places=2)
+    status: str
+
+
+class OrderCreate(OrderBase):
     # The order is placed from the cart, so a list of movie IDs
     # might not be directly sent in the request body, but inferred from the user's cart.
     # Empty body for 'place order from my cart' scenario
     pass
+
+
+class OrderUpdate(BaseModel):
+    price: Optional[Decimal] = Field(default=None, ge=0, max_digits=10, decimal_places=2)
+    status: Optional[str] = None
 
 
 class OrderUpdateStatus(BaseModel):
@@ -31,7 +44,7 @@ class OrderResponse(BaseModel):
     user_id: int
     created_at: datetime
     status: OrderStatus
-    total_amount: Optional[condecimal(max_digits=10, decimal_places=2)]
+    total_amount: Optional[Decimal] = Field(default=None, ge=0, max_digits=10, decimal_places=2)
     order_items: list[OrderItemResponse] = []
     user: UserModel
 

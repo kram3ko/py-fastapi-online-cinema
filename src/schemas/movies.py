@@ -1,5 +1,8 @@
+import uuid
 from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, Field
+
 from schemas.examples.movies import (
     certification_schema_example,
     director_schema_example,
@@ -8,11 +11,10 @@ from schemas.examples.movies import (
     movie_detail_schema_example,
     movie_item_schema_example,
     movie_list_response_schema_example,
+    movie_list_schema_example,
     movie_update_schema_example,
-    star_schema_example, movie_list_schema_example,
+    star_schema_example,
 )
-import uuid
-
 
 
 class GenreBaseSchema(BaseModel):
@@ -42,9 +44,9 @@ class GenreDeleteSchema(GenreBaseSchema):
 
 class GenreReadSchema(GenreBaseSchema):
     id: int
-    movie_count: Optional[int] = Field(None, example=12)
+    movie_count: Optional[int] = Field(default=None)
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={"example": [genre_schema_example]})
 
 
 class StarBaseSchema(BaseModel):
@@ -145,10 +147,10 @@ class MovieBaseSchema(BaseModel):
     name: str
     year: int
     time: int
-    imdb: Optional[float]
-    votes: Optional[int]
-    meta_score: Optional[float]
-    gross: Optional[float]
+    imdb: Optional[float] = Field(default=None)
+    votes: Optional[int] = Field(default=None)
+    meta_score: Optional[float] = Field(default=None)
+    gross: Optional[float] = Field(default=None)
     descriptions: str
     price: float
     certification_id: int
@@ -225,7 +227,6 @@ class MovieCreateSchema(BaseModel):
     genre_ids: list[int]
     star_ids: list[int]
     director_ids: list[int]
-
 
     model_config = ConfigDict(
         from_attributes=True,

@@ -6,18 +6,28 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from config import get_settings
-from database import Base
+from database.models.base import Base
 
 settings = get_settings()
 
 SQLITE_DATABASE_URL = f"sqlite+aiosqlite:///{settings.PATH_TO_DB}"
-sqlite_engine = create_async_engine(SQLITE_DATABASE_URL, echo=False)
-AsyncSQLiteSessionLocal = sessionmaker(  # type: ignore
-    bind=sqlite_engine, class_=AsyncSession, expire_on_commit=False
+sqlite_engine = create_async_engine(
+    SQLITE_DATABASE_URL,
+    echo=False,
+    future=True,
 )
 
 SYNC_SQLITE_DATABASE_URL = f"sqlite:///{settings.PATH_TO_DB}"
-sync_sqlite_engine = create_engine(SYNC_SQLITE_DATABASE_URL, echo=False)
+sync_sqlite_engine = create_engine(
+    SYNC_SQLITE_DATABASE_URL,
+    echo=False,
+    future=True,
+)
+
+
+AsyncSQLiteSessionLocal = sessionmaker(  # type: ignore
+    bind=sqlite_engine, class_=AsyncSession, expire_on_commit=False
+)
 
 SyncSQLiteSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_sqlite_engine)
 

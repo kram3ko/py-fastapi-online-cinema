@@ -1,10 +1,14 @@
 import uuid
-from typing import Optional
+from typing import TYPE_CHECKING
+
 from sqlalchemy import DECIMAL, Column, ForeignKey, String, Table, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database import Base
+from database.models.base import Base
+
+if TYPE_CHECKING:
+    from database.models.orders import OrderItemModel
 
 MovieGenresModel = Table(
     "movie_genres",
@@ -88,7 +92,7 @@ class DirectorModel(Base):
     __tablename__ = "directors"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    name: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True)
+    name: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     movies: Mapped[list["MovieModel"]] = relationship(
         "MovieModel", secondary=MovieDirectorsModel, back_populates="directors"
     )
@@ -164,3 +168,4 @@ class MovieModel(Base):
     directors: Mapped[list["DirectorModel"]] = relationship(
         "DirectorModel", secondary=MovieDirectorsModel, back_populates="movies"
     )
+    order_items: Mapped[list["OrderItemModel"]] = relationship("OrderItemModel", back_populates="movie")

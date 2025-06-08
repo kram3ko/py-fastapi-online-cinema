@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Query
 
 from crud import movie_crud
+from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
 from crud.movie_crud import get_all_movies
 from database.models.movies import (
     GenreModel,
@@ -15,6 +16,10 @@ from database.models.movies import (
     CertificationModel
 )
 from schemas.movies import (
+    CertificationCreateSchema,
+    CertificationUpdateSchema,
+    DirectorCreateSchema,
+    DirectorUpdateSchema,
     GenreCreateSchema,
     GenreUpdateSchema,
     MovieCreateSchema,
@@ -176,6 +181,8 @@ async def update_star(
     :param star_data: Data to update.
     :raises HTTPException: If star is not found.
     :return: Updated StarModel instance.
+    """
+    updated = await movie_crud.update_star(db, star_id, star_data)
      """
     updated = await movie_crud.edit_star(db, star_id, star_data)
     if not updated:
