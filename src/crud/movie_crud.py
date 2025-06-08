@@ -4,7 +4,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, selectinload
 
-from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
+from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel, \
+    MovieGenresModel
 from pagination import Page, Params
 from schemas.movies import (
     CertificationCreateSchema,
@@ -15,7 +16,7 @@ from schemas.movies import (
     MovieCreateSchema,
     MovieUpdateSchema,
     StarCreateSchema,
-    StarUpdateSchema,
+    StarUpdateSchema, GenreReadSchema,
 )
 
 
@@ -23,11 +24,21 @@ async def get_all_genres(
         db: AsyncSession
 ) -> list[GenreModel]:
     """Retrieve all genres from the database, ordered by ID."""
-    result = await db.execute(
-        select(GenreModel)
-        .order_by(GenreModel.id)
+    stmt = (
+        select(
+            GenreModel.id,
+            GenreModel.name,
+            func.count(MovieGenresModel.c.movie_id).label("movie_count")
+        )
+        .join(MovieGenresModel, GenreModel.id == MovieGenresModel.c.genre_id)
+        .group_by(GenreModel.id)
+        .order_by(func.count(MovieGenresModel.c.movie_id).desc())
     )
-    return list(result.scalars().all())
+
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    return [GenreReadSchema(id=row.id, name=row.name, movie_count=row.movie_count) for row in rows]
 
 
 async def get_genre_by_id(
