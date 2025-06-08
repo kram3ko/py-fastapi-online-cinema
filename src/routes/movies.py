@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi_pagination import Params
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
+from fastapi_pagination import Params, add_pagination, paginate
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi_pagination import add_pagination, paginate
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import selectinload
 
 from crud.movie_service import (
     create_certification,
@@ -25,7 +25,7 @@ from crud.movie_service import (
     list_certifications,
     list_directors,
     list_genres,
-    list_movies,
+    list_movies_service,
     list_stars,
     update_certification,
     update_director,
@@ -346,9 +346,6 @@ async def get_movies(
         additional_data={
             "url": request.url.path.replace("/api/v1", "", 1),
         },
-        additional_data={
-            "url": request.url.path.replace("/api/v1", "", 1),
-        },
     )
 
     if not result.results:
@@ -362,7 +359,7 @@ async def get_movies(
     return result
 
 
-@router.get("/movies/", response_model=list[MovieListItemSchema])
+@router.get("/moviess/", response_model=list[MovieListItemSchema])
 def list_movies_with_filters(
     search: str = Query(None),
     release_year: int = Query(None),
@@ -373,7 +370,7 @@ def list_movies_with_filters(
     skip: int = 0,
     limit: int = 10,
     db: Session = Depends(get_db)
-):
+) -> MovieListItemSchema:
     return list_movies_service(
         db=db,
         search=search,
@@ -429,10 +426,6 @@ async def create_one_movie(
 async def update_one_movie(
     movie_id: int, data: MovieUpdateSchema, db: AsyncSession = Depends(get_db)
 ) -> MovieDetailSchema:
-    movie_id: int,
-    data: MovieUpdateSchema,
-    db: AsyncSession = Depends(get_db)
-) -> MovieUpdateSchema:
     """
     Update an existing movie by ID.
     """

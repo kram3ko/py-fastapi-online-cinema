@@ -1,21 +1,11 @@
-from fastapi import HTTPException
-from sqlalchemy import delete, func, select, update
 from fastapi import HTTPException, params
-from sqlalchemy import delete, select, update, func
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, selectinload
 
 from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
-from sqlalchemy.orm import selectinload, Session
-from database.models.movies import (
-    GenreModel,
-    MovieModel,
-    StarModel,
-    DirectorModel,
-    CertificationModel
-)
-from pagination import Params
+from pagination import Page, Params
 from schemas.movies import (
     CertificationCreateSchema,
     CertificationUpdateSchema,
@@ -27,7 +17,6 @@ from schemas.movies import (
     StarCreateSchema,
     StarUpdateSchema,
 )
-from pagination import Page, Params
 
 
 async def get_all_genres(

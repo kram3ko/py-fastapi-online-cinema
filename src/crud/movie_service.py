@@ -1,20 +1,13 @@
 from fastapi import HTTPException
 from fastapi_pagination import Page, Params
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
-from sqlalchemy import select, func, or_
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Query
 
 from crud import movie_crud
-from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
 from crud.movie_crud import get_all_movies
-from database.models.movies import (
-    GenreModel,
-    MovieModel,
-    StarModel,
-    DirectorModel,
-    CertificationModel
-)
+from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
 from schemas.movies import (
     CertificationCreateSchema,
     CertificationUpdateSchema,
@@ -25,13 +18,10 @@ from schemas.movies import (
     MovieCreateSchema,
     MovieDetailSchema,
     MovieListItemSchema,
+    MovieListResponseSchema,
     MovieUpdateSchema,
     StarCreateSchema,
     StarUpdateSchema,
-    DirectorCreateSchema,
-    DirectorUpdateSchema,
-    CertificationCreateSchema,
-    CertificationUpdateSchema, MovieListResponseSchema,
 )
 
 
@@ -183,7 +173,7 @@ async def update_star(
     :return: Updated StarModel instance.
     """
     updated = await movie_crud.update_star(db, star_id, star_data)
-     """
+
     updated = await movie_crud.edit_star(db, star_id, star_data)
     if not updated:
         raise HTTPException(
@@ -448,6 +438,7 @@ def search_movies(query: Query, search: str | None) -> Query:
         )
     return query
 
+
 def filter_movies(query: Query, year: int | None, min_rating: float | None, max_rating: float | None) -> Query:
     if year:
         query = query.filter(MovieModel.year == year)
@@ -456,6 +447,7 @@ def filter_movies(query: Query, year: int | None, min_rating: float | None, max_
     if max_rating:
         query = query.filter(MovieModel.imdb <= max_rating)
     return query
+
 
 def sort_movies(query: Query, sort_by: str = "release_year", order: str = "asc") -> Query:
     sort_column = {
@@ -468,6 +460,7 @@ def sort_movies(query: Query, sort_by: str = "release_year", order: str = "asc")
         query = query.order_by(sort_column.desc() if order == "desc" else sort_column.asc())
     return query
 
+
 def list_movies_service(
     db,
     search: str | None = None,
@@ -478,7 +471,7 @@ def list_movies_service(
     order: str = "asc",
     skip: int = 0,
     limit: int = 10
-):
+) -> any:
     query = db.query(MovieModel)
     query = search_movies(query, search)
     query = filter_movies(query, release_year, min_rating, max_rating)
