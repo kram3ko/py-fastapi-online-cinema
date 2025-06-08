@@ -214,6 +214,16 @@ services:
     networks:
       - online_cinema_network
 
+  redisinsight:
+    image: redislabs/redisinsight:latest
+    container_name: redisinsight_online_cinema
+    ports:
+      - "5540:5540"
+    depends_on:
+      - redis
+    restart: always
+    networks:
+      - online_cinema_network
 
 volumes:
 #  postgres_online_cinema_data:
