@@ -12,7 +12,7 @@ from tqdm import tqdm
 from config import get_settings
 from database.deps import get_db_contextmanager
 from database.models.accounts import UserGroupEnum, UserGroupModel
-from database.models.movies import MovieModel, StarModel, CertificationModel, GenreModel, DirectorModel
+from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
 from database.models.orders import OrderModel
 from database.models.shopping_cart import Cart
 
@@ -34,17 +34,17 @@ class CSVDatabaseSeeder:
         Seeds movies from CSV file.
         """
         data = pd.read_csv(self._csv_file_path)
-        
+
         # Create certifications
-        certifications = {cert: CertificationModel(name=cert) for cert in data['certification'].unique()}
+        certifications = {cert: CertificationModel(name=cert) for cert in data["certification"].unique()}
         for cert in certifications.values():
             self._db_session.add(cert)
         await self._db_session.flush()
 
         # Create genres
         all_genres = set()
-        for genres_str in data['genres']:
-            all_genres.update(genre.strip() for genre in genres_str.split(','))
+        for genres_str in data["genres"]:
+            all_genres.update(genre.strip() for genre in genres_str.split(","))
         genres = {genre: GenreModel(name=genre) for genre in all_genres}
         for genre in genres.values():
             self._db_session.add(genre)
@@ -52,8 +52,8 @@ class CSVDatabaseSeeder:
 
         # Create directors
         all_directors = set()
-        for directors_str in data['directors']:
-            all_directors.update(director.strip() for director in directors_str.split(','))
+        for directors_str in data["directors"]:
+            all_directors.update(director.strip() for director in directors_str.split(","))
         directors = {director: DirectorModel(name=director) for director in all_directors}
         for director in directors.values():
             self._db_session.add(director)
@@ -63,18 +63,18 @@ class CSVDatabaseSeeder:
         for _, row in data.iterrows():
             movie = MovieModel(
                 uuid_movie=uuid.uuid4(),
-                name=row['name'],
-                year=row['year'],
-                time=row['time'],
-                imdb=row['imdb'],
-                votes=row['votes'],
-                meta_score=row['meta_score'],
-                gross=row['gross'],
-                descriptions=row['descriptions'],
-                price=row['price'],
-                certification_id=certifications[row['certification']].id,
-                genres=[genres[genre.strip()] for genre in row['genres'].split(',')],
-                directors=[directors[director.strip()] for director in row['directors'].split(',')]
+                name=row["name"],
+                year=row["year"],
+                time=row["time"],
+                imdb=row["imdb"],
+                votes=row["votes"],
+                meta_score=row["meta_score"],
+                gross=row["gross"],
+                descriptions=row["descriptions"],
+                price=row["price"],
+                certification_id=certifications[row["certification"]].id,
+                genres=[genres[genre.strip()] for genre in row["genres"].split(",")],
+                directors=[directors[director.strip()] for director in row["directors"].split(",")]
             )
             self._db_session.add(movie)
 
@@ -83,33 +83,33 @@ class CSVDatabaseSeeder:
 
     def _preprocess_csv(self) -> pd.DataFrame:
         data = pd.read_csv(self._csv_file_path)
-        
+
         # Ensure all required columns are present
-        required_columns = ['name', 'year', 'time', 'imdb', 'votes', 'meta_score', 
-                          'gross', 'descriptions', 'price', 'certification', 
-                          'genres', 'directors']
-        
+        required_columns = ["name", "year", "time", "imdb", "votes", "meta_score",
+                          "gross", "descriptions", "price", "certification",
+                          "genres", "directors"]
+
         for col in required_columns:
             if col not in data.columns:
                 raise ValueError(f"Required column '{col}' is missing in the CSV file")
 
         # Clean up data
-        data['name'] = data['name'].astype(str)
-        data['year'] = data['year'].astype(int)
-        data['time'] = data['time'].astype(int)
-        data['imdb'] = data['imdb'].astype(float)
-        data['votes'] = data['votes'].astype(int)
-        data['meta_score'] = data['meta_score'].astype(float)
-        data['gross'] = data['gross'].astype(float)
-        data['descriptions'] = data['descriptions'].astype(str)
-        data['price'] = data['price'].astype(float)
-        data['certification'] = data['certification'].astype(str)
-        data['genres'] = data['genres'].astype(str)
-        data['directors'] = data['directors'].astype(str)
+        data["name"] = data["name"].astype(str)
+        data["year"] = data["year"].astype(int)
+        data["time"] = data["time"].astype(int)
+        data["imdb"] = data["imdb"].astype(float)
+        data["votes"] = data["votes"].astype(int)
+        data["meta_score"] = data["meta_score"].astype(float)
+        data["gross"] = data["gross"].astype(float)
+        data["descriptions"] = data["descriptions"].astype(str)
+        data["price"] = data["price"].astype(float)
+        data["certification"] = data["certification"].astype(str)
+        data["genres"] = data["genres"].astype(str)
+        data["directors"] = data["directors"].astype(str)
 
         # Clean up genres and directors
-        data['genres'] = data['genres'].apply(lambda x: ','.join(sorted(set(g.strip() for g in x.split(',')))))
-        data['directors'] = data['directors'].apply(lambda x: ','.join(sorted(set(d.strip() for d in x.split(',')))))
+        data["genres"] = data["genres"].apply(lambda x: ",".join(sorted(set(g.strip() for g in x.split(",")))))
+        data["directors"] = data["directors"].apply(lambda x: ",".join(sorted(set(d.strip() for d in x.split(",")))))
 
         print("Preprocessing CSV file...")
         data.to_csv(self._csv_file_path, index=False)
