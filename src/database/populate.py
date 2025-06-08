@@ -1,6 +1,6 @@
 import asyncio
 import math
-import os
+import uuid
 
 import pandas as pd
 from sqlalchemy import func, insert, select
@@ -11,9 +11,7 @@ from tqdm import tqdm
 from config import get_settings
 from database.deps import get_db_contextmanager
 from database.models.accounts import UserGroupEnum, UserGroupModel
-from database.models.movies import MovieModel, StarModel
-from database.models.orders import OrderModel
-from database.models.shopping_cart import Cart
+from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
 
 CHUNK_SIZE = 1000
 
@@ -28,24 +26,87 @@ class CSVDatabaseSeeder:
         first_group = result.scalars().first()
         return first_group is not None
 
+    async def _seed_movies_from_csv(self) -> None:
+        """
+        Seeds movies from CSV file.
+        """
+        data = pd.read_csv(self._csv_file_path)
+
+        # Create certifications
+        certifications = {cert: CertificationModel(name=cert) for cert in data["certification"].unique()}
+        for cert in certifications.values():
+            self._db_session.add(cert)
+        await self._db_session.flush()
+
+        # Create genres
+        all_genres: set[str] = set()
+        for genres_str in data["genres"]:
+            all_genres.update(genre.strip() for genre in genres_str.split(","))
+        genres = {genre: GenreModel(name=genre) for genre in all_genres}
+        for genre in genres.values():
+            self._db_session.add(genre)
+        await self._db_session.flush()
+
+        # Create directors
+        all_directors: set[str] = set()
+        for directors_str in data["directors"]:
+            all_directors.update(director.strip() for director in directors_str.split(","))
+        directors = {director: DirectorModel(name=director) for director in all_directors}
+        for director in directors.values():
+            self._db_session.add(director)
+        await self._db_session.flush()
+
+        # Create movies
+        for _, row in data.iterrows():
+            movie = MovieModel(
+                uuid_movie=uuid.uuid4(),
+                name=row["name"],
+                year=row["year"],
+                time=row["time"],
+                imdb=row["imdb"],
+                votes=row["votes"],
+                meta_score=row["meta_score"],
+                gross=row["gross"],
+                descriptions=row["descriptions"],
+                price=row["price"],
+                certification_id=certifications[row["certification"]].id,
+                genres=[genres[genre.strip()] for genre in row["genres"].split(",")],
+                directors=[directors[director.strip()] for director in row["directors"].split(",")]
+            )
+            self._db_session.add(movie)
+
+        await self._db_session.flush()
+        print("Movies seeded successfully.")
+
     def _preprocess_csv(self) -> pd.DataFrame:
         data = pd.read_csv(self._csv_file_path)
-        data = data.drop_duplicates(subset=["names", "date_x"], keep="first")
 
-        for col in ["star", "country", "orig_lang", "status"]:
-            data[col] = data[col].fillna("Unknown").astype(str)
+        # Ensure all required columns are present
+        required_columns = ["name", "year", "time", "imdb", "votes", "meta_score",
+                          "gross", "descriptions", "price", "certification",
+                          "genres", "directors"]
 
-        data["star"] = (
-            data["star"]
-            .str.replace(r"\s+", "", regex=True)
-            .apply(lambda x: ",".join(sorted(set(x.split(",")))) if x != "Unknown" else x)
-        )
+        for col in required_columns:
+            if col not in data.columns:
+                raise ValueError(f"Required column '{col}' is missing in the CSV file")
 
-        data["date_x"] = data["date_x"].astype(str).str.strip()
-        data["date_x"] = pd.to_datetime(data["date_x"], format="%Y-%m-%d", errors="raise")
-        data["date_x"] = data["date_x"].dt.date
-        data["orig_lang"] = data["orig_lang"].str.replace(r"\s+", "", regex=True)
-        data["status"] = data["status"].str.strip()
+        # Clean up data
+        data["name"] = data["name"].astype(str)
+        data["year"] = data["year"].astype(int)
+        data["time"] = data["time"].astype(int)
+        data["imdb"] = data["imdb"].astype(float)
+        data["votes"] = data["votes"].astype(int)
+        data["meta_score"] = data["meta_score"].astype(float)
+        data["gross"] = data["gross"].astype(float)
+        data["descriptions"] = data["descriptions"].astype(str)
+        data["price"] = data["price"].astype(float)
+        data["certification"] = data["certification"].astype(str)
+        data["genres"] = data["genres"].astype(str)
+        data["directors"] = data["directors"].astype(str)
+
+        # Clean up genres and directors
+        data["genres"] = data["genres"].apply(lambda x: ",".join(sorted(set(g.strip() for g in x.split(",")))))
+        data["directors"] = data["directors"].apply(lambda x: ",".join(sorted(set(d.strip() for d in x.split(",")))))
 
         print("Preprocessing CSV file...")
         data.to_csv(self._csv_file_path, index=False)
@@ -159,6 +220,7 @@ class CSVDatabaseSeeder:
                 await self._db_session.rollback()
 
             await self._seed_user_groups()
+            await self._seed_movies_from_csv()
             await self._db_session.commit()
             print("Seeding completed.")
 
