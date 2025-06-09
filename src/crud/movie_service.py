@@ -1,15 +1,10 @@
 from fastapi import HTTPException
-from sqlalchemy import func, or_, select, and_
+from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
 from crud import movie_crud
-from database.models.movies import (
-    CertificationModel,
-    DirectorModel,
-    GenreModel,
-    MovieModel,
-    StarModel
-)
+from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
 from schemas.movies import (
     CertificationCreateSchema,
     CertificationUpdateSchema,
@@ -19,11 +14,11 @@ from schemas.movies import (
     GenreUpdateSchema,
     MovieCreateSchema,
     MovieDetailSchema,
+    MovieFilterParamsSchema,
     MovieUpdateSchema,
+    SortOptions,
     StarCreateSchema,
     StarUpdateSchema,
-    MovieFilterParamsSchema,
-    SortOptions,
 )
 
 
@@ -213,8 +208,6 @@ async def update_star(
     :raises HTTPException: If star is not found.
     :return: Updated StarModel instance.
     """
-
-    updated = await movie_crud.update_star(db, star_id, star_data)
 
     updated = await movie_crud.edit_star(db, star_id, star_data)
     if not updated:
@@ -476,7 +469,7 @@ async def get_filtered_movies(
         db: AsyncSession,
         filters: MovieFilterParamsSchema,
         sort_by: SortOptions | None = None,
-):
+) -> Select:
 
     """
     Builds a SQLAlchemy statement to retrieve movies from the database
@@ -484,7 +477,8 @@ async def get_filtered_movies(
 
     Args:
         db (AsyncSession): An asynchronous SQLAlchemy session for database access.
-        filters (MovieFilterParamsSchema): Object containing filtering criteria such as year, IMDb rating, and genre IDs.
+        filters (MovieFilterParamsSchema):
+        Object containing filtering criteria such as year, IMDb rating, and genre IDs.
         sort_by (SortOptions | None): Optional sorting option to order the results (e.g. by year or rating).
 
     Returns:
@@ -510,7 +504,7 @@ async def get_filtered_movies(
     return stmt
 
 
-def apply_sorting(stmt, sort_by: SortOptions | None):
+def apply_sorting(stmt, sort_by: SortOptions | None) -> Select:
 
     """
     Applies sorting to a SQLAlchemy statement based on the given sort option.
@@ -543,7 +537,7 @@ def apply_sorting(stmt, sort_by: SortOptions | None):
     return stmt
 
 
-async def search_movies_stmt(db, search: str):
+async def search_movies_stmt(db: AsyncSession, search: str) -> Select:
 
     """
     Builds a SQLAlchemy statement to search for movies by name, description,

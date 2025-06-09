@@ -1,20 +1,10 @@
 import uuid
 from typing import TYPE_CHECKING
-from sqlalchemy import (
-    DECIMAL,
-    Column,
-    ForeignKey,
-    String,
-    Table,
-    Text,
-    UniqueConstraint
-)
+
+from sqlalchemy import DECIMAL, Column, ForeignKey, String, Table, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import (
-    Mapped,
-    mapped_column,
-    relationship
-)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from database.models.base import Base
 
 if TYPE_CHECKING:

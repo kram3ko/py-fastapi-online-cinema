@@ -1,8 +1,8 @@
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Request, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi_pagination import Params
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from crud.movie_service import (
     create_certification,
     create_director,
@@ -14,23 +14,23 @@ from crud.movie_service import (
     delete_genre,
     delete_movie,
     delete_star,
+    get_all_movies_by_genre,
     get_certification,
     get_director,
+    get_filtered_movies,
+    get_genre,
     get_movie_detail,
     get_star,
     list_certifications,
     list_directors,
     list_genres,
     list_stars,
+    search_movies_stmt,
     update_certification,
     update_director,
     update_genre,
     update_movie,
     update_star,
-    get_filtered_movies,
-    search_movies_stmt,
-    get_all_movies_by_genre,
-    get_genre
 )
 from database.deps import get_db
 from pagination.pages import Page
@@ -41,18 +41,19 @@ from schemas.movies import (
     DirectorCreateSchema,
     DirectorReadSchema,
     DirectorUpdateSchema,
+    GenreBaseSchema,
     GenreCreateSchema,
     GenreReadSchema,
     GenreUpdateSchema,
     MovieCreateSchema,
     MovieDetailSchema,
+    MovieFilterParamsSchema,
     MovieListItemSchema,
     MovieUpdateSchema,
+    SortOptions,
     StarCreateSchema,
     StarReadSchema,
     StarUpdateSchema,
-    MovieFilterParamsSchema,
-    SortOptions, GenreBaseSchema,
 )
 
 router = APIRouter()
@@ -431,11 +432,11 @@ async def get_movies(
     return result
 
 
-@router.get("/movies/search/", response_model=List[MovieDetailSchema])
+@router.get("/movies/search/", response_model=list[MovieDetailSchema])
 async def search_movies(
     search: str = Query(..., min_length=2, example="nolan"),
     db: AsyncSession = Depends(get_db),
-) -> List[MovieDetailSchema]:
+) -> list[MovieDetailSchema]:
 
     """
     Search for movies by a keyword in their title, stars, directors or descriptions.
