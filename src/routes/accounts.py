@@ -20,6 +20,7 @@ from scheduler.tasks import (
     send_password_reset_email_task,
 )
 from schemas.accounts import (
+    ChangeUserGroupRequest,
     MessageResponseSchema,
     PasswordResetCompleteRequestSchema,
     PasswordResetRequestSchema,
@@ -30,7 +31,7 @@ from schemas.accounts import (
     UserLoginRequestSchema,
     UserLoginResponseSchema,
     UserRegistrationRequestSchema,
-    UserRegistrationResponseSchema, ChangeUserGroupRequest,
+    UserRegistrationResponseSchema,
 )
 from security.http import jwt_security
 from security.interfaces import JWTAuthManagerInterface
@@ -399,7 +400,7 @@ async def change_user_group(
     user_group: ChangeUserGroupRequest,
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(require_admin)
-):
+) -> MessageResponseSchema:
     user_obj = await db.scalar(select(UserModel).where(UserModel.id == user_id))
     if not user_obj:
         raise HTTPException(status_code=404, detail="User not found")
@@ -410,4 +411,4 @@ async def change_user_group(
 
     user_obj.group = new_group
     await db.commit()
-    return {"detail": f"User group changed to {user_group.group.value}"}
+    return MessageResponseSchema(message=f"User group changed to {user_group.group.value}")
