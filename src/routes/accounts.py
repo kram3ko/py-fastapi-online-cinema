@@ -4,13 +4,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import BaseAppSettings, get_jwt_auth_manager, get_settings
+from config.dependencies import get_current_user
 from crud.user_service import UserService
 from database.deps import get_db
-from config.dependencies import get_current_user
 from database.models.accounts import (
+    RefreshTokenModel,
     UserGroupEnum,
     UserGroupModel,
-    RefreshTokenModel,
 )
 from scheduler.tasks import (
     send_activation_complete_email_task,
@@ -31,8 +31,8 @@ from schemas.accounts import (
     UserRegistrationRequestSchema,
     UserRegistrationResponseSchema,
 )
-from security.interfaces import JWTAuthManagerInterface
 from security.http import jwt_security
+from security.interfaces import JWTAuthManagerInterface
 
 router = APIRouter()
 
@@ -385,7 +385,7 @@ async def logout_user(
 
         await db.commit()
         return MessageResponseSchema(message="Successfully logged out.")
-    except Exception as e:
+    except Exception:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

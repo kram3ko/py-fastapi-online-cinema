@@ -3,6 +3,7 @@ from fastapi.security import HTTPBearer
 
 jwt_security = HTTPBearer()
 
+
 def get_token(request: Request) -> str:
     """
     Extracts the Bearer token from the Authorization header.

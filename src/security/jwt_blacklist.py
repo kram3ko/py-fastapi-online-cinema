@@ -2,6 +2,7 @@ import time
 from typing import Optional
 
 import redis
+
 from config import get_settings
 
 settings = get_settings()
@@ -11,10 +12,11 @@ redis_client = redis.StrictRedis.from_url(
     decode_responses=True
 )
 
+
 def blacklist_token(jti: str, exp: int) -> None:
     """
     Add a token to the blacklist.
-    
+
     Args:
         jti (str): JWT ID of the token
         exp (int): Expiration timestamp of the token
@@ -32,25 +34,27 @@ def blacklist_token(jti: str, exp: int) -> None:
         # Set expiration for the hash
         redis_client.expire(token_key, ttl)
 
+
 def is_token_blacklisted(jti: str) -> bool:
     """
     Check if a token is blacklisted.
-    
+
     Args:
         jti (str): JWT ID of the token to check
-        
+
     Returns:
         bool: True if token is blacklisted, False otherwise
     """
     return redis_client.exists(f"jwt:blacklist:{jti}") == 1
 
+
 def get_blacklisted_token_info(jti: str) -> Optional[dict]:
     """
     Get information about a blacklisted token.
-    
+
     Args:
         jti (str): JWT ID of the token
-        
+
     Returns:
         Optional[dict]: Token information if found, None otherwise
     """
@@ -59,11 +63,12 @@ def get_blacklisted_token_info(jti: str) -> Optional[dict]:
         return redis_client.hgetall(token_key)
     return None
 
+
 def remove_from_blacklist(jti: str) -> None:
     """
     Remove a token from the blacklist.
-    
+
     Args:
         jti (str): JWT ID of the token to remove
     """
-    redis_client.delete(f"jwt:blacklist:{jti}") 
+    redis_client.delete(f"jwt:blacklist:{jti}")
