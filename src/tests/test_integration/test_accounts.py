@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import select, delete, func
@@ -13,13 +13,6 @@ from database.models.accounts import (
     UserGroupModel,
     UserGroupEnum,
     RefreshTokenModel
-)
-
-from scheduler.tasks import (
-    send_activation_email_task,
-    send_activation_complete_email_task,
-    send_password_reset_email_task,
-    send_password_reset_complete_email_task
 )
 
 @pytest.fixture(autouse=True)
