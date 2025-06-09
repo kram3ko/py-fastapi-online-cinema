@@ -92,7 +92,7 @@ async def register_user(
             status_code=status.HTTP_409_CONFLICT, detail=f"A user with this email {user_data.email} already exists."
         )
 
-    user_group = db.scalar(select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.USER))
+    user_group = await db.scalar(select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.USER))
 
     if not user_group:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Default user group not found.")
@@ -394,12 +394,11 @@ async def logout_user(
         )
 
 
-@router.post("/users/{user_id}/change_group")
+@router.post("/users/{user_id}/change_group", dependencies=[Depends(require_admin), Depends(jwt_security)])
 async def change_user_group(
     user_id: int,
     user_group: ChangeUserGroupRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(require_admin)
 ) -> MessageResponseSchema:
     user_obj = await db.scalar(select(UserModel).where(UserModel.id == user_id))
     if not user_obj:
