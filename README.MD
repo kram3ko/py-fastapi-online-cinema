@@ -358,7 +358,7 @@ The `get_db` function is a generator that provides a SQLAlchemy session for inte
 ```python
 from fastapi import Depends, APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
-from database import get_db  # Import the get_db generator
+from database.deps import get_db  # Import the get_db generator
 
 router = APIRouter()
 
