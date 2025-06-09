@@ -1,25 +1,20 @@
-# routes/orders.py
-from fastapi import APIRouter, Depends, Path, Query, HTTPException, status
+from fastapi import APIRouter, Depends, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional
-from datetime import datetime
+from typing import List
 
 # Import your actual dependencies
 from config.dependencies import get_current_user, require_admin
-from database.session_postgresql import get_postgresql_db # Assuming get_postgresql_db is in session_postgresql.py
-from crud import orders as order_crud # Assuming your CRUD functions are in crud/orders.py
+from database.session_postgresql import get_postgresql_db
+from crud import orders as order_crud
 from schemas.orders import (
     OrderResponse,
     OrderFilterParams,
     OrderUpdateStatus,
-    OrderPaymentRequest
 )
-from database.models.accounts import UserModel # UserGroupEnum is handled within require_admin
-from database.models.orders import OrderStatus # OrderStatus enum
+from database.models.accounts import UserModel
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
-# --- USER-FACING ROUTES ---
 
 @router.post("/", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
 async def create_order(
