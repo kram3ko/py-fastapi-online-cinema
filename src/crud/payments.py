@@ -2,6 +2,7 @@ from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from database.models.payments import PaymentModel
 from schemas.payments import PaymentCreateSchema, PaymentStatusSchema, PaymentUpdateSchema
@@ -78,3 +79,17 @@ async def get_all_payments(
         query = query.where(PaymentModel.status == payment_status)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def get_payment_by_id(payment_id: int, db: AsyncSession) -> PaymentModel | None:
+
+    result = await db.execute(
+        select(PaymentModel)
+        .where(PaymentModel.id == payment_id)
+        .options(
+            selectinload(PaymentModel.payment_items),
+            selectinload(PaymentModel.user),
+            selectinload(PaymentModel.order)
+        )
+    )
+    return result.scalar_one_or_none()
