@@ -46,19 +46,16 @@ movie_create_schema_example = {
 }
 
 
-director_schema_example = [
-    {"name": "Christopher Nolan"},
-    {"name": "Steven Spielberg"}
-]
+director_schema_example = {"name": "Christopher Nolan"}
+
 
 certification_schema_example = {"name": "PG-13"}
 
-genre_schema_example = [{"name": "Action"}, {"name": "Drama"}]
+genre_schema_example = {"name": "Action"}
 
-star_schema_example = [{
-    "name": "Leonardo DiCaprio",
-    "name": "Joseph Gordon-Levitt",
-}]
+
+star_schema_example = {"name": "Leonardo DiCaprio"}
+
 
 movie_detail_schema_example = {
     **movie_item_schema_example,
