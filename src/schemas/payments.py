@@ -40,6 +40,9 @@ class PaymentBaseSchema(BaseModel):
 
 class PaymentListSchema(BaseModel):
     payments: list[PaymentBaseSchema]
+    total: int
+    skip: int
+    limit: int
 
 
 class AdminPaymentFilter(BaseModel):
