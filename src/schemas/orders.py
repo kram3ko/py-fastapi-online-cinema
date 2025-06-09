@@ -3,7 +3,8 @@ from datetime import datetime
 from typing import List, Optional
 
 
-from src.database.models.orders import OrderStatus
+from database.models.orders import OrderStatus
+from schemas.profiles import ProfileResponseSchema
 
 
 class OrderItemResponse(BaseModel):
@@ -31,7 +32,7 @@ class OrderResponse(BaseModel):
     status: OrderStatus
     total_amount: Optional[condecimal(max_digits=10, decimal_places=2)]
     order_items: List[OrderItemResponse] = []
-    # user: UserPublicResponseSchema
+    user: ProfileResponseSchema
 
     model_config = ConfigDict(from_attributes=True)
 

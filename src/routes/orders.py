@@ -68,21 +68,21 @@ async def cancel_order(
 
 # ---------- ADMIN ROUTES ----------
 
-@router.get("/admin/", response_model=List[OrderResponse], dependencies=[Depends(require_admin)])
-async def admin_list_orders(
-    user_id: int = Query(None),
-    status: OrderStatus = Query(None),
-    start_date: str = Query(None),
-    end_date: str = Query(None),
-    db: AsyncSession = Depends(get_postgresql_db)
-):
-    return await order_crud.get_all_orders(db, user_id, start_date, end_date, status)
+# @router.get("/admin/", response_model=List[OrderResponse], dependencies=[Depends(require_admin)])
+# async def admin_list_orders(
+#     user_id: int = Query(None),
+#     status: OrderStatus = Query(None),
+#     start_date: str = Query(None),
+#     end_date: str = Query(None),
+#     db: AsyncSession = Depends(get_postgresql_db)
+# ):
+#     return await order_crud.get_all_orders(db, user_id, start_date, end_date, status)
 
 
-@router.patch("/admin/{order_id}", response_model=OrderResponse, dependencies=[Depends(require_admin)])
-async def admin_update_order_status(
-    order_id: int,
-    status_data: OrderUpdateStatus,
-    db: AsyncSession = Depends(get_postgresql_db)
-):
-    return await order_crud.update_order_status(db, order_id, status_data.status)
+# @router.patch("/admin/{order_id}", response_model=OrderResponse, dependencies=[Depends(require_admin)])
+# async def admin_update_order_status(
+#     order_id: int,
+#     status_data: OrderUpdateStatus,
+#     db: AsyncSession = Depends(get_postgresql_db)
+# ):
+#     return await order_crud.update_order_status(db, order_id, status_data.status)
