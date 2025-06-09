@@ -3,7 +3,7 @@ from decimal import Decimal
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DECIMAL, Enum, ForeignKey, String, DateTime, func
+from sqlalchemy import DECIMAL, DateTime, Enum, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.models.base import Base
