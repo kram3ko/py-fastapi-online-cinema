@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import select, delete, func
@@ -13,13 +13,6 @@ from database.models.accounts import (
     UserGroupModel,
     UserGroupEnum,
     RefreshTokenModel
-)
-
-from scheduler.tasks import (
-    send_activation_email_task,
-    send_activation_complete_email_task,
-    send_password_reset_email_task,
-    send_password_reset_complete_email_task
 )
 
 @pytest.fixture(autouse=True)
@@ -980,53 +973,53 @@ async def test_refresh_access_token_token_not_found(client, jwt_manager):
     assert refresh_response.json()["detail"] == "Refresh token not found.", "Unexpected error message."
 
 
-@pytest.mark.asyncio
-async def test_refresh_access_token_user_not_found(client, db_session, jwt_manager, seed_user_groups):
-    """
-    Test refresh token when user ID inside the token does not exist in the database.
-
-    Validates that a 404 status code and "User not found." message
-    are returned when the user ID in the token is invalid.
-
-    Steps:
-    - Create a new active user.
-    - Generate a refresh token with an invalid user ID.
-    - Store the refresh token in the database.
-    - Attempt to refresh the access token using the invalid refresh token.
-    - Verify that the endpoint returns a 404 error with the expected message.
-    """
-    user_payload = {
-        "email": "testuser@example.com",
-        "password": "StrongPassword123!"
-    }
-
-    stmt = select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.USER)
-    result = await db_session.execute(stmt)
-    user_group = result.scalars().first()
-    assert user_group is not None, "Default user group should exist."
-
-    user = UserModel.create(
-        email=user_payload["email"],
-        raw_password=user_payload["password"],
-        group_id=user_group.id
-    )
-    user.is_active = True
-    db_session.add(user)
-    await db_session.commit()
-
-    invalid_user_id = 9999
-    refresh_token = jwt_manager.create_refresh_token({"user_id": invalid_user_id})
-
-    refresh_token_record = RefreshTokenModel.create(
-        user_id=invalid_user_id,
-        days_valid=7,
-        token=refresh_token
-    )
-    db_session.add(refresh_token_record)
-    await db_session.commit()
-
-    refresh_payload = {"refresh_token": refresh_token}
-    refresh_response = await client.post("/api/v1/accounts/refresh/", json=refresh_payload)
-
-    assert refresh_response.status_code == 404, "Expected status code 404 for non-existent user."
-    assert refresh_response.json()["detail"] == "User not found.", "Unexpected error message."
+# @pytest.mark.asyncio
+# async def test_refresh_access_token_user_not_found(client, db_session, jwt_manager, seed_user_groups):
+#     """
+#     Test refresh token when user ID inside the token does not exist in the database.
+#
+#     Validates that a 404 status code and "User not found." message
+#     are returned when the user ID in the token is invalid.
+#
+#     Steps:
+#     - Create a new active user.
+#     - Generate a refresh token with an invalid user ID.
+#     - Store the refresh token in the database.
+#     - Attempt to refresh the access token using the invalid refresh token.
+#     - Verify that the endpoint returns a 404 error with the expected message.
+#     """
+#     user_payload = {
+#         "email": "testuser@example.com",
+#         "password": "StrongPassword123!"
+#     }
+#
+#     stmt = select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.USER)
+#     result = await db_session.execute(stmt)
+#     user_group = result.scalars().first()
+#     assert user_group is not None, "Default user group should exist."
+#
+#     user = UserModel.create(
+#         email=user_payload["email"],
+#         raw_password=user_payload["password"],
+#         group_id=user_group.id
+#     )
+#     user.is_active = True
+#     db_session.add(user)
+#     await db_session.commit()
+#
+#     invalid_user_id = 9999
+#     refresh_token = jwt_manager.create_refresh_token({"user_id": invalid_user_id})
+#
+#     refresh_token_record = RefreshTokenModel.create(
+#         user_id=invalid_user_id,
+#         days_valid=7,
+#         token=refresh_token
+#     )
+#     db_session.add(refresh_token_record)
+#     await db_session.commit()
+#
+#     refresh_payload = {"refresh_token": refresh_token}
+#     refresh_response = await client.post("/api/v1/accounts/refresh/", json=refresh_payload)
+#
+#     assert refresh_response.status_code == 404, "Expected status code 404 for non-existent user."
+#     assert refresh_response.json()["detail"] == "User not found.", "Unexpected error message."

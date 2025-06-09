@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.settings import BaseAppSettings, Settings, TestingSettings
 from database.deps import get_db
-from database.models.accounts import UserModel
+from database.models.accounts import UserGroupEnum, UserModel
 from notifications.emails import EmailSender, EmailSenderInterface
 from notifications.stripe_notificator import StripeEmailNotificator, StripeEmailSenderInterface
 from security.http import get_token
@@ -115,19 +115,19 @@ def get_stripe_email_notificator(
     settings: BaseAppSettings = Depends(get_settings),
 ) -> StripeEmailSenderInterface:
     """
-    Retrieve an instance of the StripeEmailSenderInterface configured with the application settings.
+     Retrieve an instance of the StripeEmailSenderInterface configured with the application settings.
 
-   This function creates a StripeEmailNotificator using the provided settings,
-   which include details such as the email host,
-    port, credentials, TLS usage, and the directory for email templates. This allows the application
-    to send payment-related email notifications.
+    This function creates a StripeEmailNotificator using the provided settings,
+    which include details such as the email host,
+     port, credentials, TLS usage, and the directory for email templates. This allows the application
+     to send payment-related email notifications.
 
-    Args:
-        settings (BaseAppSettings): The application settings.
+     Args:
+         settings (BaseAppSettings): The application settings.
 
-    Returns:
-        StripeEmailSenderInterface: An instance of StripeEmailNotificator
-        configured with the appropriate email settings.
+     Returns:
+         StripeEmailSenderInterface: An instance of StripeEmailNotificator
+         configured with the appropriate email settings.
     """
     return StripeEmailNotificator(
         hostname=settings.EMAIL_HOST,
@@ -153,7 +153,7 @@ async def get_current_user(
     """
     try:
         payload = jwt_manager.decode_access_token(token)
-        user_id: int = payload.get("sub")
+        user_id: int = payload.get("user_id")
 
         if user_id is None:
             raise HTTPException(
@@ -176,3 +176,15 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
         )
+
+
+async def require_admin(current_user: UserModel = Depends(get_current_user)) -> UserModel:
+    if current_user.group.name != UserGroupEnum.ADMIN:
+        raise HTTPException(status_code=403, detail="Access forbidden: admins only")
+    return current_user
+
+
+async def require_moderator(current_user: UserModel = Depends(get_current_user)) -> UserModel:
+    if current_user.group.name != UserGroupEnum.MODERATOR:
+        raise HTTPException(status_code=403, detail="Access forbidden: moderator or admins only")
+    return current_user

@@ -48,13 +48,14 @@ movie_create_schema_example = {
 
 director_schema_example = {"name": "Christopher Nolan"}
 
+
 certification_schema_example = {"name": "PG-13"}
 
-genre_schema_example = {"name": "Comedy"}
+genre_schema_example = {"name": "Action"}
 
-star_schema_example = {
-    "name": "Leonardo DiCaprio",
-}
+
+star_schema_example = {"name": "Leonardo DiCaprio"}
+
 
 movie_detail_schema_example = {
     **movie_item_schema_example,
@@ -69,6 +70,7 @@ movie_list_schema_example = {
     "year": 2025,
     "imdb": 8.8,
     "time": 120,
+    "price": 12.99,
     "genres": [genre_schema_example],
 }
 

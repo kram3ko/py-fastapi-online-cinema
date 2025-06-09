@@ -20,9 +20,6 @@ from tests.doubles.stubs.emails import StubEmailSender
 
 def pytest_configure(config):
     config.addinivalue_line(
-        "markers", "e2e: End-to-end tests"
-    )
-    config.addinivalue_line(
         "markers", "order: Specify the order of test execution"
     )
     config.addinivalue_line(
@@ -138,7 +135,10 @@ async def db_session():
     is properly closed after each test.
     """
     async with get_db_contextmanager() as session:
-        yield session
+        try:
+            yield session
+        finally:
+            await session.close()
 
 
 @pytest_asyncio.fixture(scope="session")

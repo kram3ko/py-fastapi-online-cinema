@@ -40,6 +40,9 @@ fastapi-pagination = "^0.13.1"
 celery = { extras = ["redis"], version = "^5.5.3" }
 flower = "^2.0.1"
 mypy = "^1.16.0"
+stripe = "^7.11.0"
+pytest-xdist = "^3.7.0"
+
 
 
 [build-system]
