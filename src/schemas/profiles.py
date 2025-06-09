@@ -92,6 +92,7 @@ class ProfileResponseSchema(BaseModel):
     avatar: HttpUrl
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": [
                 {
