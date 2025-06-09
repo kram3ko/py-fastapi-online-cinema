@@ -153,7 +153,7 @@ async def get_current_user(
     """
     try:
         payload = jwt_manager.decode_access_token(token)
-        user_id: int = payload.get("sub")
+        user_id: int = payload.get("user_id")
 
         if user_id is None:
             raise HTTPException(
