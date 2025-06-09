@@ -975,7 +975,6 @@ async def test_refresh_access_token_token_not_found(client, jwt_manager):
     assert refresh_response.status_code == 401, "Expected status code 401 for token not found."
     assert refresh_response.json()["detail"] == "Refresh token not found.", "Unexpected error message."
 
-
 # @pytest.mark.asyncio
 # async def test_refresh_access_token_user_not_found(client, db_session, jwt_manager, seed_user_groups):
 #     """
