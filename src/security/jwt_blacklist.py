@@ -1,5 +1,5 @@
 import time
-from typing import Optional
+from typing import cast
 
 import redis
 
@@ -7,7 +7,7 @@ from config import get_settings
 
 settings = get_settings()
 
-redis_client = redis.StrictRedis.from_url(
+redis_client: redis.StrictRedis = redis.StrictRedis.from_url(
     settings.CELERY_BROKER_URL,
     decode_responses=True
 )
@@ -48,7 +48,7 @@ def is_token_blacklisted(jti: str) -> bool:
     return redis_client.exists(f"jwt:blacklist:{jti}") == 1
 
 
-def get_blacklisted_token_info(jti: str) -> Optional[dict]:
+def get_blacklisted_token_info(jti: str) -> dict[str, str] | None:
     """
     Get information about a blacklisted token.
 
@@ -56,11 +56,11 @@ def get_blacklisted_token_info(jti: str) -> Optional[dict]:
         jti (str): JWT ID of the token
 
     Returns:
-        Optional[dict]: Token information if found, None otherwise
+        dict[str, str] | None: Token information if found, None otherwise
     """
     token_key = f"jwt:blacklist:{jti}"
     if redis_client.exists(token_key):
-        return redis_client.hgetall(token_key)
+        return cast(dict[str, str], redis_client.hgetall(token_key))
     return None
 
 
