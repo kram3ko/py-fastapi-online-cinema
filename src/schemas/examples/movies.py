@@ -36,27 +36,23 @@ movie_create_schema_example = {
     "name": "New Movie",
     "year": 2025,
     "time": 120,
-    "imdb": 7.9,
-    "votes": 1000,
-    "meta_score": 80.5,
     "gross": 1000000.00,
     "descriptions": "A band-new sci-fi movie about AI in the future.",
     "price": 12.99,
     "certification_id": 1,
-    "genres_id": [1, 2],
-    "stars_id": [1, 2],
-    "directors_id": [3],
+    "genre_ids": [1, 2],
+    "star_ids": [1, 2],
+    "director_ids": [3],
 }
 
 
-director_schema_example = {"id": 1, "name": "Christopher Nolan"}
+director_schema_example = {"name": "Christopher Nolan"}
 
-certification_schema_example = {"id": 1, "name": "PG-13"}
+certification_schema_example = {"name": "PG-13"}
 
-genre_schema_example = {"genre": "Comedy"}
+genre_schema_example = {"name": "Comedy"}
 
 star_schema_example = {
-    "id": 1,
     "name": "Leonardo DiCaprio",
 }
 
@@ -65,6 +61,15 @@ movie_detail_schema_example = {
     "genres": [genre_schema_example],
     "stars": [star_schema_example],
     "directors": [director_schema_example],
+}
+
+movie_list_schema_example = {
+    "id": 1,
+    "name": "New Movie",
+    "year": 2025,
+    "imdb": 8.8,
+    "time": 120,
+    "genres": [genre_schema_example],
 }
 
 movie_update_schema_example = {
@@ -80,5 +85,5 @@ movie_update_schema_example = {
     "certification_id": 2,
     "genres_id": [1, 4],
     "stars_id": [1],
-    "directors_id": [1]
+    "directors_id": [1],
 }

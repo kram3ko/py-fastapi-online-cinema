@@ -1,25 +1,23 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar
+from collections.abc import Sequence
+from typing import Any, Generic, TypeVar, cast
 
 from fastapi import Query
 from fastapi_pagination.bases import AbstractPage, AbstractParams, RawParams
-from fastapi_pagination.customization import CustomizedPage, UseFieldsAliases
 from pydantic import BaseModel, Field
-
-from schemas.movies import MovieDetailSchema
 
 T = TypeVar("T")
 
 
 class Params(BaseModel, AbstractParams):
     page: int = Query(1, ge=1, description="Page number")
-    per_page: int = Query(10, ge=1, le=20, description="Page size")
+    size: int = Query(10, ge=1, le=20, description="Page size")
 
     def to_raw_params(self) -> RawParams:
         return RawParams(
-            limit=self.per_page if self.per_page is not None else None,
-            offset=self.per_page * (self.page - 1) if self.page is not None and self.per_page is not None else None,
+            limit=self.size,
+            offset=(self.page - 1) * self.size,
         )
 
 
@@ -27,39 +25,38 @@ class Page(AbstractPage[T], Generic[T]):
     results: list[T]
     total_items: int
     total_pages: int
-    next_page: str | None = Field(default=None, examples=["/url_path/?page=1&per_page=10"])
-    prev_page: str | None = Field(default=None, examples=["/url_path/?page=3&per_page=10"])
+    next_page: str | None = Field(
+        default=None, examples=["/url_path/?page=1&size=10"]
+    )
+    prev_page: str | None = Field(
+        default=None, examples=["/url_path/?page=3&size=10"]
+    )
 
     __params_type__ = Params
 
     @classmethod
     def create(
         cls,
-        items: list[T],
-        params: Params,
-        *,
-        total: int | None = None,
-        url: str | None = None,
-        results_field: str = "results",
-        **kwargs: dict,
-    ) -> CustomizedPage[T]:
+        items: Sequence[T],
+        params: AbstractParams,
+        **kwargs: Any,
+    ) -> Page[T]:
+        params = cast(Params, params)
+        total = kwargs.get("total")
+        url = kwargs.get("url")
         assert total is not None, "total_items must be provided"
         assert url is not None, "url must be provided"
 
-        total_pages = (total + params.per_page - 1) // params.per_page
+        total_pages = (total + params.size - 1) // params.size
 
         return cls(
-            results=items,
+            results=list(items),
             total_items=total,
-            total_pages=(total + params.per_page - 1) // params.per_page,
-            next_page=f"{url}?page={params.page + 1}&per_page={params.per_page}"
+            total_pages=total_pages,
+            next_page=f"{url}?page={params.page + 1}&size={params.size}"
             if params.page < total_pages
             else None,
-            prev_page=f"{url}?page={params.page - 1}&per_page={params.per_page}" if params.page > 1 else None,
+            prev_page=f"{url}?page={params.page - 1}&size={params.size}"
+            if params.page > 1
+            else None,
         )
-
-
-MoviesPage = CustomizedPage[
-    Page[MovieDetailSchema],
-    UseFieldsAliases(results="movies"),
-]

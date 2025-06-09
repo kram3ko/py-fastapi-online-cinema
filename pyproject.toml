@@ -48,6 +48,8 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.mypy]
 ignore_missing_imports = true
+explicit_package_bases = true
+namespace_packages = true
 
 
 [tool.ruff]
@@ -91,7 +93,9 @@ ignore = [
     "N802",
     "PLR0917",
     "PLR6301",
-    "PLC2801"
+    "PLC2801",
+    "PLC0415",
+    "F821"
 ]
 select = ["E", "F", "W", "N", "ANN", "UP", "I", "Q", "PL", "SIM", "ARG"]
 

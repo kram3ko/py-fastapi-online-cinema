@@ -1,14 +1,19 @@
 import enum
 from datetime import date, datetime, timedelta, timezone
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
-from database import Base
+from database.models.base import Base
 from database.validators import accounts as validators
 from security.passwords import hash_password, verify_password
 from security.utils import generate_secure_token
+
+if TYPE_CHECKING:
+    from database.models.orders import OrderModel
+    from database.models.payments import PaymentModel
+    from database.models.shopping_cart import Cart
 
 
 class UserGroupEnum(str, enum.Enum):
@@ -28,7 +33,7 @@ class UserGroupModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[UserGroupEnum] = mapped_column(Enum(UserGroupEnum), nullable=False, unique=True)
 
-    users: Mapped[list["UserModel"]] = relationship("UserModel", back_populates="group")
+    users: Mapped[Optional["UserModel"]] = relationship("UserModel", back_populates="group")
 
     def __repr__(self):
         return f"<UserGroupModel(id={self.id}, name={self.name})>"
@@ -48,6 +53,10 @@ class UserModel(Base):
 
     group_id: Mapped[int] = mapped_column(ForeignKey("user_groups.id", ondelete="CASCADE"), nullable=False)
     group: Mapped["UserGroupModel"] = relationship("UserGroupModel", back_populates="users")
+
+    orders: Mapped[list["OrderModel"]] = relationship("OrderModel", back_populates="user")
+    cart: Mapped["Cart"] = relationship("Cart", back_populates="user", uselist=False)
+    payments: Mapped[list["PaymentModel"]] = relationship("PaymentModel", back_populates="user")
 
     activation_token: Mapped[Optional["ActivationTokenModel"]] = relationship(
         "ActivationTokenModel", back_populates="user", cascade="all, delete-orphan"
@@ -110,15 +119,15 @@ class UserProfileModel(Base):
     __tablename__ = "user_profiles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    first_name: Mapped[Optional[str]] = mapped_column(String(100))
-    last_name: Mapped[Optional[str]] = mapped_column(String(100))
-    avatar: Mapped[Optional[str]] = mapped_column(String(255))
-    gender: Mapped[Optional[GenderEnum]] = mapped_column(Enum(GenderEnum))
-    date_of_birth: Mapped[Optional[date]] = mapped_column(Date)
-    info: Mapped[Optional[str]] = mapped_column(Text)
+    first_name: Mapped[str | None] = mapped_column(String(100))
+    last_name: Mapped[str | None] = mapped_column(String(100))
+    avatar: Mapped[str | None] = mapped_column(String(255))
+    gender: Mapped[GenderEnum | None] = mapped_column(Enum(GenderEnum))
+    date_of_birth: Mapped[date | None] = mapped_column(Date)
+    info: Mapped[str | None] = mapped_column(Text)
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)
-    user: Mapped[UserModel] = relationship("UserModel", back_populates="profile")
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="profile")
 
     __table_args__ = (UniqueConstraint("user_id"),)
 
@@ -144,7 +153,7 @@ class TokenBaseModel(Base):
 class ActivationTokenModel(TokenBaseModel):
     __tablename__ = "activation_tokens"
 
-    user: Mapped[UserModel] = relationship("UserModel", back_populates="activation_token")
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="activation_token")
 
     __table_args__ = (UniqueConstraint("user_id"),)
 
@@ -155,7 +164,7 @@ class ActivationTokenModel(TokenBaseModel):
 class PasswordResetTokenModel(TokenBaseModel):
     __tablename__ = "password_reset_tokens"
 
-    user: Mapped[UserModel] = relationship("UserModel", back_populates="password_reset_token")
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="password_reset_token")
 
     __table_args__ = (UniqueConstraint("user_id"),)
 
@@ -166,7 +175,7 @@ class PasswordResetTokenModel(TokenBaseModel):
 class RefreshTokenModel(TokenBaseModel):
     __tablename__ = "refresh_tokens"
 
-    user: Mapped[UserModel] = relationship("UserModel", back_populates="refresh_tokens")
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="refresh_tokens")
     token: Mapped[str] = mapped_column(String(512), unique=True, nullable=False, default=generate_secure_token)
 
     @classmethod

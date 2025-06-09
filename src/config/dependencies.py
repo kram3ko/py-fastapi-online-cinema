@@ -1,9 +1,14 @@
 import os
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.settings import BaseAppSettings, Settings, TestingSettings
-from notifications import EmailSender, EmailSenderInterface
+from database.deps import get_db
+from database.models.accounts import UserModel
+from notifications.emails import EmailSender, EmailSenderInterface
+from notifications.stripe_notificator import StripeEmailNotificator, StripeEmailSenderInterface
+from security.http import get_token
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
 from storages import S3StorageClient, S3StorageInterface
@@ -26,7 +31,9 @@ def get_settings() -> Settings:
     return Settings()
 
 
-def get_jwt_auth_manager(settings: Settings = Depends(get_settings)) -> JWTAuthManagerInterface:
+def get_jwt_auth_manager(
+    settings: Settings = Depends(get_settings),
+) -> JWTAuthManagerInterface:
     """
     Create and return a JWT authentication manager instance.
 
@@ -49,7 +56,9 @@ def get_jwt_auth_manager(settings: Settings = Depends(get_settings)) -> JWTAuthM
     )
 
 
-def get_accounts_email_notificator(settings: BaseAppSettings = Depends(get_settings)) -> EmailSenderInterface:
+def get_accounts_email_notificator(
+    settings: BaseAppSettings,
+) -> EmailSenderInterface:
     """
     Retrieve an instance of the EmailSenderInterface configured with the application settings.
 
@@ -58,8 +67,7 @@ def get_accounts_email_notificator(settings: BaseAppSettings = Depends(get_setti
     to send various email notifications (e.g., activation, password reset) as required.
 
     Args:
-        settings (BaseAppSettings, optional): The application settings,
-        provided via dependency injection from `get_settings`.
+        settings (BaseAppSettings): The application settings.
 
     Returns:
         EmailSenderInterface: An instance of EmailSender configured with the appropriate email settings.
@@ -78,7 +86,9 @@ def get_accounts_email_notificator(settings: BaseAppSettings = Depends(get_setti
     )
 
 
-def get_s3_storage_client(settings: BaseAppSettings = Depends(get_settings)) -> S3StorageInterface:
+def get_s3_storage_client(
+    settings: BaseAppSettings = Depends(get_settings),
+) -> S3StorageInterface:
     """
     Retrieve an instance of the S3StorageInterface configured with the application settings.
 
@@ -99,3 +109,70 @@ def get_s3_storage_client(settings: BaseAppSettings = Depends(get_settings)) -> 
         secret_key=settings.S3_STORAGE_SECRET_KEY,
         bucket_name=settings.S3_BUCKET_NAME,
     )
+
+
+def get_stripe_email_notificator(
+    settings: BaseAppSettings = Depends(get_settings),
+) -> StripeEmailSenderInterface:
+    """
+    Retrieve an instance of the StripeEmailSenderInterface configured with the application settings.
+
+   This function creates a StripeEmailNotificator using the provided settings,
+   which include details such as the email host,
+    port, credentials, TLS usage, and the directory for email templates. This allows the application
+    to send payment-related email notifications.
+
+    Args:
+        settings (BaseAppSettings): The application settings.
+
+    Returns:
+        StripeEmailSenderInterface: An instance of StripeEmailNotificator
+        configured with the appropriate email settings.
+    """
+    return StripeEmailNotificator(
+        hostname=settings.EMAIL_HOST,
+        port=settings.EMAIL_PORT,
+        email=settings.EMAIL_HOST_USER,
+        password=settings.EMAIL_HOST_PASSWORD,
+        use_tls=settings.EMAIL_USE_TLS,
+        template_dir=settings.PATH_TO_EMAIL_TEMPLATES_DIR,
+        activation_email_template_name=settings.ACTIVATION_EMAIL_TEMPLATE_NAME,
+        activation_complete_email_template_name=settings.ACTIVATION_COMPLETE_EMAIL_TEMPLATE_NAME,
+        password_email_template_name=settings.PASSWORD_RESET_TEMPLATE_NAME,
+        password_complete_email_template_name=settings.PASSWORD_RESET_COMPLETE_TEMPLATE_NAME,
+    )
+
+
+async def get_current_user(
+    db: AsyncSession = Depends(get_db),
+    token: str = Depends(get_token),
+    jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
+) -> UserModel:
+    """
+    Dependency that verifies the JWT token and returns the current user.
+    """
+    try:
+        payload = jwt_manager.decode_access_token(token)
+        user_id: int = payload.get("sub")
+
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+            )
+
+        user = await db.get(UserModel, user_id)
+
+        if not isinstance(user, UserModel):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found",
+            )
+
+        return user
+
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+        )

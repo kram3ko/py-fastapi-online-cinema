@@ -1,4 +1,5 @@
-from typing import List, Optional
+import uuid
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -10,6 +11,7 @@ from schemas.examples.movies import (
     movie_detail_schema_example,
     movie_item_schema_example,
     movie_list_response_schema_example,
+    movie_list_schema_example,
     movie_update_schema_example,
     star_schema_example,
 )
@@ -21,7 +23,7 @@ class GenreBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "examples": [
+            "example": [
                 genre_schema_example
             ]
         }
@@ -33,18 +35,18 @@ class GenreCreateSchema(GenreBaseSchema):
 
 
 class GenreUpdateSchema(GenreBaseSchema):
-    id: int
+    pass
 
 
 class GenreDeleteSchema(GenreBaseSchema):
-    id: int
+    pass
 
 
 class GenreReadSchema(GenreBaseSchema):
     id: int
-    movie_count: Optional[int] = Field(None, example=12)
+    movie_count: Optional[int] = Field(default=None)
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, json_schema_extra={"example": [genre_schema_example]})
 
 
 class StarBaseSchema(BaseModel):
@@ -53,7 +55,7 @@ class StarBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "examples": [
+            "example": [
                 star_schema_example
             ]
         }
@@ -65,11 +67,11 @@ class StarCreateSchema(StarBaseSchema):
 
 
 class StarUpdateSchema(StarBaseSchema):
-    id: int
+    pass
 
 
 class StarDeleteSchema(StarBaseSchema):
-    id: int
+    pass
 
 
 class StarReadSchema(StarBaseSchema):
@@ -84,7 +86,7 @@ class DirectorBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "examples": [
+            "example": [
                 director_schema_example
             ]
         }
@@ -96,11 +98,11 @@ class DirectorCreateSchema(DirectorBaseSchema):
 
 
 class DirectorUpdateSchema(DirectorBaseSchema):
-    id: int
+    pass
 
 
 class DirectorDeleteSchema(DirectorBaseSchema):
-    id: int
+    pass
 
 
 class DirectorReadSchema(DirectorBaseSchema):
@@ -115,7 +117,7 @@ class CertificationBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "examples": [
+            "example": [
                 certification_schema_example
             ]
         }
@@ -127,11 +129,11 @@ class CertificationCreateSchema(CertificationBaseSchema):
 
 
 class CertificationUpdateSchema(CertificationBaseSchema):
-    id: int
+    pass
 
 
 class CertificationDeleteSchema(CertificationBaseSchema):
-    id: int
+    pass
 
 
 class CertificationReadSchema(CertificationBaseSchema):
@@ -141,13 +143,14 @@ class CertificationReadSchema(CertificationBaseSchema):
 
 
 class MovieBaseSchema(BaseModel):
+    uuid_movie: uuid.UUID
     name: str
     year: int
     time: int
-    imdb: Optional[float]
-    votes: Optional[int]
-    meta_score: Optional[float]
-    gross: Optional[float]
+    imdb: Optional[float] = Field(default=None)
+    votes: Optional[int] = Field(default=None)
+    meta_score: Optional[float] = Field(default=None)
+    gross: Optional[float] = Field(default=None)
     descriptions: str
     price: float
     certification_id: int
@@ -155,7 +158,7 @@ class MovieBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "examples": [
+            "example": [
                 movie_item_schema_example
             ]
         }
@@ -168,7 +171,12 @@ class MovieDetailSchema(MovieBaseSchema):
     stars: list[StarBaseSchema]
     directors: list[DirectorBaseSchema]
 
-    model_config = ConfigDict(from_attributes=True, json_schema_extra={"example": movie_detail_schema_example})
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": movie_detail_schema_example
+        }
+    )
 
 
 class MovieListItemSchema(BaseModel):
@@ -177,8 +185,14 @@ class MovieListItemSchema(BaseModel):
     year: int
     imdb: float
     time: int
+    genres: list[GenreBaseSchema]
 
-    model_config = ConfigDict(from_attributes=True, json_schema_extra={"example": movie_item_schema_example})
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": movie_list_schema_example
+        }
+    )
 
 
 class MovieListResponseSchema(BaseModel):
@@ -191,14 +205,21 @@ class MovieListResponseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "examples": [
+            "example": [
                 movie_list_response_schema_example
             ]
         }
     )
 
 
-class MovieCreateSchema(MovieBaseSchema):
+class MovieCreateSchema(BaseModel):
+    name: str
+    year: int
+    time: int
+    gross: Optional[float]
+    descriptions: str
+    price: float
+    certification_id: int
     genre_ids: list[int]
     star_ids: list[int]
     director_ids: list[int]
@@ -206,7 +227,7 @@ class MovieCreateSchema(MovieBaseSchema):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "examples": [
+            "example": [
                 movie_create_schema_example
             ]
         }
@@ -224,14 +245,14 @@ class MovieUpdateSchema(BaseModel):
     descriptions: Optional[str] = None
     price: Optional[float] = None
     certification_id: Optional[int] = None
-    genre_ids: Optional[List[int]] = None
-    star_ids: Optional[List[int]] = None
-    director_ids: Optional[List[int]] = None
+    genre_ids: Optional[list[int]] = None
+    star_ids: Optional[list[int]] = None
+    director_ids: Optional[list[int]] = None
 
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "examples": [
+            "example": [
                 movie_update_schema_example
             ]
         }

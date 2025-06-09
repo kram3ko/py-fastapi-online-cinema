@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -30,10 +29,10 @@ class CartCreate(CartBase):
 
 class CartResponse(CartBase):
     id: int
-    items: List[CartItemResponse]
+    items: list[CartItemResponse]
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class CartUpdate(BaseModel):
-    items: List[CartItemCreate] 
+    items: list[CartItemCreate]

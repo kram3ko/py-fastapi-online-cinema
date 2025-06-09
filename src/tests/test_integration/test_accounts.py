@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, timedelta
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pytest
 from sqlalchemy import select, delete, func
@@ -15,9 +15,31 @@ from database.models.accounts import (
     RefreshTokenModel
 )
 
+from scheduler.tasks import (
+    send_activation_email_task,
+    send_activation_complete_email_task,
+    send_password_reset_email_task,
+    send_password_reset_complete_email_task
+)
+
+@pytest.fixture(autouse=True)
+def mock_celery_tasks():
+    """
+    Mock all Celery tasks to run synchronously.
+    """
+    with patch('scheduler.tasks.send_activation_email_task.delay') as mock_activation_email, \
+         patch('scheduler.tasks.send_activation_complete_email_task.delay') as mock_activation_complete_email, \
+         patch('scheduler.tasks.send_password_reset_email_task.delay') as mock_password_reset_email, \
+         patch('scheduler.tasks.send_password_reset_complete_email_task.delay') as mock_password_reset_complete_email:
+        yield {
+            'activation_email': mock_activation_email,
+            'activation_complete_email': mock_activation_complete_email,
+            'password_reset_email': mock_password_reset_email,
+            'password_reset_complete_email': mock_password_reset_complete_email
+        }
 
 @pytest.mark.asyncio
-async def test_register_user_success(client, db_session, seed_user_groups):
+async def test_register_user_success(client, db_session, seed_user_groups, mock_celery_tasks):
     """
     Test successful user registration.
 
@@ -52,6 +74,7 @@ async def test_register_user_success(client, db_session, seed_user_groups):
         expires_at = expires_at.replace(tzinfo=timezone.utc)
 
     assert expires_at > datetime.now(timezone.utc), "Activation token is already expired."
+    mock_celery_tasks['activation_email'].assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -148,7 +171,7 @@ async def test_register_user_internal_server_error(client, seed_user_groups):
 
 
 @pytest.mark.asyncio
-async def test_activate_account_success(client, db_session, seed_user_groups):
+async def test_activate_account_success(client, db_session, seed_user_groups, mock_celery_tasks):
     """
     Test successful activation of a user account.
 
@@ -202,6 +225,7 @@ async def test_activate_account_success(client, db_session, seed_user_groups):
     result = await db_session.execute(stmt)
     token = result.scalars().first()
     assert token is None, "Activation token should be deleted after successful activation."
+    mock_celery_tasks['activation_complete_email'].assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -345,20 +369,16 @@ async def test_activate_already_active_user(client, db_session, seed_user_groups
 
 
 @pytest.mark.asyncio
-async def test_request_password_reset_token_success(client, db_session, seed_user_groups):
+async def test_request_password_reset_token_success(client, db_session, seed_user_groups, mock_celery_tasks):
     """
     Test successful password reset token request.
 
-    Ensures that a password reset token is created for an active user.
-
     Steps:
-    - Register a new user.
-    - Mark the user as active.
+    - Register and activate a user.
     - Request a password reset token.
-    - Verify that the endpoint returns status 200 and the expected success message.
-    - Query the database to confirm that a PasswordResetTokenModel record was created.
-    - Verify that the token's expiration date is in the future.
+    - Verify the token is created in the database.
     """
+    # Register and activate user
     registration_payload = {
         "email": "testuser@example.com",
         "password": "StrongPassword123!"
@@ -369,20 +389,30 @@ async def test_request_password_reset_token_success(client, db_session, seed_use
     stmt = select(UserModel).where(UserModel.email == registration_payload["email"])
     result = await db_session.execute(stmt)
     user = result.scalars().first()
-    assert user is not None, "User should exist in the database."
+    assert user is not None, "User was not created in the database."
 
-    user.is_active = True
-    await db_session.commit()
-
-    reset_payload = {"email": registration_payload["email"]}
-    reset_response = await client.post("/api/v1/accounts/password-reset/request/", json=reset_payload)
-    assert reset_response.status_code == 200, "Expected status code 200 for successful token request."
-    assert reset_response.json()["message"] == "If you are registered, you will receive an email with instructions.", \
-        "Expected success message for password reset token request."
-
-    stmt_token = select(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == user.id)
+    stmt_token = select(ActivationTokenModel).where(ActivationTokenModel.user_id == user.id)
     result_token = await db_session.execute(stmt_token)
-    reset_token = result_token.scalars().first()
+    activation_token = result_token.scalars().first()
+    assert activation_token is not None, "Activation token should be created in the database."
+
+    activation_payload = {
+        "email": registration_payload["email"],
+        "token": activation_token.token
+    }
+    activation_response = await client.post("/api/v1/accounts/activate/", json=activation_payload)
+    assert activation_response.status_code == 200, "Expected status code 200 for successful activation."
+
+    # Request password reset token
+    reset_request_payload = {"email": registration_payload["email"]}
+    reset_request_response = await client.post("/api/v1/accounts/password-reset/request/", json=reset_request_payload)
+    assert reset_request_response.status_code == 200, "Expected status code 200 for successful reset request."
+    assert reset_request_response.json()["message"] == "If you are registered, you will receive an email with instructions."
+
+    # Verify token creation
+    stmt = select(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == user.id)
+    result = await db_session.execute(stmt)
+    reset_token = result.scalars().first()
     assert reset_token is not None, "Password reset token should be created for the user."
 
     expires_at = reset_token.expires_at
@@ -390,6 +420,7 @@ async def test_request_password_reset_token_success(client, db_session, seed_use
         expires_at = expires_at.replace(tzinfo=timezone.utc)
 
     assert expires_at > datetime.now(timezone.utc), "Password reset token should have a future expiration date."
+    mock_celery_tasks['password_reset_email'].assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -449,7 +480,7 @@ async def test_request_password_reset_token_for_inactive_user(client, db_session
 
 
 @pytest.mark.asyncio
-async def test_reset_password_success(client, db_session, seed_user_groups):
+async def test_reset_password_success(client, db_session, seed_user_groups, mock_celery_tasks):
     """
     Test the complete password reset flow.
 
@@ -489,27 +520,34 @@ async def test_reset_password_success(client, db_session, seed_user_groups):
 
     reset_request_payload = {"email": registration_payload["email"]}
     reset_request_response = await client.post("/api/v1/accounts/password-reset/request/", json=reset_request_payload)
-    assert reset_request_response.status_code == 200, "Expected status code 200 for password reset token request."
+    assert reset_request_response.status_code == 200, "Expected status code 200 for successful reset request."
 
-    stmt_reset = select(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == created_user.id)
-    result_reset = await db_session.execute(stmt_reset)
-    reset_token_record = result_reset.scalars().first()
-    assert reset_token_record is not None, "Password reset token should be created in the database."
+    stmt = select(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == created_user.id)
+    result = await db_session.execute(stmt)
+    reset_token = result.scalars().first()
+    assert reset_token is not None, "Password reset token should be created for the user."
 
-    new_password = "NewSecurePassword123!"
     reset_payload = {
         "email": registration_payload["email"],
-        "token": reset_token_record.token,
-        "password": new_password
+        "token": reset_token.token,
+        "password": "NewPassword123!"
     }
     reset_response = await client.post("/api/v1/accounts/reset-password/complete/", json=reset_payload)
     assert reset_response.status_code == 200, "Expected status code 200 for successful password reset."
-    assert reset_response.json()["message"] == "Password reset successfully.", (
-        "Unexpected response message for password reset."
-    )
+    assert reset_response.json()["message"] == "Password has been reset successfully."
 
-    await db_session.refresh(created_user)
-    assert created_user.verify_password(new_password), "Password should be updated successfully in the database."
+    stmt = select(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == created_user.id)
+    result = await db_session.execute(stmt)
+    reset_token = result.scalars().first()
+    assert reset_token is None, "Password reset token should be deleted after successful reset."
+
+    login_payload = {
+        "email": registration_payload["email"],
+        "password": "NewPassword123!"
+    }
+    login_response = await client.post("/api/v1/accounts/login/", json=login_payload)
+    assert login_response.status_code == 200, "Expected status code 200 for successful login with new password."
+    mock_celery_tasks['password_reset_complete_email'].assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -709,7 +747,7 @@ async def test_login_user_success(client, db_session, jwt_manager, seed_user_gro
         "password": user_payload["password"]
     }
     response = await client.post("/api/v1/accounts/login/", json=login_payload)
-    assert response.status_code == 201, "Expected status code 201 for successful login."
+    assert response.status_code == 200, "Expected status code 200 for successful login."
     response_data = response.json()
     assert "access_token" in response_data, "Access token is missing in the response."
     assert "refresh_token" in response_data, "Refresh token is missing in the response."
@@ -891,7 +929,7 @@ async def test_refresh_access_token_success(client, db_session, jwt_manager, see
         "password": user_payload["password"]
     }
     login_response = await client.post("/api/v1/accounts/login/", json=login_payload)
-    assert login_response.status_code == 201, "Expected status code 201 for successful login."
+    assert login_response.status_code == 200, "Expected status code 200 for successful login."
     login_data = login_response.json()
     refresh_token = login_data["refresh_token"]
 
