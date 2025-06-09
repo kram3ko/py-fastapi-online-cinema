@@ -32,7 +32,7 @@ from crud.movie_service import (
     update_genre,
     update_movie,
     update_star,
-    get_filtered_movies, search_movies_stmt, get_all_movies_by_genre
+    get_filtered_movies, search_movies_stmt, get_all_movies_by_genre, get_genre
 )
 from database.deps import get_db
 from database.models import MovieModel
@@ -74,7 +74,23 @@ async def get_genres(
 
 
 @router.get(
-    "/genres/{genre_id}/movies/",
+    "/genres/{genre_id}/",
+    response_model=GenreReadSchema
+)
+async def get_genre_by_id(
+        genre_id: int,
+        db: AsyncSession = Depends(get_db)
+) -> GenreReadSchema:
+
+    """
+    Retrieve a genre by its ID.
+    """
+
+    return await get_genre(db, genre_id)
+
+
+@router.get(
+    "/genres_movies/",
     response_model=list[MovieListItemSchema]
 )
 async def get_movies_by_genre(

@@ -41,6 +41,20 @@ async def get_all_genres(
     return [GenreReadSchema(id=row.id, name=row.name, movie_count=row.movie_count) for row in rows]
 
 
+async def get_genre_by_id(
+        db: AsyncSession,
+        genre_id: int
+) -> GenreModel | None:
+
+    """Retrieve a single genre by ID."""
+
+    result = await db.execute(
+        select(GenreModel)
+        .where(GenreModel.id == genre_id)
+    )
+    return result.scalar_one_or_none()
+
+
 async def get_movie_by_genre(
         db: AsyncSession,
         genre_id: int

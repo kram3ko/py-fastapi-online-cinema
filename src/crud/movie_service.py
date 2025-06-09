@@ -59,6 +59,28 @@ async def get_all_movies_by_genre(
     return genre
 
 
+async def get_genre(
+        db: AsyncSession,
+        genre_id: int
+) -> GenreModel:
+
+    """
+    Get a specific genre by ID.
+    :param db: Async database session.
+    :param genre_id: ID of the genre to retrieve.
+    :raises HTTPException: If gener is not found.
+    :return: GenerModel instance.
+    """
+
+    genre = await movie_crud.get_genre_by_id(db, genre_id)
+    if not genre:
+        raise HTTPException(
+            status_code=404,
+            detail="Genre not found."
+        )
+    return genre
+
+
 async def create_genre(
         db: AsyncSession,
         genre_data: GenreCreateSchema
