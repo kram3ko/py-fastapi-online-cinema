@@ -394,7 +394,16 @@ async def logout_user(
 
 @router.post(
     "/users/{user_id}/change_group",
-    dependencies=[Depends(require_admin)]
+    response_model=MessageResponseSchema,
+    summary="Change User Group",
+    description="Change the group of a user. Only admins can perform this action.",
+    status_code=status.HTTP_200_OK,
+    responses={
+        400: {"description": "Admin cannot change their own group."},
+        404: {"description": "User not found."},
+        500: {"description": "Group not found."},
+    },
+    dependencies=[Depends(require_admin)],
 )
 async def change_user_group(
     user_id: int,
@@ -402,6 +411,10 @@ async def change_user_group(
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ) -> MessageResponseSchema:
+    """
+    Change the group of a user by user_id. Only admins can perform this action.
+    Admins cannot change their own group.
+    """
     if user_id == current_user.id:
         raise HTTPException(status_code=400, detail="Admin cannot change their own group")
 
