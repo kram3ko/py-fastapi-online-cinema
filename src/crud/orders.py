@@ -1,16 +1,17 @@
-from typing import List, Optional
+from datetime import datetime
+from typing import Optional
+
+from fastapi import HTTPException, status
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import func
-from datetime import datetime
-from fastapi import HTTPException, status
 
-from database.models.orders import OrderModel, OrderItemModel, OrderStatus
-from database.models.movies import MovieModel
-from database.models.shopping_cart import Cart, CartItem
 from database.models.accounts import UserModel
-from database.models.payments import PaymentModel, PaymentStatus, PaymentItemModel
+from database.models.movies import MovieModel
+from database.models.orders import OrderItemModel, OrderModel, OrderStatus
+from database.models.payments import PaymentItemModel, PaymentModel, PaymentStatus
+from database.models.shopping_cart import Cart, CartItem
 
 
 async def create_order_from_cart(
@@ -58,21 +59,29 @@ async def create_order_from_cart(
     # Create a new order
     new_order = OrderModel(user_id=user_id, status=OrderStatus.PENDING)
     db.add(new_order)
-    await db.flush() # To get new_order.id before adding order items
+    await db.flush()  # To get new_order.id before adding order items
 
     total_amount = 0.0
     order_items_to_add = []
-    excluded_movies_details = [] # To provide detailed feedback to the user/logs
+    excluded_movies_details = []  # To provide detailed feedback to the user/logs
 
     for cart_item in cart.items:
         movie = cart_item.movie
         movie_id = movie.id
 
         if movie_id in purchased_movie_ids:
-            excluded_movies_details.append({"movie_id": movie_id, "title": movie.name, "reason": "Already purchased"})
+            excluded_movies_details.append(
+                {"movie_id": movie_id, "title": movie.name, "reason": "Already purchased"}
+            )
             continue
         if movie_id in pending_movie_ids_in_other_orders:
-            excluded_movies_details.append({"movie_id": movie_id, "title": movie.name, "reason": "Already in a pending order"})
+            excluded_movies_details.append(
+                {
+                    "movie_id": movie_id,
+                    "title": movie.name,
+                    "reason": "Already in a pending order"
+                }
+            )
             continue
 
         order_item = OrderItemModel(
@@ -84,7 +93,7 @@ async def create_order_from_cart(
         total_amount += float(movie.price)
 
     if not order_items_to_add:
-        await db.rollback() # Rollback the creation of an empty order
+        await db.rollback()  # Rollback the creation of an empty order
         detail_msg = "No valid movies to add to order."
         if excluded_movies_details:
             detail_msg += f" Excluded: {excluded_movies_details}"
@@ -93,13 +102,13 @@ async def create_order_from_cart(
     db.add_all(order_items_to_add)
     new_order.total_amount = total_amount
     await db.commit()
-    await db.refresh(new_order) # Refresh to get the latest state including total_amount
+    await db.refresh(new_order)  # Refresh to get the latest state including total_amount
 
     # Clear the shopping cart after successful order creation
     for item in cart.items:
-        if item.movie_id in movie_ids_in_cart: # Ensure we only delete items that were in the cart
+        if item.movie_id in movie_ids_in_cart:  # Ensure we only delete items that were in the cart
             await db.delete(item)
-    await db.commit() # Save the cart clearing changes
+    await db.commit()  # Save the cart clearing changes
 
     if excluded_movies_details:
         print(f"Warning: Some movies were excluded from the order: {excluded_movies_details}")
@@ -108,7 +117,7 @@ async def create_order_from_cart(
     return new_order
 
 
-async def get_user_orders(user_id: int, db: AsyncSession) -> List[OrderModel]:
+async def get_user_orders(user_id: int, db: AsyncSession) -> list(OrderModel):
     """
     Retrieves all orders for a specific user, with loaded related data.
     """
@@ -148,10 +157,13 @@ async def cancel_order(db: AsyncSession, order_id: int, user_id: int) -> OrderMo
     Cancels an order (updates its status to CANCELED).
     Raises HTTPException if order not found, already paid/canceled.
     """
-    order = await get_order_detail(db, order_id, user_id) # Reuse function for fetching and access check
+    order = await get_order_detail(db, order_id, user_id)  # Reuse function for fetching and access check
 
     if order.status == OrderStatus.PAID:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Paid orders can only be canceled via refund request.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Paid orders can only be canceled via refund request."
+        )
     elif order.status == OrderStatus.CANCELED:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Order is already canceled.")
 
@@ -182,7 +194,9 @@ async def process_order_payment(db: AsyncSession, order_id: int, user_id: int) -
         # Load the current price of the movie
         movie = await db.get(MovieModel, item.movie_id)
         if not movie or not movie.price:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Movie with ID {item.movie_id} in order is no longer available or has no price.")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail=f"Movie with ID {item.movie_id} in "
+                                       f"order is no longer available or has no price.")
 
         # Use the current movie price for recalculation
         recalculated_total += float(movie.price)
@@ -193,7 +207,8 @@ async def process_order_payment(db: AsyncSession, order_id: int, user_id: int) -
         order.total_amount = recalculated_total
         # In a real scenario, you might want to inform the user about price changes
         # and ask for re-confirmation before proceeding with payment.
-        print(f"Warning: Order {order_id} total amount re-calculated from {order.total_amount} to {recalculated_total}.")
+        print(f"Warning: Order {order_id} total amount "
+              f"re-calculated from {order.total_amount} to {recalculated_total}.")
 
     # Simulate payment processing
     # this would involve integrating with a payment gateway (Stripe).
@@ -201,30 +216,32 @@ async def process_order_payment(db: AsyncSession, order_id: int, user_id: int) -
     new_payment = PaymentModel(
         user_id=user_id,
         order_id=order_id,
-        amount=recalculated_total, # Use the recalculated total amount
+        amount=recalculated_total,  # Use the recalculated total amount
         status=PaymentStatus.SUCCESSFUL,
-        external_payment_id="mock_payment_id_" + str(datetime.now().timestamp()) # Placeholder ID
+        external_payment_id="mock_payment_id_" + str(datetime.now().timestamp())  # Placeholder ID
     )
     db.add(new_payment)
-    await db.flush() # Get the payment ID before adding payment items
+    await db.flush()  # Get the payment ID before adding payment items
 
     # Add PaymentItemModel for each OrderItemModel
     payment_items_to_add = []
     for order_item in order.order_items:
-        movie = await db.get(MovieModel, order_item.movie_id) # Get movie again for price at payment
+        movie = await db.get(MovieModel, order_item.movie_id)  # Get movie again for price at payment
         if not movie:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Movie {order_item.movie_id} disappeared during payment processing.")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail=f"Movie {order_item.movie_id} disappeared "
+                                       f"during payment processing.")
 
         payment_item = PaymentItemModel(
             payment_id=new_payment.id,
             order_item_id=order_item.id,
-            price_at_payment=movie.price # Price of the movie at the time of payment
+            price_at_payment=movie.price  # Price of the movie at the time of payment
         )
         payment_items_to_add.append(payment_item)
     db.add_all(payment_items_to_add)
 
-    order.status = OrderStatus.PAID # Mark the order as paid
-    await db.commit() # Commit all changes: payment, payment items, order status update
+    order.status = OrderStatus.PAID  # Mark the order as paid
+    await db.commit()  # Commit all changes: payment, payment items, order status update
     await db.refresh(order)
 
     return order
@@ -236,7 +253,7 @@ async def get_all_orders(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     status: Optional[OrderStatus] = None,
-) -> List[OrderModel]:
+) -> list(OrderModel):
     """
     Retrieves all orders, with optional filters (for admin).
     """

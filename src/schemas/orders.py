@@ -1,10 +1,11 @@
-from pydantic import BaseModel, condecimal, ConfigDict
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, condecimal
 
 from database.models.orders import OrderStatus
-from schemas.profiles import ProfileResponseSchema
 from schemas.movies import MovieListItemSchema
+from schemas.profiles import ProfileResponseSchema
 
 
 class OrderItemResponse(BaseModel):
@@ -15,7 +16,7 @@ class OrderItemResponse(BaseModel):
     id: int
     movie_id: int
     price_at_order: condecimal(max_digits=10, decimal_places=2)
-    movie: MovieListItemSchema # Movie details loaded with the order item
+    movie: MovieListItemSchema  # Movie details loaded with the order item
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -38,8 +39,8 @@ class OrderResponse(BaseModel):
     created_at: datetime
     status: OrderStatus
     total_amount: Optional[condecimal(max_digits=10, decimal_places=2)]
-    order_items: List[OrderItemResponse] = [] # List of items included in the order
-    user: ProfileResponseSchema # User profile details for the order owner
+    order_items: list(OrderItemResponse) = []  # List of items included in the order
+    user: ProfileResponseSchema  # User profile details for the order owner
 
     model_config = ConfigDict(from_attributes=True)
 

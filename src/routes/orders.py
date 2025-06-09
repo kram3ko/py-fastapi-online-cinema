@@ -1,17 +1,17 @@
 from fastapi import APIRouter, Depends, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
 
 # Import your actual dependencies
 from config.dependencies import get_current_user, require_admin
-from database.session_postgresql import get_postgresql_db
 from crud import orders as order_crud
+from database.models import OrderModel
+from database.models.accounts import UserModel
+from database.session_postgresql import get_postgresql_db
 from schemas.orders import (
-    OrderResponse,
     OrderFilterParams,
+    OrderResponse,
     OrderUpdateStatus,
 )
-from database.models.accounts import UserModel
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 async def create_order(
     db: AsyncSession = Depends(get_postgresql_db),
     current_user: UserModel = Depends(get_current_user)
-):
+) -> OrderModel:
     """
     Places a new order for the current user based on their shopping cart.
     The cart will be cleared upon successful order creation.
@@ -30,11 +30,11 @@ async def create_order(
     return order
 
 
-@router.get("/", response_model=List[OrderResponse])
+@router.get("/", response_model=(OrderResponse))
 async def list_user_orders(
     db: AsyncSession = Depends(get_postgresql_db),
     current_user: UserModel = Depends(get_current_user)
-):
+) -> OrderModel:
     """
     Retrieves a list of all orders for the current user.
     """
@@ -46,7 +46,7 @@ async def get_order_detail(
     order_id: int = Path(..., gt=0, description="The ID of the order to retrieve"),
     db: AsyncSession = Depends(get_postgresql_db),
     current_user: UserModel = Depends(get_current_user)
-):
+) -> OrderModel:
     """
     Retrieves details of a specific order for the current user.
     Users can only access their own orders.
@@ -55,11 +55,11 @@ async def get_order_detail(
 
 
 @router.post("/{order_id}/cancel", response_model=OrderResponse)
-async def cancel_order_endpoint( # Renamed to avoid conflict with crud.cancel_order
+async def cancel_order_endpoint(  # Renamed to avoid conflict with crud.cancel_order
     order_id: int = Path(..., gt=0, description="The ID of the order to cancel"),
     db: AsyncSession = Depends(get_postgresql_db),
     current_user: UserModel = Depends(get_current_user)
-):
+) -> OrderModel:
     """
     Cancels a pending order for the current user.
     Paid or already canceled orders cannot be canceled directly.
@@ -68,12 +68,12 @@ async def cancel_order_endpoint( # Renamed to avoid conflict with crud.cancel_or
 
 
 @router.post("/{order_id}/pay", response_model=OrderResponse)
-async def process_order_payment_endpoint( # Renamed to avoid conflict with crud.process_order_payment
+async def process_order_payment_endpoint(  # Renamed to avoid conflict with crud.process_order_payment
     order_id: int = Path(..., gt=0, description="The ID of the order to pay for"),
     # payment_data: OrderPaymentRequest, # You can uncomment and use this if your payment endpoint needs a request body
     db: AsyncSession = Depends(get_postgresql_db),
     current_user: UserModel = Depends(get_current_user)
-):
+) -> OrderModel:
     """
     Initiates the payment process for a pending order.
     Upon successful payment, the order status will be updated to PAID.
@@ -83,13 +83,13 @@ async def process_order_payment_endpoint( # Renamed to avoid conflict with crud.
 
 # --- ADMIN-SPECIFIC ROUTES ---
 
-@router.get("/admin/", response_model=List[OrderResponse], dependencies=[Depends(require_admin)])
+@router.get("/admin/", response_model=list(OrderResponse), dependencies=[Depends(require_admin)])
 async def admin_list_orders(
     # FastAPI automatically handles the dependency injection and validation for Query parameters
     # when using a Pydantic model with Depends()
     filters: OrderFilterParams = Depends(),
     db: AsyncSession = Depends(get_postgresql_db)
-):
+) -> OrderModel:
     """
     Admin: Retrieves a list of all orders with optional filtering capabilities.
     Filters can be applied by user ID, creation date range, and order status.
@@ -109,7 +109,7 @@ async def admin_update_order_status(
     status_data: OrderUpdateStatus,
     order_id: int = Path(..., gt=0, description="The ID of the order to update"),
     db: AsyncSession = Depends(get_postgresql_db)
-):
+) -> OrderModel:
     """
     Admin: Updates the status of a specific order.
     Requires administrator privileges.
