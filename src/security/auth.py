@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
-from database import get_db
+from database.deps import get_db
 from database.models.accounts import UserModel
 
 security = HTTPBearer()

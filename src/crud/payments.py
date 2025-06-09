@@ -1,10 +1,7 @@
 from typing import Optional
 
-from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from database.deps import get_db
 
 from database.models.payments import PaymentModel
 from schemas.payments import PaymentCreateSchema, PaymentStatusSchema, PaymentUpdateSchema

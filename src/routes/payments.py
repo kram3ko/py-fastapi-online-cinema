@@ -1,15 +1,13 @@
 from datetime import datetime
-from typing import Any, Coroutine
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.params import Query
-from sqlalchemy import func, select
+from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from crud.payments import create_payment, get_payment_by_id
+from crud.payments import create_payment
 from database.deps import get_db
-from database.models import PaymentModel
 from database.models.payments import PaymentModel, PaymentStatus
 from schemas.payments import (
     PaymentBaseSchema,
@@ -28,19 +26,19 @@ async def create_payment_intent(
     payment_data: PaymentCreateSchema,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+):
     if payment_data.amount <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Payment amount must be greater than 0"
         )
-
+    
     try:
         payment = await create_payment(payment_data, current_user["id"], db)
         intent_data = await StripeService.create_payment_intent(payment_data)
         payment.external_payment_id = intent_data["payment_intent_id"]
         await db.commit()
-
+        
         return {
             "client_secret": intent_data["client_secret"],
             "payment_id": payment.id
@@ -58,25 +56,25 @@ async def get_payment_details(
     payment_id: int,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> PaymentModel:
+):
     payment = await get_payment_by_id(payment_id, db)
     if not payment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Payment not found"
         )
-
+    
     if payment.user_id != current_user["id"] and not current_user.get("is_admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this payment"
         )
-
+    
     return payment
 
 
 @router.post("/webhook")
-async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
+async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     try:
         payload = await request.body()
         sig_header = request.headers.get("stripe-signature")
@@ -88,7 +86,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -
             )
 
         webhook_data = await StripeService.handle_webhook(payload, sig_header)
-
+        
         if webhook_data:
             result = await db.execute(
                 select(PaymentModel).where(
@@ -96,11 +94,11 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -
                 )
             )
             payment = result.scalar_one_or_none()
-
+            
             if payment:
                 payment.status = webhook_data["status"]
                 await db.commit()
-
+        
         return {"status": "success"}
     except SQLAlchemyError as e:
         await db.rollback()
@@ -116,15 +114,15 @@ async def get_payment_history(
     db: AsyncSession = Depends(get_db),
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
-) -> PaymentListSchema:
+):
     query = select(PaymentModel).where(PaymentModel.user_id == current_user["id"])
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
-
+    
     result = await db.execute(
         query.offset(skip).limit(limit)
     )
     payments = result.scalars().all()
-
+    
     return PaymentListSchema(
         payments=payments,
         total=total,
@@ -154,7 +152,7 @@ async def admin_get_payments(
 
     if user_id:
         query = query.where(PaymentModel.user_id == user_id)
-    if status:
+    if payment_status:
         query = query.where(PaymentModel.status == status)
     if start_date:
         query = query.where(PaymentModel.created_at >= start_date)
