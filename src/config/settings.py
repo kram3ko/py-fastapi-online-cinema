@@ -38,7 +38,7 @@ class BaseAppSettings(BaseSettings):
     STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "test_secret_key")
     STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "test_publishable_key")
     STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "test_webhook_secret")
-    STRIPE_CURRENCY: str = "usd"
+    STRIPE_CURRENCY: str = os.getenv("STRIPE_CURRENCY", "usd")
 
     @property
     def S3_STORAGE_ENDPOINT(self) -> str:
