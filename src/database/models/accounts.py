@@ -11,6 +11,7 @@ from security.passwords import hash_password, verify_password
 from security.utils import generate_secure_token
 
 if TYPE_CHECKING:
+    from database.models.movies import CommentModel, MovieLikeModel
     from database.models.orders import OrderModel
     from database.models.payments import PaymentModel
     from database.models.shopping_cart import Cart

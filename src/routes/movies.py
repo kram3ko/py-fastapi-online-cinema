@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.dependencies import get_current_user
 from crud.movie_service import (
+    add_comment,
     create_certification,
     create_director,
     create_genre,
@@ -20,8 +21,10 @@ from crud.movie_service import (
     get_director,
     get_filtered_movies,
     get_genre,
+    get_movie_comments,
     get_movie_detail,
     get_star,
+    like_or_dislike_movie,
     list_certifications,
     list_directors,
     list_genres,
@@ -31,7 +34,7 @@ from crud.movie_service import (
     update_director,
     update_genre,
     update_movie,
-    update_star, like_or_dislike_movie, add_comment, get_movie_comments,
+    update_star,
 )
 from database.deps import get_db
 from database.models import UserModel
@@ -40,6 +43,8 @@ from schemas.movies import (
     CertificationCreateSchema,
     CertificationReadSchema,
     CertificationUpdateSchema,
+    CommentCreateSchema,
+    CommentReadSchema,
     DirectorCreateSchema,
     DirectorReadSchema,
     DirectorUpdateSchema,
@@ -50,13 +55,13 @@ from schemas.movies import (
     MovieCreateSchema,
     MovieDetailSchema,
     MovieFilterParamsSchema,
+    MovieLikeResponseSchema,
     MovieListItemSchema,
     MovieUpdateSchema,
     SortOptions,
     StarCreateSchema,
     StarReadSchema,
     StarUpdateSchema,
-    MovieLikeResponseSchema, CommentReadSchema, CommentCreateSchema
 )
 from security.http import jwt_security
 
@@ -536,12 +541,13 @@ async def like_movie(
 
     Args:
         movie_id (int): The ID of the movie to like or dislike.
-        data (bool): Query parameter. `True` to like, `False` to dislike.
+        is_like (bool): Query parameter. `True` to like, `False` to dislike.
         db (AsyncSession): The SQLAlchemy asynchronous session, injected by FastAPI.
         user (UserModel): The currently authenticated user, injected by FastAPI.
 
     Returns:
-        MovieLikeResponseSchema: Contains a confirmation message, and updated total likes and dislikes.
+        MovieLikeResponseSchema: Contains a confirmation message,
+        and updated total likes and dislikes.
     """
 
     return await like_or_dislike_movie(db, movie_id, user, is_like)
@@ -572,10 +578,14 @@ async def create_comment(
     return await add_comment(db, movie_id, current_user.id, data)
 
 
-@router.get("/movies/{movie_id}/comments/", response_model=list[CommentReadSchema])
+@router.get("/movies/{movie_id}/comments/",
+            response_model=list[CommentReadSchema],
+            dependencies=[Depends(jwt_security)]
+            )
 async def list_comments(
     movie_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
 ) -> list[CommentReadSchema]:
 
     """

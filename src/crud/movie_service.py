@@ -1,15 +1,23 @@
-from fastapi import HTTPException, Query
+from fastapi import HTTPException
 from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from crud import movie_crud
 from database.models import UserModel
-from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel, MovieLikeModel, \
-    CommentModel
+from database.models.movies import (
+    CertificationModel,
+    CommentModel,
+    DirectorModel,
+    GenreModel,
+    MovieLikeModel,
+    MovieModel,
+    StarModel,
+)
 from schemas.movies import (
     CertificationCreateSchema,
     CertificationUpdateSchema,
+    CommentCreateSchema,
     DirectorCreateSchema,
     DirectorUpdateSchema,
     GenreCreateSchema,
@@ -17,10 +25,11 @@ from schemas.movies import (
     MovieCreateSchema,
     MovieDetailSchema,
     MovieFilterParamsSchema,
+    MovieLikeResponseSchema,
     MovieUpdateSchema,
     SortOptions,
     StarCreateSchema,
-    StarUpdateSchema, MovieLikeResponseSchema, MovieLikeRequestSchema, CommentCreateSchema,
+    StarUpdateSchema,
 )
 
 
@@ -755,6 +764,10 @@ async def add_comment(
         CommentModel: The created comment instance.
     """
 
+    movie = await db.get(MovieModel, movie_id)
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
     comment = CommentModel(
         content=data.content,
         movie_id=movie_id,
@@ -790,4 +803,4 @@ async def get_movie_comments(
         .filter_by(movie_id=movie_id)
         .order_by(CommentModel.created_at.desc())
     )
-    return result.scalars().all()
+    return list(result.scalars().all())

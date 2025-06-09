@@ -1,22 +1,16 @@
-from datetime import datetime
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING
-from sqlalchemy import (
-    DECIMAL,
-    Column,
-    ForeignKey,
-    String,
-    Table,
-    Text,
-    UniqueConstraint, DateTime, func
-)
+
+from sqlalchemy import DECIMAL, Column, DateTime, ForeignKey, String, Table, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from database.models.base import Base
 
 if TYPE_CHECKING:
-    from database.models.orders import OrderItemModel
     from database.models.accounts import UserModel
+    from database.models.orders import OrderItemModel
 
 
 MovieGenresModel = Table(
@@ -240,7 +234,10 @@ class MovieModel(Base):
         back_populates="movies",
         cascade="all, delete-orphan"
     )
-    comments: Mapped[list["CommentModel"]] = relationship(back_populates="movies", cascade="all, delete-orphan")
+    comments: Mapped[list["CommentModel"]] = relationship(
+        back_populates="movies",
+        cascade="all, delete-orphan"
+    )
 
 
 class MovieLikeModel(Base):
@@ -273,12 +270,26 @@ class MovieLikeModel(Base):
 class CommentModel(Base):
     __tablename__ = "comments"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, index=True)
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=True,
+        index=True
+    )
     content: Mapped[str] = mapped_column(nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
 
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    movie_id: Mapped[int] = mapped_column(ForeignKey("movies.id"), nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False
+    )
+    movie_id: Mapped[int] = mapped_column(
+        ForeignKey("movies.id"),
+        nullable=False
+    )
 
     user: Mapped["UserModel"] = relationship(
         back_populates="comments"
