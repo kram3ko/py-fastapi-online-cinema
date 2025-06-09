@@ -295,3 +295,23 @@ class SortOptions(str, Enum):
     release_date_asc = "release_date_asc"
     release_date_desc = "release_date_desc"
     # popularity_desc = "popularity_desc"
+
+
+# class ReactionEnum(str, Enum):
+#     like = "like"
+#     dislike = "dislike"
+
+
+class MovieLikeRequestSchema(BaseModel):
+    movie_id: int
+    is_like: bool
+
+
+class MovieLikeResponseSchema(BaseModel):
+    message: str
+    total_likes: int
+    total_dislikes: int
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )

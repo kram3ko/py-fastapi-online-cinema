@@ -1,14 +1,22 @@
 import uuid
 from typing import TYPE_CHECKING
-
-from sqlalchemy import DECIMAL, Column, ForeignKey, String, Table, Text, UniqueConstraint
+from sqlalchemy import (
+    DECIMAL,
+    Column,
+    ForeignKey,
+    String,
+    Table,
+    Text,
+    UniqueConstraint
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from database.models.base import Base
 
 if TYPE_CHECKING:
     from database.models.orders import OrderItemModel
+    from database.models.accounts import UserModel
+
 
 MovieGenresModel = Table(
     "movie_genres",
@@ -225,4 +233,36 @@ class MovieModel(Base):
     order_items: Mapped[list["OrderItemModel"]] = relationship(
         "OrderItemModel",
         back_populates="movie"
+    )
+    likes: Mapped[list["MovieLikeModel"]] = relationship(
+        "MovieLikeModel",
+        back_populates="movies",
+        cascade="all, delete-orphan"
+    )
+
+
+class MovieLikeModel(Base):
+    __tablename__ = "movie_likes"
+    __table_args__ = (
+        UniqueConstraint("movie_id", "user_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id",
+        ondelete="CASCADE")
+    )
+    movie_id: Mapped[int] = mapped_column(
+        ForeignKey("movies.id",
+        ondelete="CASCADE")
+    )
+    is_like: Mapped[bool] = mapped_column(nullable=False)
+
+    user: Mapped["UserModel"] = relationship(
+        "UserModel",
+        back_populates="movie_likes"
+    )
+    movies: Mapped["MovieModel"] = relationship(
+        "MovieModel",
+        back_populates="likes"
     )

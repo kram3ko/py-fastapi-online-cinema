@@ -3,6 +3,7 @@ from fastapi_pagination import Params
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config.dependencies import get_current_user
 from crud.movie_service import (
     create_certification,
     create_director,
@@ -30,9 +31,10 @@ from crud.movie_service import (
     update_director,
     update_genre,
     update_movie,
-    update_star,
+    update_star, like_or_dislike_movie,
 )
 from database.deps import get_db
+from database.models import UserModel
 from pagination.pages import Page
 from schemas.movies import (
     CertificationCreateSchema,
@@ -54,6 +56,7 @@ from schemas.movies import (
     StarCreateSchema,
     StarReadSchema,
     StarUpdateSchema,
+    MovieLikeResponseSchema
 )
 
 router = APIRouter()
@@ -510,3 +513,32 @@ async def delete_one_movie(
     if success:
         return {"detail": "Movie deleted successfully"}
     return {"detail": "Movie not found."}
+
+
+@router.post("/movies_like/",
+             response_model=MovieLikeResponseSchema,
+             status_code=200)
+async def like_movie(
+        movie_id: int,
+        data: bool = Query(True, description="True = Like, False = Dislike"),
+        db: AsyncSession = Depends(get_db),
+        user: UserModel = Depends(get_current_user),
+) -> MovieLikeResponseSchema:
+
+    """
+    Like or dislike a movie.
+
+    This endpoint allows the authenticated user to like or dislike a specific movie.
+    If the user has already reacted to the movie, their previous response will be updated.
+
+    Args:
+        movie_id (int): The ID of the movie to like or dislike.
+        data (bool): Query parameter. `True` to like, `False` to dislike.
+        db (AsyncSession): The SQLAlchemy asynchronous session, injected by FastAPI.
+        user (UserModel): The currently authenticated user, injected by FastAPI.
+
+    Returns:
+        MovieLikeResponseSchema: Contains a confirmation message, and updated total likes and dislikes.
+    """
+
+    await like_or_dislike_movie(db, user.id, movie_id, data)

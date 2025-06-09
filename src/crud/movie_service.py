@@ -1,10 +1,11 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, Query
 from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from crud import movie_crud
-from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
+from database.models import UserModel
+from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel, MovieLikeModel
 from schemas.movies import (
     CertificationCreateSchema,
     CertificationUpdateSchema,
@@ -18,7 +19,7 @@ from schemas.movies import (
     MovieUpdateSchema,
     SortOptions,
     StarCreateSchema,
-    StarUpdateSchema,
+    StarUpdateSchema, MovieLikeResponseSchema, MovieLikeRequestSchema,
 )
 
 
@@ -660,3 +661,73 @@ async def delete_movie(
             detail="Movie not found."
         )
     return {"detail": "Movie deleted successfully."}
+
+
+async def like_or_dislike_movie(
+        db: AsyncSession,
+        movie_id: int,
+        user: UserModel,
+        data: Query(True, description="True = Like, False = Dislike")
+) -> MovieLikeResponseSchema:
+
+    """
+    Like or dislike a movie on behalf of the authenticated user.
+
+    This function allows a user to express a like (`True`) or dislike (`False`)
+    for a movie. If the user has already reacted to the movie, their response is updated.
+    Otherwise, a new like/dislike entry is created.
+
+    The function also returns the updated total number of likes and dislikes for the movie.
+
+    Args:
+        db (AsyncSession): The SQLAlchemy asynchronous database session.
+        movie_id (int): The ID of the movie to like or dislike.
+        user (UserModel): The currently authenticated user performing the action.
+        data (Query): Query parameter indicating the user's response. True = like, False = dislike.
+
+    Returns:
+        MovieLikeResponseSchema: A response schema containing a confirmation message,
+        and the total number of likes and dislikes for the movie.
+
+    Raises:
+        HTTPException: If the movie with the given ID does not exist.
+    """
+
+    movie = await db.get(MovieModel, movie_id)
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found.")
+
+    stmt = select(MovieLikeModel).where(
+        MovieLikeModel.movie_id == movie_id,
+        MovieLikeModel.user_id == user.id
+    )
+    result = await db.execute(stmt)
+    like_obj = result.scalar_one_or_none()
+
+    if like_obj:
+        like_obj.is_like = data.is_like
+        message = "The response has been updated. Thanks for the response!"
+    else:
+        like_obj = MovieLikeModel(
+            user_id=user.id,
+            movie_id=movie_id,
+            is_like=data.is_like
+        )
+        db.add(like_obj)
+        message = "Thanks for the response!"
+
+    await db.commit()
+
+    total_stmt = select(
+        func.count().filter(MovieLikeModel.is_like == True),
+        func.count().filter(MovieLikeModel.is_like == False)
+    ).where(MovieLikeModel.movie_id == movie_id)
+
+    total_result = await db.execute(total_stmt)
+    total_likes, total_dislikes = total_result.one()
+
+    return MovieLikeResponseSchema(
+        message=message,
+        total_likes=total_likes,
+        total_dislikes=total_dislikes
+    )
