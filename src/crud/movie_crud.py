@@ -1,15 +1,23 @@
 from fastapi import HTTPException
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import selectinload
 
-from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
+from database.models.movies import (
+    CertificationModel,
+    DirectorModel,
+    GenreModel,
+    MovieGenresModel,
+    MovieModel,
+    StarModel,
+)
 from schemas.movies import (
     CertificationCreateSchema,
     CertificationUpdateSchema,
     DirectorCreateSchema,
     GenreCreateSchema,
+    GenreReadSchema,
     GenreUpdateSchema,
     MovieCreateSchema,
     MovieUpdateSchema,
@@ -21,19 +29,33 @@ from schemas.movies import (
 async def get_all_genres(
         db: AsyncSession
 ) -> list[GenreModel]:
+
     """Retrieve all genres from the database, ordered by ID."""
-    result = await db.execute(
-        select(GenreModel)
-        .order_by(GenreModel.id)
+
+    stmt = (
+        select(
+            GenreModel.id,
+            GenreModel.name,
+            func.count(MovieGenresModel.c.movie_id).label("movie_count")
+        )
+        .join(MovieGenresModel, GenreModel.id == MovieGenresModel.c.genre_id)
+        .group_by(GenreModel.id)
+        .order_by(func.count(MovieGenresModel.c.movie_id).desc())
     )
-    return list(result.scalars().all())
+
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    return [GenreReadSchema(id=row.id, name=row.name, movie_count=row.movie_count) for row in rows]
 
 
 async def get_genre_by_id(
         db: AsyncSession,
         genre_id: int
 ) -> GenreModel | None:
-    """Retrieve a single genre by its ID."""
+
+    """Retrieve a single genre by ID."""
+
     result = await db.execute(
         select(GenreModel)
         .where(GenreModel.id == genre_id)
@@ -41,11 +63,34 @@ async def get_genre_by_id(
     return result.scalar_one_or_none()
 
 
-async def create_genre(
+async def get_movie_by_genre(
+        db: AsyncSession,
+        genre_id: int
+) -> list[MovieModel]:
+
+    """Retrieve a single genre by its ID."""
+
+    result = await db.execute(
+        select(MovieModel)
+        .join(MovieModel.genres)
+        .filter(GenreModel.id == genre_id)
+        .options(
+            selectinload(MovieModel.genres),
+            selectinload(MovieModel.stars),
+            selectinload(MovieModel.directors),
+        )
+        .order_by(MovieModel.id.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def add_genre(
         db: AsyncSession,
         genre_data: GenreCreateSchema
 ) -> GenreModel:
+
     """Create a new genre with the provided data."""
+
     genre = GenreModel(**genre_data.model_dump())
     db.add(genre)
     await db.commit()
@@ -53,15 +98,17 @@ async def create_genre(
     return genre
 
 
-async def update_genre(
+async def edit_genre(
         db: AsyncSession,
         genre_id: int,
         genre_data: GenreUpdateSchema
 ) -> GenreModel | None:
+
     """
     Update an existing genre with the provided data.
     Returns the updated genre or None if not found.
     """
+
     genre = await get_genre_by_id(db, genre_id)
     if not genre:
         return None
@@ -76,11 +123,13 @@ async def update_genre(
     return genre
 
 
-async def delete_genre(
+async def remove_genre(
         db: AsyncSession,
         genre_id: int
 ) -> bool:
+
     """Delete a genre by its ID. Returns True if deleted, else False."""
+
     result = await db.execute(
         delete(GenreModel)
         .where(GenreModel.id == genre_id)
@@ -92,7 +141,9 @@ async def delete_genre(
 async def get_all_stars(
         db: AsyncSession
 ) -> list[StarModel]:
+
     """Retrieve all stars from the database, ordered by ID."""
+
     result = await db.execute(
         select(StarModel)
         .order_by(StarModel.id)
@@ -104,7 +155,9 @@ async def get_star_by_id(
         db: AsyncSession,
         star_id: int
 ) -> StarModel | None:
+
     """Retrieve a single star by ID."""
+
     result = await db.execute(
         select(StarModel)
         .where(StarModel.id == star_id)
@@ -112,11 +165,13 @@ async def get_star_by_id(
     return result.scalar_one_or_none()
 
 
-async def create_star(
+async def add_star(
         db: AsyncSession,
         star_data: StarCreateSchema
 ) -> StarModel:
+
     """Create a new star with the provided data."""
+
     try:
         star = StarModel(**star_data.model_dump())
         db.add(star)
@@ -131,15 +186,17 @@ async def create_star(
         )
 
 
-async def update_star(
+async def edit_star(
         db: AsyncSession,
         star_id: int,
         star_data: StarUpdateSchema
 ) -> StarModel | None:
+
     """
     Update an existing star with the provided data.
     Returns the updated star or None if not found.
     """
+
     star = await get_star_by_id(db, star_id)
     if not star:
         return None
@@ -154,11 +211,13 @@ async def update_star(
     return star
 
 
-async def delete_star(
+async def remove_star(
         db: AsyncSession,
         star_id: int
 ) -> bool:
+
     """Delete a star by its ID. Returns True if deleted, else False."""
+
     result = await db.execute(
         delete(StarModel)
         .where(StarModel.id == star_id)
@@ -170,7 +229,9 @@ async def delete_star(
 async def get_all_directors(
         db: AsyncSession
 ) -> list[DirectorModel]:
+
     """Retrieve all directors from the database, ordered by ID."""
+
     result = await db.execute(
         select(DirectorModel)
         .order_by(DirectorModel.id)
@@ -182,7 +243,9 @@ async def get_director_by_id(
         db: AsyncSession,
         director_id: int
 ) -> DirectorModel | None:
+
     """Retrieve a single director by ID."""
+
     result = await db.execute(
         select(DirectorModel)
         .where(DirectorModel.id == director_id)
@@ -190,11 +253,13 @@ async def get_director_by_id(
     return result.scalar_one_or_none()
 
 
-async def create_director(
+async def add_director(
         db: AsyncSession,
         director_data: DirectorCreateSchema
 ) -> DirectorModel:
+
     """Create a new director with the provided data."""
+
     try:
         director = DirectorModel(**director_data.model_dump())
         db.add(director)
@@ -209,15 +274,17 @@ async def create_director(
         )
 
 
-async def update_director(
+async def edit_director(
         db: AsyncSession,
         director_id: int,
         director_data: DirectorCreateSchema
 ) -> DirectorModel | None:
+
     """
     Update an existing director with the provided data.
     Returns the updated director or None if not found.
     """
+
     director = await get_director_by_id(
         db, director_id
     )
@@ -234,11 +301,13 @@ async def update_director(
     return director
 
 
-async def delete_director(
+async def remove_director(
         db: AsyncSession,
         director_id: int
 ) -> bool:
+
     """Delete a director by its ID. Returns True if deleted, else False."""
+
     result = await db.execute(
         delete(DirectorModel)
         .where(DirectorModel.id == director_id)
@@ -250,7 +319,9 @@ async def delete_director(
 async def get_all_certifications(
         db: AsyncSession
 ) -> list[CertificationModel]:
+
     """Retrieve all certifications from the database, ordered by ID."""
+
     result = await db.execute(
         select(CertificationModel)
         .order_by(CertificationModel.id)
@@ -262,7 +333,9 @@ async def get_certification_by_id(
         db: AsyncSession,
         certification_id: int
 ) -> CertificationModel | None:
+
     """Retrieve a single certification by ID."""
+
     result = await db.execute(
         select(CertificationModel)
         .where(CertificationModel.id == certification_id)
@@ -270,11 +343,13 @@ async def get_certification_by_id(
     return result.scalar_one_or_none()
 
 
-async def create_certification(
+async def add_certification(
         db: AsyncSession,
         certification_data: CertificationCreateSchema
 ) -> CertificationModel:
+
     """Create a new certification."""
+
     try:
         certification = CertificationModel(
             **certification_data.model_dump()
@@ -291,15 +366,17 @@ async def create_certification(
         )
 
 
-async def update_certification(
+async def edit_certification(
         db: AsyncSession,
         certification_id: int,
         certification_data: CertificationUpdateSchema
 ) -> CertificationModel | None:
+
     """
     Update an existing certification.
     Returns the updated certification or None if not found.
     """
+
     certification = await get_certification_by_id(
         db,
         certification_id
@@ -317,11 +394,13 @@ async def update_certification(
     return certification
 
 
-async def delete_certification(
+async def remove_certification(
         db: AsyncSession,
         certification_id: int
 ) -> bool:
+
     """Delete a certification by its ID. Returns True if deleted, else False."""
+
     result = await db.execute(
         delete(CertificationModel)
         .where(CertificationModel.id == certification_id)
@@ -330,11 +409,14 @@ async def delete_certification(
     return result.rowcount > 0
 
 
-async def list_movies(
-        db: AsyncSession
+async def get_all_movies(
+        db: AsyncSession,
+        offset: int, limit: int
 ) -> list[MovieModel]:
+
     """Retrieve all movies from the database, ordered by ID."""
-    result = await db.execute(
+
+    stmt = (
         select(MovieModel)
         .options(
             selectinload(MovieModel.genres),
@@ -342,27 +424,25 @@ async def list_movies(
             selectinload(MovieModel.stars),
             selectinload(MovieModel.certification)
         )
+        .offset(offset)
+        .limit(limit)
         .order_by(MovieModel.id)
     )
+
+    result = await db.execute(stmt)
     return list(result.scalars().all())
-
-
-async def count_movies(db: Session) -> int:
-    return (db.query(
-        func.count())
-            .select_from(MovieModel)
-            .scalar()
-            )
 
 
 async def get_movie_by_id(
         db: AsyncSession,
         movie_id: int
 ) -> MovieModel | None:
+
     """
     Retrieve a single movie by ID including related genres, directors,
     stars, and certification.
     """
+
     result = await db.execute(
         select(MovieModel)
         .options(
@@ -376,10 +456,11 @@ async def get_movie_by_id(
     return result.scalar_one_or_none()
 
 
-async def create_movie(
+async def add_movie(
         db: AsyncSession,
         movie_data: MovieCreateSchema
 ) -> MovieModel:
+
     """
     Create a new movie including relationships to genres, stars, and directors.
     """
@@ -453,15 +534,17 @@ async def create_movie(
     return movie_with_relations
 
 
-async def update_movie(
+async def edit_movie(
         db: AsyncSession,
         movie_id: int,
         data: MovieUpdateSchema
 ) -> MovieModel | None:
+
     """
     Update a movie's details and optionally its related genres, stars, and directors.
     Returns the updated movie or None if not found.
     """
+
     movie = await get_movie_by_id(db, movie_id)
     if not movie:
         return None
@@ -497,28 +580,16 @@ async def update_movie(
     return movie
 
 
-async def delete_movie(
+async def remove_movie(
         db: AsyncSession,
         movie_id: int
 ) -> bool:
+
     """Delete a movie by its ID. Returns True if deleted, else False."""
+
     result = await db.execute(
         delete(MovieModel)
         .where(MovieModel.id == movie_id)
     )
     await db.commit()
     return result.rowcount > 0
-
-
-async def get_movies(
-    db: AsyncSession,
-    skip: int = 0,
-    limit: int = 100
-) -> list[MovieModel]:
-    """Retrieve a list of movies with pagination."""
-    result = await db.execute(
-        select(MovieModel)
-        .offset(skip)
-        .limit(limit)
-    )
-    return list(result.scalars().all())

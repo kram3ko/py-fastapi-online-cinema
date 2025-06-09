@@ -1,6 +1,8 @@
 import uuid
+from enum import Enum
 from typing import Optional
 
+from fastapi import Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from schemas.examples.movies import (
@@ -23,7 +25,7 @@ class GenreBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 genre_schema_example
             ]
         }
@@ -46,7 +48,14 @@ class GenreReadSchema(GenreBaseSchema):
     id: int
     movie_count: Optional[int] = Field(default=None)
 
-    model_config = ConfigDict(from_attributes=True, json_schema_extra={"example": [genre_schema_example]})
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": [
+                genre_schema_example
+            ]
+        }
+    )
 
 
 class StarBaseSchema(BaseModel):
@@ -55,7 +64,7 @@ class StarBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 star_schema_example
             ]
         }
@@ -86,7 +95,7 @@ class DirectorBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 director_schema_example
             ]
         }
@@ -117,7 +126,7 @@ class CertificationBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 certification_schema_example
             ]
         }
@@ -158,7 +167,7 @@ class MovieBaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 movie_item_schema_example
             ]
         }
@@ -174,7 +183,9 @@ class MovieDetailSchema(MovieBaseSchema):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": movie_detail_schema_example
+            "examples": [
+                movie_detail_schema_example
+            ]
         }
     )
 
@@ -183,14 +194,17 @@ class MovieListItemSchema(BaseModel):
     id: int
     name: str
     year: int
-    imdb: float
+    imdb: Optional[float]
     time: int
+    price: float
     genres: list[GenreBaseSchema]
 
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": movie_list_schema_example
+            "examples": [
+                movie_list_schema_example
+            ]
         }
     )
 
@@ -205,7 +219,7 @@ class MovieListResponseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 movie_list_response_schema_example
             ]
         }
@@ -227,7 +241,7 @@ class MovieCreateSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 movie_create_schema_example
             ]
         }
@@ -252,7 +266,7 @@ class MovieUpdateSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 movie_update_schema_example
             ]
         }
@@ -261,3 +275,23 @@ class MovieUpdateSchema(BaseModel):
 
 class MovieDeleteSchema(MovieBaseSchema):
     pass
+
+
+class MovieFilterParamsSchema:
+    def __init__(
+        self,
+        year: Optional[int] = Query(default=None),
+        genre_ids: Optional[list[int]] = Query(default=None),
+        min_imdb: Optional[float] = Query(default=None),
+    ):
+        self.year = year
+        self.genre_ids = genre_ids
+        self.min_imdb = min_imdb
+
+
+class SortOptions(str, Enum):
+    price_asc = "price_asc"
+    price_desc = "price_desc"
+    release_date_asc = "release_date_asc"
+    release_date_desc = "release_date_desc"
+    # popularity_desc = "popularity_desc"
