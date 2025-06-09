@@ -33,7 +33,6 @@ from schemas.accounts import (
     UserRegistrationRequestSchema,
     UserRegistrationResponseSchema,
 )
-from security.http import jwt_security
 from security.interfaces import JWTAuthManagerInterface
 
 router = APIRouter()
@@ -368,7 +367,6 @@ async def refresh_access_token(
     summary="User Logout",
     description="Logout user and invalidate all their refresh tokens.",
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(jwt_security)]
 )
 async def logout_user(
     db: AsyncSession = Depends(get_db),
@@ -394,12 +392,19 @@ async def logout_user(
         )
 
 
-@router.post("/users/{user_id}/change_group", dependencies=[Depends(require_admin), Depends(jwt_security)])
+@router.post(
+    "/users/{user_id}/change_group",
+    dependencies=[Depends(require_admin)]
+)
 async def change_user_group(
     user_id: int,
     user_group: ChangeUserGroupRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
 ) -> MessageResponseSchema:
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Admin cannot change their own group")
+
     user_obj = await db.scalar(select(UserModel).where(UserModel.id == user_id))
     if not user_obj:
         raise HTTPException(status_code=404, detail="User not found")
