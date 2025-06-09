@@ -71,5 +71,6 @@ class TokenRefreshResponseSchema(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
+
 class ChangeUserGroupRequest(BaseModel):
     group: UserGroupEnum
