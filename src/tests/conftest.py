@@ -5,11 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import get_settings, get_accounts_email_notificator, get_s3_storage_client
 from database.deps import get_db_contextmanager
-from database.session_sqlite import reset_sqlite_database as reset_database
-
 from database.models.accounts import UserGroupEnum, UserGroupModel
-
 from database.populate import CSVDatabaseSeeder
+from database.session_sqlite import reset_sqlite_database as reset_database
 from main import app
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
@@ -36,25 +34,11 @@ async def reset_db(request):
     test function to maintain test isolation. However, if the test is marked with 'e2e',
     the database reset is skipped to allow preserving state between end-to-end tests.
     """
-    if "e2e" in request.keywords:
-        yield
-    else:
-        await reset_database()
-        yield
-
-
-@pytest_asyncio.fixture(scope="session")
-async def reset_db_once_for_e2e(request):
-    """
-    Reset the database once for end-to-end tests.
-
-    This fixture is intended to be used for end-to-end tests at the session scope,
-    ensuring the database is reset before running E2E tests.
-    """
     await reset_database()
+    yield
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def settings():
     """
     Provide application settings.
@@ -84,7 +68,7 @@ async def s3_storage_fake():
     return FakeS3Storage()
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def s3_client(settings):
     """
     Provide an S3 storage client.
@@ -115,17 +99,6 @@ async def client(email_sender_stub, s3_storage_fake):
     app.dependency_overrides.clear()
 
 
-@pytest_asyncio.fixture(scope="session")
-async def e2e_client():
-    """
-    Provide an asynchronous HTTP client for end-to-end tests.
-
-    This client is available at the session scope.
-    """
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as async_client:
-        yield async_client
-
-
 @pytest_asyncio.fixture(scope="function")
 async def db_session():
     """
@@ -133,23 +106,6 @@ async def db_session():
 
     This fixture yields an async session using `get_db_contextmanager`, ensuring that the session
     is properly closed after each test.
-    """
-    async with get_db_contextmanager() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
-
-
-@pytest_asyncio.fixture(scope="session")
-async def e2e_db_session():
-    """
-    Provide an async database session for end-to-end tests.
-
-    This fixture yields an async session using `get_db_contextmanager` at the session scope,
-    ensuring that the same session is used throughout the E2E test suite.
-    Note: Using a session-scoped DB session in async tests may lead to shared state between tests,
-    so use this fixture with caution if tests run concurrently.
     """
     async with get_db_contextmanager() as session:
         yield session
