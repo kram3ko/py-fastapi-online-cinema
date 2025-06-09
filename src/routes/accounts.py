@@ -28,8 +28,10 @@ from schemas.accounts import (
     UserLoginResponseSchema,
     UserRegistrationRequestSchema,
     UserRegistrationResponseSchema,
+    LogoutRequestSchema,
 )
 from security.interfaces import JWTAuthManagerInterface
+from security.blacklist import blacklist_token
 
 router = APIRouter()
 
@@ -356,3 +358,44 @@ async def refresh_access_token(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
 
     return TokenRefreshResponseSchema(access_token=access_token)
+
+
+@router.post(
+    "/logout/",
+    response_model=MessageResponseSchema,
+    summary="User Logout",
+    description="Logout user and blacklist their refresh token.",
+    status_code=status.HTTP_200_OK,
+    responses={
+        400: {
+            "description": "Bad Request - Invalid token.",
+            "content": {"application/json": {"example": {"detail": "Invalid token."}}},
+        },
+    },
+)
+async def logout_user(
+    token_data: LogoutRequestSchema,
+    jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
+) -> MessageResponseSchema:
+    """Endpoint for user logout."""
+    try:
+        # Decode the refresh token to get its JTI and expiration
+        decoded_token = jwt_manager.decode_refresh_token(token_data.refresh_token)
+        jti = decoded_token.get("jti")
+        exp = decoded_token.get("exp")
+        
+        if not jti or not exp:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid token."
+            )
+        
+        # Add refresh token to blacklist
+        blacklist_token(jti, exp)
+        
+        return MessageResponseSchema(message="Successfully logged out.")
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid token."
+        )
