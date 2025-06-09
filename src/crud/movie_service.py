@@ -729,8 +729,8 @@ async def like_or_dislike_movie(
     await db.commit()
 
     total_stmt = select(
-        func.count().filter(MovieLikeModel.is_like == True),
-        func.count().filter(MovieLikeModel.is_like == False)
+        func.count().filter(MovieLikeModel.is_like == True), # noqa E712
+        func.count().filter(MovieLikeModel.is_like == False) # noqa E712
     ).where(MovieLikeModel.movie_id == movie_id)
 
     total_result = await db.execute(total_stmt)

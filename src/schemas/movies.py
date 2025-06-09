@@ -315,6 +315,7 @@ class MovieLikeResponseSchema(BaseModel):
 
 class CommentCreateSchema(BaseModel):
     content: str
+    rating: int = Field()
 
 
 class CommentReadSchema(BaseModel):

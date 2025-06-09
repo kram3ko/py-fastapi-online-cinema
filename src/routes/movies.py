@@ -580,12 +580,11 @@ async def create_comment(
 
 @router.get("/movies/{movie_id}/comments/",
             response_model=list[CommentReadSchema],
-            dependencies=[Depends(jwt_security)]
+            dependencies=[Depends(jwt_security), Depends(get_current_user)]
             )
 async def list_comments(
     movie_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db)
 ) -> list[CommentReadSchema]:
 
     """
