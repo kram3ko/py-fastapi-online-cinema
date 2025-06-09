@@ -115,19 +115,19 @@ def get_stripe_email_notificator(
     settings: BaseAppSettings = Depends(get_settings),
 ) -> StripeEmailSenderInterface:
     """
-    Retrieve an instance of the StripeEmailSenderInterface configured with the application settings.
+     Retrieve an instance of the StripeEmailSenderInterface configured with the application settings.
 
-   This function creates a StripeEmailNotificator using the provided settings,
-   which include details such as the email host,
-    port, credentials, TLS usage, and the directory for email templates. This allows the application
-    to send payment-related email notifications.
+    This function creates a StripeEmailNotificator using the provided settings,
+    which include details such as the email host,
+     port, credentials, TLS usage, and the directory for email templates. This allows the application
+     to send payment-related email notifications.
 
-    Args:
-        settings (BaseAppSettings): The application settings.
+     Args:
+         settings (BaseAppSettings): The application settings.
 
-    Returns:
-        StripeEmailSenderInterface: An instance of StripeEmailNotificator
-        configured with the appropriate email settings.
+     Returns:
+         StripeEmailSenderInterface: An instance of StripeEmailNotificator
+         configured with the appropriate email settings.
     """
     return StripeEmailNotificator(
         hostname=settings.EMAIL_HOST,

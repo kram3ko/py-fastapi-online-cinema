@@ -18,8 +18,9 @@ from schemas.shopping_cart import (
     CartItemResponse,
     CartResponse,
 )
+from security.http import jwt_security
 
-router = APIRouter(prefix="/cart", tags=["cart"], dependencies=[Depends(get_current_user)])
+router = APIRouter(dependencies=[Depends(get_current_user), Depends(jwt_security)])
 
 
 @router.get("/", response_model=CartResponse)

@@ -81,7 +81,7 @@ class CSVDatabaseSeeder:
                 certification_id=certifications[row["certification"]].id,
                 genres=[genres[genre.strip()] for genre in row["genres"].split(",")],
                 directors=[directors[director.strip()] for director in row["directors"].split(",")],
-                stars=[stars[star.strip()] for star in row["star"].split(",")] if pd.notna(row["star"]) else []
+                stars=[stars[star.strip()] for star in row["star"].split(",")] if pd.notna(row["star"]) else [],
             )
             self._db_session.add(movie)
 
@@ -92,9 +92,21 @@ class CSVDatabaseSeeder:
         data = pd.read_csv(self._csv_file_path)
 
         # Ensure all required columns are present
-        required_columns = ["name", "year", "time", "imdb", "votes", "meta_score",
-                          "gross", "descriptions", "price", "certification",
-                          "genres", "directors", "star"]
+        required_columns = [
+            "name",
+            "year",
+            "time",
+            "imdb",
+            "votes",
+            "meta_score",
+            "gross",
+            "descriptions",
+            "price",
+            "certification",
+            "genres",
+            "directors",
+            "star",
+        ]
 
         for col in required_columns:
             if col not in data.columns:
