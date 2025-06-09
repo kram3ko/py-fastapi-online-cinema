@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config.dependencies import get_current_user
 from crud.payments import create_payment, get_payment_by_id
 from database.deps import get_db
 from database.models.payments import PaymentModel, PaymentStatus
@@ -14,7 +15,6 @@ from schemas.payments import (
     PaymentListSchema,
     PaymentStatusSchema,
 )
-from security.auth import get_current_user
 from services.stripe_service import StripeService
 
 router = APIRouter(prefix="/payments", tags=["payments"])
