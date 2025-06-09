@@ -289,5 +289,3 @@ async def update_order_status(
     await db.commit()
     await db.refresh(order)
     return order
-
-
