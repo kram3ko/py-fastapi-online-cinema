@@ -25,6 +25,14 @@ class PaymentCreateSchema(BaseModel):
     amount: Decimal
 
 
+class PaymentUpdateSchema(BaseModel):
+    status: Optional[PaymentStatusSchema] = None
+    external_payment_id: Optional[str] = None
+    amount: Optional[Decimal] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class PaymentBaseSchema(BaseModel):
     id: int
     user_id: int
