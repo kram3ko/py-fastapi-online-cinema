@@ -1,7 +1,4 @@
 from fastapi import HTTPException, Request, status
-from fastapi.security import HTTPBearer
-
-jwt_security = HTTPBearer()
 
 
 def get_token(request: Request) -> str:
