@@ -26,7 +26,9 @@ def get_settings() -> Settings:
     return Settings()
 
 
-def get_jwt_auth_manager(settings: Settings = Depends(get_settings)) -> JWTAuthManagerInterface:
+def get_jwt_auth_manager(
+    settings: Settings = Depends(get_settings),
+) -> JWTAuthManagerInterface:
     """
     Create and return a JWT authentication manager instance.
 
@@ -49,7 +51,9 @@ def get_jwt_auth_manager(settings: Settings = Depends(get_settings)) -> JWTAuthM
     )
 
 
-def get_accounts_email_notificator(settings: BaseAppSettings = Depends(get_settings)) -> EmailSenderInterface:
+def get_accounts_email_notificator(
+    settings: BaseAppSettings = Depends(get_settings),
+) -> EmailSenderInterface:
     """
     Retrieve an instance of the EmailSenderInterface configured with the application settings.
 
@@ -78,7 +82,9 @@ def get_accounts_email_notificator(settings: BaseAppSettings = Depends(get_setti
     )
 
 
-def get_s3_storage_client(settings: BaseAppSettings = Depends(get_settings)) -> S3StorageInterface:
+def get_s3_storage_client(
+    settings: BaseAppSettings = Depends(get_settings),
+) -> S3StorageInterface:
     """
     Retrieve an instance of the S3StorageInterface configured with the application settings.
 

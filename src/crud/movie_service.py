@@ -120,7 +120,7 @@ async def update_star(db: AsyncSession, star_id: int, star_data: StarUpdateSchem
     :param star_data: Data to update.
     :raises HTTPException: If star is not found.
     :return: Updated StarModel instance.
-     """
+    """
     updated = await movie_crud.update_star(db, star_id, star_data)
     if not updated:
         raise HTTPException(status_code=404, detail="Star not found.")
@@ -163,10 +163,7 @@ async def get_paginated_movies(db: AsyncSession, params: Params) -> Page[MovieLi
     if not result.results:
         raise HTTPException(status_code=404, detail="No movies found.")
 
-    result.results = [
-        MovieListItemSchema.model_validate(movie)
-        for movie in result.results
-    ]
+    result.results = [MovieListItemSchema.model_validate(movie) for movie in result.results]
 
     return result
 

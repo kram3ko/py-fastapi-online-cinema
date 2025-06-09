@@ -131,21 +131,22 @@ async def create_movie(db: AsyncSession, movie_data: MovieCreateSchema) -> Movie
     """
     Create a new movie including relationships to genres, stars, and directors.
     """
-    movie = MovieModel(
-        **movie_data.model_dump(exclude={"genre_ids", "star_ids", "director_ids"})
-    )
+    movie = MovieModel(**movie_data.model_dump(exclude={"genre_ids", "star_ids", "director_ids"}))
 
     movie.genres = await db.execute(
-        select(MovieModel.genres.property.mapper.class_)
-        .filter(MovieModel.genres.property.mapper.class_.id.in_(movie_data.genre_ids))
+        select(MovieModel.genres.property.mapper.class_).filter(
+            MovieModel.genres.property.mapper.class_.id.in_(movie_data.genre_ids)
+        )
     )
     movie.stars = await db.execute(
-        select(MovieModel.stars.property.mapper.class_)
-        .filter(MovieModel.stars.property.mapper.class_.id.in_(movie_data.star_ids))
+        select(MovieModel.stars.property.mapper.class_).filter(
+            MovieModel.stars.property.mapper.class_.id.in_(movie_data.star_ids)
+        )
     )
     movie.directors = await db.execute(
-        select(MovieModel.directors.property.mapper.class_)
-        .filter(MovieModel.directors.property.mapper.class_.id.in_(movie_data.director_ids))
+        select(MovieModel.directors.property.mapper.class_).filter(
+            MovieModel.directors.property.mapper.class_.id.in_(movie_data.director_ids)
+        )
     )
 
     db.add(movie)
@@ -168,18 +169,21 @@ async def update_movie(db: AsyncSession, movie_id: int, data: MovieUpdateSchema)
 
     if data.genre_ids:
         movie.genres = await db.execute(
-            select(MovieModel.genres.property.mapper.class_)
-            .filter(MovieModel.genres.property.mapper.class_.id.in_(data.genre_ids))
+            select(MovieModel.genres.property.mapper.class_).filter(
+                MovieModel.genres.property.mapper.class_.id.in_(data.genre_ids)
+            )
         )
     if data.star_ids:
         movie.stars = await db.execute(
-            select(MovieModel.stars.property.mapper.class_)
-            .filter(MovieModel.stars.property.mapper.class_.id.in_(data.star_ids))
+            select(MovieModel.stars.property.mapper.class_).filter(
+                MovieModel.stars.property.mapper.class_.id.in_(data.star_ids)
+            )
         )
     if data.director_ids:
         movie.directors = await db.execute(
-            select(MovieModel.directors.property.mapper.class_)
-            .filter(MovieModel.directors.property.mapper.class_.id.in_(data.director_ids))
+            select(MovieModel.directors.property.mapper.class_).filter(
+                MovieModel.directors.property.mapper.class_.id.in_(data.director_ids)
+            )
         )
 
     await db.commit()
