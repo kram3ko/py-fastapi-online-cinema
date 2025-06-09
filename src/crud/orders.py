@@ -117,7 +117,7 @@ async def create_order_from_cart(
     return new_order
 
 
-async def get_user_orders(user_id: int, db: AsyncSession) -> list(OrderModel):
+async def get_user_orders(user_id: int, db: AsyncSession) -> list[OrderModel]:
     """
     Retrieves all orders for a specific user, with loaded related data.
     """
@@ -130,7 +130,7 @@ async def get_user_orders(user_id: int, db: AsyncSession) -> list(OrderModel):
         )
         .order_by(OrderModel.created_at.desc())
     )
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def get_order_detail(db: AsyncSession, order_id: int, user_id: int) -> OrderModel:
@@ -253,7 +253,7 @@ async def get_all_orders(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     status: Optional[OrderStatus] = None,
-) -> list(OrderModel):
+) -> list[OrderModel]:
     """
     Retrieves all orders, with optional filters (for admin).
     """
@@ -271,7 +271,7 @@ async def get_all_orders(
         query = query.where(OrderModel.created_at <= end_date)
 
     result = await db.execute(query)
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 async def update_order_status(
@@ -289,3 +289,5 @@ async def update_order_status(
     await db.commit()
     await db.refresh(order)
     return order
+
+
