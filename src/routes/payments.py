@@ -6,8 +6,8 @@ from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from crud.payments import create_payment, get_payment_by_id
-from database import get_db
+from crud.payments import create_payment
+from database.deps import get_db
 from database.models.payments import PaymentModel, PaymentStatus
 from schemas.payments import (
     PaymentBaseSchema,
@@ -136,7 +136,7 @@ async def admin_get_payments(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     user_id: int | None = None,
-    status: PaymentStatusSchema | None = None,
+    payment_status: PaymentStatusSchema | None = None,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
     skip: int = Query(0, ge=0),
@@ -152,7 +152,7 @@ async def admin_get_payments(
     
     if user_id:
         query = query.where(PaymentModel.user_id == user_id)
-    if status:
+    if payment_status:
         query = query.where(PaymentModel.status == status)
     if start_date:
         query = query.where(PaymentModel.created_at >= start_date)
