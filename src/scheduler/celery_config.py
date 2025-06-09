@@ -39,7 +39,7 @@ class RedisCeleryConfig:
             "beat_schedule": {
                 "delete-expired-activation-tokens": {
                     "task": "scheduler.tasks.delete_expired_activation_tokens",
-                    "schedule": crontab(minute="*/5"),
+                    "schedule": crontab(minute=0, hour="*/1"),
                 },
             },
         }

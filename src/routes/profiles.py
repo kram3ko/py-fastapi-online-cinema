@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import get_jwt_auth_manager, get_s3_storage_client
-from database import get_db
+from database.deps import get_db
 from database.models.accounts import GenderEnum, UserGroupEnum, UserGroupModel, UserModel, UserProfileModel
 from exceptions import BaseSecurityError, S3FileUploadError
 from schemas.profiles import ProfileCreateRequestSchema, ProfileResponseSchema

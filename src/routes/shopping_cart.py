@@ -1,8 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config.dependencies import get_current_user
 from crud import shopping_cart as cart_crud
-from database import get_db
+from crud.shopping_cart import (
+    CartNotFoundError,
+    MovieAlreadyInCartError,
+    MovieAlreadyPurchasedError,
+    MovieNotFoundError,
+    MovieNotInCartError,
+)
+from database.deps import get_db
 from database.models.accounts import UserModel
 from schemas.accounts import MessageResponseSchema
 from schemas.shopping_cart import (
@@ -10,9 +18,9 @@ from schemas.shopping_cart import (
     CartItemResponse,
     CartResponse,
 )
-from security.dependencies import get_current_user
+from security.http import jwt_security
 
-router = APIRouter(prefix="/cart", tags=["cart"], dependencies=[Depends(get_current_user)])
+router = APIRouter(dependencies=[Depends(get_current_user), Depends(jwt_security)])
 
 
 @router.get("/", response_model=CartResponse)
@@ -33,13 +41,29 @@ async def add_movie_to_cart(
 ) -> CartItemResponse:
     """Add movie to cart."""
     cart = await cart_crud.get_or_create_cart(db, current_user.id)
-    cart_item = await cart_crud.add_movie_to_cart(db, cart.id, item.movie_id, current_user.id)
+    cart_item, error = await cart_crud.add_movie_to_cart(db, cart.id, item.movie_id, current_user.id)
 
-    if not cart_item:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Movie is already in cart, doesn't exist, or was already purchased",
-        )
+    if error:
+        if isinstance(error, MovieNotFoundError):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Movie not found",
+            )
+        elif isinstance(error, MovieAlreadyInCartError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Movie is already in cart",
+            )
+        elif isinstance(error, MovieAlreadyPurchasedError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This movie has already been purchased. Repurchase is not possible.",
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error",
+            )
 
     return cart_item
 
@@ -51,16 +75,30 @@ async def remove_movie_from_cart(
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponseSchema:
     """Remove movie from cart."""
-    cart = await cart_crud.get_user_cart(db, current_user.id)
-    if not cart:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
+    cart = await cart_crud.get_or_create_cart(db, current_user.id)
+    success, error = await cart_crud.remove_movie_from_cart(db, cart.id, movie_id)
 
-    removed = await cart_crud.remove_movie_from_cart(db, cart.id, movie_id)
-    if not removed:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Movie not found in cart",
-        )
+    if error:
+        if isinstance(error, CartNotFoundError):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cart not found",
+            )
+        elif isinstance(error, MovieNotFoundError):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Movie not found",
+            )
+        elif isinstance(error, MovieNotInCartError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Movie is not in cart",
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error",
+            )
 
     return MessageResponseSchema(message="Movie removed from cart")
 
@@ -71,12 +109,19 @@ async def clear_cart(
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponseSchema:
     """Clear all items from cart."""
-    cart = await cart_crud.get_user_cart(db, current_user.id)
-    if not cart:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
+    cart = await cart_crud.get_or_create_cart(db, current_user.id)
+    success, error = await cart_crud.clear_cart(db, cart.id)
 
-    cleared = await cart_crud.clear_cart(db, cart.id)
-    if not cleared:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cart not found")
+    if error:
+        if isinstance(error, CartNotFoundError):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cart not found",
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error",
+            )
 
     return MessageResponseSchema(message="Cart cleared successfully")

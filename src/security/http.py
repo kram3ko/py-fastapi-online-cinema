@@ -1,4 +1,7 @@
 from fastapi import HTTPException, Request, status
+from fastapi.security import HTTPBearer
+
+jwt_security = HTTPBearer()
 
 
 def get_token(request: Request) -> str:
@@ -9,9 +12,9 @@ def get_token(request: Request) -> str:
     :return: Extracted token string.
     :raises HTTPException: If Authorization header is missing or invalid.
     """
-    authorization: str = request.headers.get("Authorization")
-
-    if not authorization:
+    try:
+        authorization: str = request.headers["Authorization"]
+    except KeyError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authorization header is missing")
 
     scheme, _, token = authorization.partition(" ")
