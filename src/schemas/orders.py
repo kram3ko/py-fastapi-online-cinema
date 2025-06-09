@@ -1,7 +1,8 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, condecimal
+from pydantic import BaseModel, ConfigDict, Field
 
 from database.models.orders import OrderStatus
 from schemas.movies import MovieListItemSchema
@@ -15,7 +16,7 @@ class OrderItemResponse(BaseModel):
     """
     id: int
     movie_id: int
-    price_at_order: condecimal(max_digits=10, decimal_places=2)
+    price_at_order: Decimal = Field(..., max_digits=10, decimal_places=2)
     movie: MovieListItemSchema  # Movie details loaded with the order item
 
     model_config = ConfigDict(from_attributes=True)
@@ -38,8 +39,8 @@ class OrderResponse(BaseModel):
     user_id: int
     created_at: datetime
     status: OrderStatus
-    total_amount: Optional[condecimal(max_digits=10, decimal_places=2)]
-    order_items: list(OrderItemResponse) = []  # List of items included in the order
+    total_amount: Decimal = Field(..., max_digits=10, decimal_places=2)
+    order_items: list[OrderItemResponse] = []  # List of items included in the order
     user: ProfileResponseSchema  # User profile details for the order owner
 
     model_config = ConfigDict(from_attributes=True)
@@ -61,7 +62,7 @@ class OrderFilterParams(BaseModel):
 class OrderPaymentRequest(BaseModel):
     """
     Pydantic schema for requesting payment for an order.
-    Currently empty as the order ID is passed in the URL,
+    Currently empty as the order ID is passed in the URL
     but can be extended to include payment gateway specific data.
     """
     pass
