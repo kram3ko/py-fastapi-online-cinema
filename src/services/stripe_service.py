@@ -28,7 +28,7 @@ class StripeService:
     async def create_payment_intent(payment_data: PaymentCreateSchema) -> dict:
         try:
             amount_cents = int(payment_data.amount * 100)
-            
+
             intent = stripe.PaymentIntent.create(
                 amount=amount_cents,
                 currency=stripe_settings.STRIPE_CURRENCY,
@@ -36,7 +36,7 @@ class StripeService:
                     "order_id": payment_data.order_id,
                 }
             )
-            
+
             return {
                 "client_secret": intent.client_secret,
                 "payment_intent_id": intent.id
@@ -53,12 +53,12 @@ class StripeService:
             event = stripe.Webhook.construct_event(
                 payload, sig_header, stripe_settings.STRIPE_WEBHOOK_SECRET
             )
-        except ValueError as e:
+        except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid payload"
             )
-        except stripe.error.SignatureVerificationError as e:
+        except stripe.error.SignatureVerificationError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid signature"
@@ -80,7 +80,7 @@ class StripeService:
                 "amount": Decimal(payment_intent.amount) / 100,
                 "order_id": payment_intent.metadata.get("order_id")
             }
-        
+
         return None
 
     @staticmethod
@@ -95,10 +95,10 @@ class StripeService:
             refund = stripe.Refund.create(
                 payment_intent=payment.external_payment_id
             )
-            
+
             return refund.status == "succeeded"
         except stripe.error.StripeError as e:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e)
-            ) 
+            )

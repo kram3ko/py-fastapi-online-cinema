@@ -1,26 +1,20 @@
+from typing import Optional
+
 from fastapi import HTTPException, status
 from fastapi.params import Depends
-from sqlalchemy import and_, select
-from typing import Any, Optional
-from fastapi import Depends
 from sqlalchemy import select
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.deps import get_db
 from database.models.orders import OrderItemModel, OrderModel
 from database.models.payments import PaymentItemModel, PaymentModel, PaymentStatus
-from schemas.payments import PaymentCreateSchema, PaymentStatusSchema, AdminPaymentFilter
-from database.models.payments import PaymentItemModel, PaymentModel
-from schemas.payments import PaymentCreate, PaymentStatusSchema, PaymentUpdate
-
+from schemas.payments import AdminPaymentFilter, PaymentCreate, PaymentStatusSchema, PaymentUpdate
 
 
 async def create_payment(
     payment: PaymentCreate,
     db: AsyncSession = Depends(get_db)
 ) -> PaymentModel:
-
     result = await db.execute(select(OrderModel).where(OrderModel.id == payment_data.order_id))
     order = result.scalar_one_or_none()
 
@@ -39,7 +33,6 @@ async def create_payment(
             status_code=status.HTTP_400_BAD_REQUEST,
 
             detail=f"Incorrect payment amount. Expected: {total_amount}, Got: {payment_data.amount}")
-
 
     payment = PaymentModel(
         user_id=user_id,
@@ -63,7 +56,6 @@ async def create_payment(
     await db.commit()
     await db.refresh(payment)
     return payment
-
 
 
 async def get_payment_by_id(payment_id: int, db: AsyncSession) -> PaymentModel | None:
@@ -105,7 +97,7 @@ async def update_payment(
 
 async def delete_payment(
     payment_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession
 ) -> Optional[PaymentModel]:
     db_payment = await get_payment(payment_id, db)
     if db_payment:
@@ -118,10 +110,8 @@ async def get_user_payments(
     user_id: int,
     db: AsyncSession = Depends(get_db)
 ) -> list[PaymentModel]:
-
     result = await db.execute(select(PaymentModel).where(PaymentModel.user_id == user_id))
     return list(result.scalars().all())
-
 
 
 async def get_payments_with_filters(
@@ -129,7 +119,7 @@ async def get_payments_with_filters(
     db: AsyncSession
 ) -> list[PaymentModel]:
     query = select(PaymentModel)
-    
+
     if filters.user_id:
         query = query.where(PaymentModel.user_id == filters.user_id)
     if filters.status:
@@ -138,7 +128,7 @@ async def get_payments_with_filters(
         query = query.where(PaymentModel.created_at >= filters.start_date)
     if filters.end_date:
         query = query.where(PaymentModel.created_at <= filters.end_date)
-    
+
     query = query.offset(filters.skip).limit(filters.limit)
     result = await db.execute(query)
     return result.scalars().all()
@@ -155,11 +145,12 @@ async def update_payment_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Payment not found"
         )
-    
+
     payment.status = new_status
     await db.commit()
     await db.refresh(payment)
     return payment
+
 
 async def get_all_payments(
     db: AsyncSession = Depends(get_db),
@@ -170,4 +161,3 @@ async def get_all_payments(
         query = query.where(PaymentModel.status == payment_status)
     result = await db.execute(query)
     return list(result.scalars().all())
-
