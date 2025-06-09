@@ -25,6 +25,14 @@ class PaymentCreateSchema(BaseModel):
     amount: Decimal
 
 
+class PaymentUpdateSchema(BaseModel):
+    status: Optional[PaymentStatusSchema] = None
+    external_payment_id: Optional[str] = None
+    amount: Optional[Decimal] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class PaymentBaseSchema(BaseModel):
     id: int
     user_id: int
@@ -40,3 +48,15 @@ class PaymentBaseSchema(BaseModel):
 
 class PaymentListSchema(BaseModel):
     payments: list[PaymentBaseSchema]
+    total: int
+    skip: int
+    limit: int
+
+
+class AdminPaymentFilter(BaseModel):
+    user_id: Optional[int] = None
+    status: Optional[PaymentStatusSchema] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    skip: int = 0
+    limit: int = 10

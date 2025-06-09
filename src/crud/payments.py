@@ -1,17 +1,17 @@
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.deps import get_db
-from database.models.orders import OrderItemModel, OrderModel
-from database.models.payments import PaymentItemModel, PaymentModel
-from schemas.payments import PaymentCreate, PaymentStatusSchema, PaymentUpdate
+
+from database.models.payments import PaymentModel
+from schemas.payments import PaymentCreateSchema, PaymentStatusSchema, PaymentUpdateSchema
 
 
 async def create_payment(
-    payment: PaymentCreate,
+    payment: PaymentCreateSchema,
     db: AsyncSession = Depends(get_db)
 ) -> PaymentModel:
     db_payment = PaymentModel(**payment.model_dump())
@@ -40,7 +40,7 @@ async def get_payments(
 
 async def update_payment(
     payment_id: int,
-    payment: PaymentUpdate,
+    payment: PaymentUpdateSchema,
     db: AsyncSession = Depends(get_db)
 ) -> Optional[PaymentModel]:
     db_payment = await get_payment(payment_id, db)
