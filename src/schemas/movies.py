@@ -1,3 +1,4 @@
+from datetime import datetime
 import uuid
 from enum import Enum
 from typing import Optional
@@ -297,11 +298,6 @@ class SortOptions(str, Enum):
     # popularity_desc = "popularity_desc"
 
 
-# class ReactionEnum(str, Enum):
-#     like = "like"
-#     dislike = "dislike"
-
-
 class MovieLikeRequestSchema(BaseModel):
     movie_id: int
     is_like: bool
@@ -315,3 +311,13 @@ class MovieLikeResponseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
     )
+
+
+class CommentCreateSchema(BaseModel):
+    content: str
+
+
+class CommentReadSchema(BaseModel):
+    id: int
+    content: str
+    created_at: datetime

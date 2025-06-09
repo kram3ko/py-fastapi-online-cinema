@@ -5,7 +5,8 @@ from sqlalchemy.orm import selectinload
 
 from crud import movie_crud
 from database.models import UserModel
-from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel, MovieLikeModel
+from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel, MovieLikeModel, \
+    CommentModel
 from schemas.movies import (
     CertificationCreateSchema,
     CertificationUpdateSchema,
@@ -19,7 +20,7 @@ from schemas.movies import (
     MovieUpdateSchema,
     SortOptions,
     StarCreateSchema,
-    StarUpdateSchema, MovieLikeResponseSchema, MovieLikeRequestSchema,
+    StarUpdateSchema, MovieLikeResponseSchema, MovieLikeRequestSchema, CommentCreateSchema,
 )
 
 
@@ -667,7 +668,7 @@ async def like_or_dislike_movie(
         db: AsyncSession,
         movie_id: int,
         user: UserModel,
-        data: Query(True, description="True = Like, False = Dislike")
+        is_like: bool
 ) -> MovieLikeResponseSchema:
 
     """
@@ -705,13 +706,13 @@ async def like_or_dislike_movie(
     like_obj = result.scalar_one_or_none()
 
     if like_obj:
-        like_obj.is_like = data.is_like
+        like_obj.is_like = is_like
         message = "The response has been updated. Thanks for the response!"
     else:
         like_obj = MovieLikeModel(
             user_id=user.id,
             movie_id=movie_id,
-            is_like=data.is_like
+            is_like=is_like
         )
         db.add(like_obj)
         message = "Thanks for the response!"
@@ -731,3 +732,62 @@ async def like_or_dislike_movie(
         total_likes=total_likes,
         total_dislikes=total_dislikes
     )
+
+
+async def add_comment(
+        db: AsyncSession,
+        movie_id: int,
+        user_id: int,
+        data: CommentCreateSchema
+) -> CommentModel:
+
+    """
+    Add a new comment to a movie.
+
+    Creates and stores a comment in the database associated with a specific movie and user.
+
+    Args:
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        user_id (int): ID of the user making the comment.
+        data (CommentCreateSchema): Data containing the movie ID and comment content.
+
+    Returns:
+        CommentModel: The created comment instance.
+    """
+
+    comment = CommentModel(
+        content=data.content,
+        movie_id=movie_id,
+        user_id=user_id
+    )
+    db.add(comment)
+    await db.commit()
+    await db.refresh(comment)
+    return comment
+
+
+async def get_movie_comments(
+        db: AsyncSession,
+        movie_id: int
+) -> list[CommentModel]:
+
+    """
+    Retrieve comments for a given movie.
+
+    Fetches all comments from the database that are associated with the specified movie,
+    ordered by creation time in descending order (most recent first).
+
+    Args:
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        movie_id (int): ID of the movie to retrieve comments for.
+
+    Returns:
+        list[CommentModel]: A list of comments related to the movie.
+    """
+
+    result = await db.execute(
+        select(CommentModel)
+        .filter_by(movie_id=movie_id)
+        .order_by(CommentModel.created_at.desc())
+    )
+    return result.scalars().all()

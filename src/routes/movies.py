@@ -31,7 +31,7 @@ from crud.movie_service import (
     update_director,
     update_genre,
     update_movie,
-    update_star, like_or_dislike_movie,
+    update_star, like_or_dislike_movie, add_comment, get_movie_comments,
 )
 from database.deps import get_db
 from database.models import UserModel
@@ -56,8 +56,9 @@ from schemas.movies import (
     StarCreateSchema,
     StarReadSchema,
     StarUpdateSchema,
-    MovieLikeResponseSchema
+    MovieLikeResponseSchema, CommentReadSchema, CommentCreateSchema
 )
+from security.http import jwt_security
 
 router = APIRouter()
 
@@ -517,10 +518,12 @@ async def delete_one_movie(
 
 @router.post("/movies_like/",
              response_model=MovieLikeResponseSchema,
-             status_code=200)
+             status_code=200,
+             dependencies=[Depends(jwt_security)],
+             )
 async def like_movie(
         movie_id: int,
-        data: bool = Query(True, description="True = Like, False = Dislike"),
+        is_like: bool = Query(True, description="True = Like, False = Dislike"),
         db: AsyncSession = Depends(get_db),
         user: UserModel = Depends(get_current_user),
 ) -> MovieLikeResponseSchema:
@@ -541,4 +544,51 @@ async def like_movie(
         MovieLikeResponseSchema: Contains a confirmation message, and updated total likes and dislikes.
     """
 
-    await like_or_dislike_movie(db, user.id, movie_id, data)
+    return await like_or_dislike_movie(db, movie_id, user, is_like)
+
+
+@router.post("/movies/comments/", response_model=CommentReadSchema)
+async def create_comment(
+    movie_id: int,
+    data: CommentCreateSchema,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
+) -> CommentReadSchema:
+
+    """
+    Create a comment for a movie.
+
+    Allows an authenticated user to add a comment to a specific movie.
+
+    Args:
+        data (CommentCreateSchema): Data required to create a comment, including movie ID and text.
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        current_user (UserModel): Currently authenticated user.
+
+    Returns:
+        CommentReadSchema: The created comment and creation time.
+    """
+
+    return await add_comment(db, movie_id, current_user.id, data)
+
+
+@router.get("/movies/{movie_id}/comments/", response_model=list[CommentReadSchema])
+async def list_comments(
+    movie_id: int,
+    db: AsyncSession = Depends(get_db)
+) -> list[CommentReadSchema]:
+
+    """
+    Retrieve all comments for a specific movie.
+
+    Fetches all user comments related to a given movie, ordered by creation time if applicable.
+
+    Args:
+        movie_id (int): The ID of the movie to retrieve comments for.
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+
+    Returns:
+        list[CommentReadSchema]: A list of comments associated with the movie.
+    """
+
+    return await get_movie_comments(db, movie_id)

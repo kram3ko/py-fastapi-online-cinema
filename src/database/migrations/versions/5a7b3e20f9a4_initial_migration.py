@@ -1,8 +1,8 @@
 """initial migration
 
-Revision ID: 18ca64d382e7
+Revision ID: 5a7b3e20f9a4
 Revises: 
-Create Date: 2025-06-08 17:48:08.229497
+Create Date: 2025-06-09 16:38:11.371426
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '18ca64d382e7'
+revision: str = '5a7b3e20f9a4'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -97,6 +97,17 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('user_id')
     )
+    op.create_table('comments',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('content', sa.String(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('movie_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['movie_id'], ['movies.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_comments_id'), 'comments', ['id'], unique=False)
     op.create_table('movie_directors',
     sa.Column('movie_id', sa.Integer(), nullable=False),
     sa.Column('director_id', sa.Integer(), nullable=False),
@@ -110,6 +121,16 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['genre_id'], ['genres.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['movie_id'], ['movies.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('movie_id', 'genre_id')
+    )
+    op.create_table('movie_likes',
+    sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('movie_id', sa.Integer(), nullable=False),
+    sa.Column('is_like', sa.Boolean(), nullable=False),
+    sa.ForeignKeyConstraint(['movie_id'], ['movies.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('movie_id', 'user_id')
     )
     op.create_table('movie_stars',
     sa.Column('movie_id', sa.Integer(), nullable=False),
@@ -165,7 +186,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('cart_id', sa.Integer(), nullable=False),
     sa.Column('movie_id', sa.Integer(), nullable=False),
-    sa.Column('added_at', sa.DateTime(), nullable=False),
+    sa.Column('added_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['cart_id'], ['carts.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['movie_id'], ['movies.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
@@ -185,7 +206,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('order_id', sa.Integer(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('status', sa.Enum('SUCCESSFUL', 'CANCELED', 'REFUNDED', name='paymentstatus'), nullable=False),
     sa.Column('amount', sa.DECIMAL(precision=10, scale=2), nullable=False),
     sa.Column('external_payment_id', sa.String(), nullable=True),
@@ -222,8 +243,11 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_orders_id'), table_name='orders')
     op.drop_table('orders')
     op.drop_table('movie_stars')
+    op.drop_table('movie_likes')
     op.drop_table('movie_genres')
     op.drop_table('movie_directors')
+    op.drop_index(op.f('ix_comments_id'), table_name='comments')
+    op.drop_table('comments')
     op.drop_table('carts')
     op.drop_table('activation_tokens')
     op.drop_index(op.f('ix_users_email'), table_name='users')
