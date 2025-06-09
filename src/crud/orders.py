@@ -23,7 +23,7 @@ async def create_order_from_cart(
     Raises:
         HTTPException: If the cart is empty, or if no valid movies can be added to the order.
     """
-    # 1. Retrieve the user's cart and its items
+    # Retrieve the user's cart and its items
     cart_result = await db.execute(
         select(Cart)
         .where(Cart.user_id == user_id)
@@ -37,7 +37,7 @@ async def create_order_from_cart(
     # Collect movie IDs from the cart for efficient lookups
     movie_ids_in_cart = {item.movie_id for item in cart.items}
 
-    # 2. Validation: Exclude already purchased movies
+    # Validation: Exclude already purchased movies
     # Get all PAID orders for the user and their order_items
     purchased_movie_ids_query = await db.execute(
         select(OrderItemModel.movie_id)
@@ -46,7 +46,7 @@ async def create_order_from_cart(
     )
     purchased_movie_ids = {item[0] for item in purchased_movie_ids_query.scalars().all()}
 
-    # 3. Validation: Check if there are other "pending" orders with the same movies
+    # Validation: Check if there are other "pending" orders with the same movies
     # This prevents duplicate orders for the same movies if a pending order already exists.
     pending_movie_ids_in_other_orders_query = await db.execute(
         select(OrderItemModel.movie_id)
@@ -55,7 +55,7 @@ async def create_order_from_cart(
     )
     pending_movie_ids_in_other_orders = {item[0] for item in pending_movie_ids_in_other_orders_query.scalars().all()}
 
-    # 4. Create a new order
+    # Create a new order
     new_order = OrderModel(user_id=user_id, status=OrderStatus.PENDING)
     db.add(new_order)
     await db.flush() # To get new_order.id before adding order items
@@ -67,11 +67,6 @@ async def create_order_from_cart(
     for cart_item in cart.items:
         movie = cart_item.movie
         movie_id = movie.id
-
-        # Additional validation: movie availability (if MovieModel had an 'is_available' field)
-        # if not movie.is_available:
-        #    excluded_movies_details.append({"movie_id": movie_id, "title": movie.name, "reason": "Movie is not available"})
-        #    continue
 
         if movie_id in purchased_movie_ids:
             excluded_movies_details.append({"movie_id": movie_id, "title": movie.name, "reason": "Already purchased"})
@@ -181,7 +176,7 @@ async def process_order_payment(db: AsyncSession, order_id: int, user_id: int) -
     if order.status == OrderStatus.CANCELED:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot pay for a canceled order.")
 
-    # 1. Re-validate total amount before processing payment
+    # Re-validate total amount before processing payment
     recalculated_total = 0.0
     for item in order.order_items:
         # Load the current price of the movie
@@ -200,8 +195,8 @@ async def process_order_payment(db: AsyncSession, order_id: int, user_id: int) -
         # and ask for re-confirmation before proceeding with payment.
         print(f"Warning: Order {order_id} total amount re-calculated from {order.total_amount} to {recalculated_total}.")
 
-    # 2. Simulate payment processing
-    # In a real application, this would involve integrating with a payment gateway (e.g., Stripe, PayPal).
+    # Simulate payment processing
+    # this would involve integrating with a payment gateway (Stripe).
     # If the payment is successful:
     new_payment = PaymentModel(
         user_id=user_id,
@@ -231,12 +226,6 @@ async def process_order_payment(db: AsyncSession, order_id: int, user_id: int) -
     order.status = OrderStatus.PAID # Mark the order as paid
     await db.commit() # Commit all changes: payment, payment items, order status update
     await db.refresh(order)
-
-    # Optional: Send order confirmation email
-    # from your_email_service import send_order_confirmation_email
-    # user_email = (await db.get(UserModel, user_id)).email # Or from order.user if already loaded
-    # if user_email:
-    #     await send_order_confirmation_email(user_email, order)
 
     return order
 
