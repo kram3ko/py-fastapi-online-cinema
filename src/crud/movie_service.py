@@ -1,10 +1,10 @@
 from fastapi import HTTPException
-from sqlalchemy import Select, and_, func, or_, select
+from sqlalchemy import Select, and_, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from crud import movie_crud
-from database.models import UserModel
+from database.models import OrderItemModel, UserModel
 from database.models.movies import (
     CertificationModel,
     CommentModel,
@@ -663,6 +663,16 @@ async def delete_movie(
     :raises HTTPException: If movie is not found.
     :return: Success message dict.
     """
+
+    query = select(exists().where(OrderItemModel.movie_id == movie_id))
+    result = await db.execute(query)
+    is_ordered = result.scalar()
+
+    if is_ordered:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete a movie that has been ordered by at least one user."
+        )
 
     deleted = await movie_crud.remove_movie(db, movie_id)
     if not deleted:
