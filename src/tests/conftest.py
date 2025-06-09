@@ -135,10 +135,7 @@ async def db_session():
     is properly closed after each test.
     """
     async with get_db_contextmanager() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+        yield session
 
 
 @pytest_asyncio.fixture(scope="session")
