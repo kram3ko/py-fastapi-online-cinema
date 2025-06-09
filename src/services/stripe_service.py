@@ -3,23 +3,12 @@ from typing import Optional
 
 import stripe
 from fastapi import HTTPException, status
-from pydantic_settings import BaseSettings
 
+from config import get_settings
 from database.models.payments import PaymentModel, PaymentStatus
 from schemas.payments import PaymentCreateSchema
 
-
-class StripeSettings(BaseSettings):
-    STRIPE_SECRET_KEY: str
-    STRIPE_PUBLISHABLE_KEY: str
-    STRIPE_WEBHOOK_SECRET: str
-    STRIPE_CURRENCY: str = "usd"
-
-    class Config:
-        env_file = ".env"
-
-
-stripe_settings = StripeSettings()
+stripe_settings = get_settings()
 stripe.api_key = stripe_settings.STRIPE_SECRET_KEY
 
 
@@ -41,7 +30,7 @@ class StripeService:
                 "client_secret": intent.client_secret,
                 "payment_intent_id": intent.id
             }
-        except stripe.error.StripeError as e: # type: ignore[attr-defined]
+        except stripe.error.StripeError as e:  # type: ignore[attr-defined]
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e)
@@ -53,12 +42,12 @@ class StripeService:
             event = stripe.Webhook.construct_event(
                 payload, sig_header, stripe_settings.STRIPE_WEBHOOK_SECRET
             )
-        except ValueError as e:
+        except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid payload"
             )
-        except stripe.error.SignatureVerificationError as e: # type: ignore[attr-defined]
+        except stripe.error.SignatureVerificationError:  # type: ignore[attr-defined]
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid signature"
@@ -97,7 +86,7 @@ class StripeService:
             )
 
             return refund.status == "succeeded"
-        except stripe.error.StripeError as e: # type: ignore[attr-defined]
+        except stripe.error.StripeError as e:  # type: ignore[attr-defined]
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(e)
