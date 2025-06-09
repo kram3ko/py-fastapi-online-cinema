@@ -4,13 +4,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import BaseAppSettings, get_jwt_auth_manager, get_settings
-from config.dependencies import get_current_user
+from config.dependencies import get_current_user, require_admin
 from crud.user_service import UserService
 from database.deps import get_db
 from database.models.accounts import (
     RefreshTokenModel,
     UserGroupEnum,
     UserGroupModel,
+    UserModel,
 )
 from scheduler.tasks import (
     send_activation_complete_email_task,
@@ -19,6 +20,7 @@ from scheduler.tasks import (
     send_password_reset_email_task,
 )
 from schemas.accounts import (
+    ChangeUserGroupRequest,
     MessageResponseSchema,
     PasswordResetCompleteRequestSchema,
     PasswordResetRequestSchema,
@@ -293,7 +295,6 @@ async def reset_password(
 async def login_user(
     login_data: UserLoginRequestSchema,
     db: AsyncSession = Depends(get_db),
-    settings: BaseAppSettings = Depends(get_settings),
     jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
 ) -> UserLoginResponseSchema:
     """Endpoint for user login."""
@@ -371,7 +372,7 @@ async def refresh_access_token(
 )
 async def logout_user(
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_user),
 ) -> MessageResponseSchema:
     """Endpoint for user logout."""
     try:
@@ -391,3 +392,23 @@ async def logout_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred during logout."
         )
+
+
+@router.post("/users/{user_id}/change_group")
+async def change_user_group(
+    user_id: int,
+    user_group: ChangeUserGroupRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(require_admin)
+) -> MessageResponseSchema:
+    user_obj = await db.scalar(select(UserModel).where(UserModel.id == user_id))
+    if not user_obj:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    new_group = await db.scalar(select(UserGroupModel).where(UserGroupModel.name == user_group.group))
+    if not new_group:
+        raise HTTPException(status_code=500, detail="Group not found")
+
+    user_obj.group = new_group
+    await db.commit()
+    return MessageResponseSchema(message=f"User group changed to {user_group.group.value}")
