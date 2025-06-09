@@ -48,7 +48,14 @@ class GenreReadSchema(GenreBaseSchema):
     id: int
     movie_count: Optional[int] = Field(default=None)
 
-    model_config = ConfigDict(from_attributes=True, json_schema_extra={"example": [genre_schema_example]})
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": [
+                genre_schema_example
+            ]
+        }
+    )
 
 
 class StarBaseSchema(BaseModel):
