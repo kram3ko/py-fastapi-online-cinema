@@ -1,14 +1,17 @@
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DECIMAL, Column, ForeignKey, String, Table, Text, UniqueConstraint
+from sqlalchemy import DECIMAL, Column, DateTime, ForeignKey, String, Table, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.models.base import Base
 
 if TYPE_CHECKING:
+    from database.models.accounts import UserModel
     from database.models.orders import OrderItemModel
+
 
 MovieGenresModel = Table(
     "movie_genres",
@@ -226,3 +229,98 @@ class MovieModel(Base):
         "OrderItemModel",
         back_populates="movie"
     )
+    likes: Mapped[list["MovieLikeModel"]] = relationship(
+        "MovieLikeModel",
+        back_populates="movies",
+        cascade="all, delete-orphan"
+    )
+    comments: Mapped[list["CommentModel"]] = relationship(
+        back_populates="movies",
+        cascade="all, delete-orphan"
+    )
+    # favorited_by: Mapped[list["FavoriteMovieModel"]] = relationship(
+    #     back_populates="movies",
+    # )
+
+
+class MovieLikeModel(Base):
+    __tablename__ = "movie_likes"
+    __table_args__ = (
+        UniqueConstraint("movie_id", "user_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id",
+        ondelete="CASCADE")
+    )
+    movie_id: Mapped[int] = mapped_column(
+        ForeignKey("movies.id",
+        ondelete="CASCADE")
+    )
+    is_like: Mapped[bool] = mapped_column(nullable=False)
+
+    user: Mapped["UserModel"] = relationship(
+        "UserModel",
+        back_populates="movie_likes"
+    )
+    movies: Mapped["MovieModel"] = relationship(
+        "MovieModel",
+        back_populates="likes"
+    )
+
+
+class CommentModel(Base):
+    __tablename__ = "comments"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=True,
+        index=True
+    )
+    content: Mapped[str] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=False
+    )
+    movie_id: Mapped[int] = mapped_column(
+        ForeignKey("movies.id"),
+        nullable=False
+    )
+
+    user: Mapped["UserModel"] = relationship(
+        back_populates="comments"
+    )
+    movies: Mapped["MovieModel"] = relationship(
+        back_populates="comments"
+    )
+
+
+# class FavoriteMovieModel(Base):
+#     __tablename__ = "favorite_movies"
+#     __table_args__ = (
+#         UniqueConstraint("user_id", "movie_id"),
+#     )
+#
+#     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+#     user_id: Mapped[int] = mapped_column(
+#         ForeignKey("users.id", ondelete="CASCADE"),
+#         nullable=False
+#     )
+#     movie_id: Mapped[int] = mapped_column(
+#         ForeignKey("movies.id", ondelete="CASCADE"),
+#         nullable=False
+#     )
+#
+#     user: Mapped["UserModel"] = relationship(
+#         back_populates="favorite_movies"
+#     )
+#     movies: Mapped["MovieModel"] = relationship(
+#         back_populates="favorited_by"
+#     )
