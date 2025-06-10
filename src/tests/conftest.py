@@ -3,9 +3,14 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import get_settings, get_accounts_email_notificator, get_s3_storage_client
+from config import (
+    get_settings,
+    get_accounts_email_notificator,
+    get_s3_storage_client,
+)
 from database.deps import get_db_contextmanager
-from database.models.accounts import UserGroupEnum, UserGroupModel
+from database.models.accounts import UserGroupEnum, UserGroupModel, UserModel
+from database.models.movies import MovieModel, CertificationModel
 from database.populate import CSVDatabaseSeeder
 from database.session_sqlite import reset_sqlite_database as reset_database
 from main import app
@@ -14,15 +19,14 @@ from security.token_manager import JWTAuthManager
 from storages import S3StorageClient
 from tests.doubles.fakes.storage import FakeS3Storage
 from tests.doubles.stubs.emails import StubEmailSender
+from database.models.shopping_cart import Cart, CartItem
 
 
 def pytest_configure(config):
     config.addinivalue_line(
         "markers", "order: Specify the order of test execution"
     )
-    config.addinivalue_line(
-        "markers", "unit: Unit tests"
-    )
+    config.addinivalue_line("markers", "unit: Unit tests")
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
@@ -79,7 +83,7 @@ async def s3_client(settings):
         endpoint_url=settings.S3_STORAGE_ENDPOINT,
         access_key=settings.S3_STORAGE_ACCESS_KEY,
         secret_key=settings.S3_STORAGE_SECRET_KEY,
-        bucket_name=settings.S3_BUCKET_NAME
+        bucket_name=settings.S3_BUCKET_NAME,
     )
 
 
@@ -90,10 +94,14 @@ async def client(email_sender_stub, s3_storage_fake):
 
     Overrides the dependencies for email sender and S3 storage with test doubles.
     """
-    app.dependency_overrides[get_accounts_email_notificator] = lambda: email_sender_stub
+    app.dependency_overrides[get_accounts_email_notificator] = (
+        lambda: email_sender_stub
+    )
     app.dependency_overrides[get_s3_storage_client] = lambda: s3_storage_fake
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as async_client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as async_client:
         yield async_client
 
     app.dependency_overrides.clear()
@@ -128,7 +136,7 @@ async def jwt_manager() -> JWTAuthManagerInterface:
     return JWTAuthManager(
         secret_key_access=settings.SECRET_KEY_ACCESS,
         secret_key_refresh=settings.SECRET_KEY_REFRESH,
-        algorithm=settings.JWT_SIGNING_ALGORITHM
+        algorithm=settings.JWT_SIGNING_ALGORITHM,
     )
 
 
@@ -158,9 +166,79 @@ async def seed_database(db_session):
     :type db_session: AsyncSession
     """
     settings = get_settings()
-    seeder = CSVDatabaseSeeder(csv_file_path=settings.PATH_TO_MOVIES_CSV, db_session=db_session)
+    seeder = CSVDatabaseSeeder(
+        csv_file_path=settings.PATH_TO_MOVIES_CSV, db_session=db_session
+    )
 
     if not await seeder.is_db_populated():
         await seeder.seed()
 
     yield db_session
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_user(db_session: AsyncSession):
+    """Create a test user for shopping cart tests."""
+    from database.models.accounts import UserModel, UserGroupEnum
+    from database.models import UserGroupModel
+
+    group = UserGroupModel(name=UserGroupEnum.USER)
+    db_session.add(group)
+    await db_session.flush()
+
+    user = UserModel(
+        email="test@example.com", is_active=True, group_id=group.id
+    )
+    user.password = "TestPassword17%"
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_movie(db_session: AsyncSession):
+    """Create a test movie for shopping cart tests."""
+    from database.models.movies import MovieModel, CertificationModel
+
+    certification = CertificationModel(name="PG-13")
+    db_session.add(certification)
+    await db_session.flush()
+
+    movie = MovieModel(
+        name="Test Movie",
+        descriptions="Test Description",
+        price=10.0,
+        year=2024,
+        time=120,
+        certification_id=certification.id,
+    )
+    db_session.add(movie)
+    await db_session.commit()
+    await db_session.refresh(movie)
+    return movie
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_cart(db_session: AsyncSession, test_user: UserModel):
+    """Create a test cart for the test user."""
+    cart = Cart(user_id=test_user.id)
+    db_session.add(cart)
+    await db_session.commit()
+    await db_session.refresh(cart)
+    return cart
+
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_client(
+    client: AsyncClient,
+    test_user: UserModel,
+    jwt_manager: JWTAuthManagerInterface,
+):
+    """
+    Provide an authenticated async HTTP client for testing.
+    """
+    access_token = jwt_manager.create_access_token({"user_id": test_user.id})
+    client.headers["Authorization"] = f"Bearer {access_token}"
+
+    return client
