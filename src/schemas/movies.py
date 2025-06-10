@@ -315,13 +315,16 @@ class MovieLikeResponseSchema(BaseModel):
 
 class CommentCreateSchema(BaseModel):
     content: str
-    rating: int = Field()
+    rating: int = Field(..., ge=1, le=10)
 
 
 class CommentReadSchema(BaseModel):
     id: int
     content: str
+    rating: int
     created_at: datetime
+    user_id: int
+    movie_id: int
 
     model_config = ConfigDict(
         from_attributes=True,

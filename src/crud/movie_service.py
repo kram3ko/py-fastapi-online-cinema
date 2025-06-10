@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from sqlalchemy import Select, and_, delete, exists, func, or_, select
+from sqlalchemy import Select, and_, delete, exists, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -781,12 +781,27 @@ async def add_comment(
 
     comment = CommentModel(
         content=data.content,
+        rating=data.rating,
         movie_id=movie_id,
         user_id=user_id
     )
     db.add(comment)
     await db.commit()
     await db.refresh(comment)
+
+    result = await db.execute(
+        select(func.avg(CommentModel.rating)).where(CommentModel.movie_id == movie_id)
+    )
+    average_rating = result.scalar()
+
+    await db.execute(
+        update(MovieModel)
+        .where(MovieModel.id == movie_id)
+        .values(meta_score=average_rating)
+    )
+
+    await db.commit()
+
     return comment
 
 
