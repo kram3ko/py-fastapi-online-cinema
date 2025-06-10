@@ -1,4 +1,6 @@
 import os
+from collections.abc import Awaitable
+from typing import Callable
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -193,12 +195,13 @@ async def require_moderator(current_user: UserModel = Depends(get_current_user))
     return current_user
 
 
-def allow_roles(*roles):
-    async def dependency(user: UserModel = Depends(get_current_user)):
+def allow_roles(*roles) -> Callable[..., Awaitable[UserModel]]:
+    async def dependency(user: UserModel = Depends(get_current_user)) -> UserModel:
         if user.group.name not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Permission denied: you don't have the required permissions to perform this action. "
             )
         return user
-    return Depends(dependency)
+
+    return dependency
