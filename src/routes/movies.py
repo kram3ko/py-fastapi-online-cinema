@@ -682,4 +682,3 @@ async def list_favorites(
     """
 
     return await get_favorites(db, user.id, search, genre_id, sort_by)
-
