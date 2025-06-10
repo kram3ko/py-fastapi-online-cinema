@@ -69,7 +69,6 @@ from schemas.movies import (
     StarUpdateSchema,
 )
 
-
 router = APIRouter()
 
 

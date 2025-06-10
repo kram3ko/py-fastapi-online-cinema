@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy import Select, and_, delete, exists, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
 from crud import movie_crud
 from database.models import OrderItemModel, UserModel
 from database.models.movies import (

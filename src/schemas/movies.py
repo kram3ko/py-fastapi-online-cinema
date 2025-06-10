@@ -2,8 +2,10 @@ import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Optional
+
 from fastapi import Query
 from pydantic import BaseModel, ConfigDict, Field
+
 from database.models.movies import FavoriteMovieModel
 from schemas.examples.movies import (
     certification_schema_example,
