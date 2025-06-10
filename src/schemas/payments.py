@@ -15,9 +15,9 @@ class PaymentItemBaseSchema(BaseModel):
 
 
 class PaymentStatusSchema(str, Enum):
-    successful = "successful"
-    canceled = "canceled"
-    refunded = "refunded"
+    SUCCESSFUL = "SUCCESSFUL"
+    CANCELED = "CANCELED"
+    REFUNDED = "REFUNDED"
 
 
 class PaymentCreateSchema(BaseModel):
