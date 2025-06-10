@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from fastapi.responses import RedirectResponse
 
 from crud.payments import create_payment, get_payment_by_id
 from database.deps import get_db
@@ -17,6 +18,8 @@ from schemas.payments import (
 )
 from security.auth import get_current_user
 from services.stripe_service import StripeService
+import stripe
+from services.stripe_service import stripe_settings
 
 router = APIRouter(tags=["payments"])
 
@@ -40,9 +43,9 @@ async def create_payment_intent(
         await db.commit()
 
         return {
+            "payment_url": intent_data["payment_url"],
             "payment_id": payment.id,
-            "external_payment_id": intent_data["payment_intent_id"],
-            "payment_url": intent_data["payment_url"]
+            "external_payment_id": intent_data["payment_intent_id"]
         }
     except SQLAlchemyError as e:
         await db.rollback()
@@ -265,3 +268,49 @@ async def get_payment_details(
         )
 
     return payment
+
+
+@router.get("/success/")
+async def payment_success(
+    session_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        result = await db.execute(
+            select(PaymentModel).where(
+                PaymentModel.external_payment_id == session.id
+            )
+        )
+        payment = result.scalar_one_or_none()
+        
+        if payment:
+            payment.status = PaymentStatus.SUCCESSFUL
+            await db.commit()
+            
+        return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
+    except Exception:
+        return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
+
+
+@router.get("/cancel/")
+async def payment_cancel(
+    session_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        result = await db.execute(
+            select(PaymentModel).where(
+                PaymentModel.external_payment_id == session.id
+            )
+        )
+        payment = result.scalar_one_or_none()
+        
+        if payment:
+            payment.status = PaymentStatus.CANCELED
+            await db.commit()
+            
+        return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
+    except Exception:
+        return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
