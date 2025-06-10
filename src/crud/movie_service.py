@@ -1,5 +1,6 @@
 from fastapi import HTTPException
-from sqlalchemy import Select, and_, exists, func, or_, select
+from sqlalchemy import Select, and_, exists, func, or_, select, delete
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -814,3 +815,53 @@ async def get_movie_comments(
         .order_by(CommentModel.created_at.desc())
     )
     return list(result.scalars().all())
+
+
+# async def add_favorite(db: AsyncSession, user_id: int, movie_id: int) -> None:
+#     favorite = FavoriteMovieModel(user_id=user_id, movie_id=movie_id)
+#     db.add(favorite)
+#     try:
+#         await db.commit()
+#     except IntegrityError:
+#         await db.rollback()
+#         raise HTTPException(status_code=400, detail="Movie already in favorites.")
+#
+#
+# async def remove_favorite(db: AsyncSession, user_id: int, movie_id: int) -> None:
+#     result = await db.execute(
+#         delete(FavoriteMovieModel).where(
+#             FavoriteMovieModel.user_id == user_id,
+#             FavoriteMovieModel.movie_id == movie_id
+#         )
+#     )
+#     if result.rowcount == 0:
+#         raise HTTPException(status_code=404, detail="Favorite not found.")
+#     await db.commit()
+#
+#
+# async def get_user_favorites(
+#     db: AsyncSession,
+#     user_id: int,
+#     name: str | None = None,
+#     genres: str | None = None,
+#     sort_by: str = "name",
+#     desc: bool = False
+# ) -> list[MovieModel]:
+#
+#     stmt = (
+#         select(MovieModel)
+#         .join(FavoriteMovieModel, FavoriteMovieModel.movie_id == MovieModel.id)
+#         .where(FavoriteMovieModel.user_id == user_id)
+#     )
+#
+#     if name:
+#         stmt = stmt.where(MovieModel.name.ilike(f"%{name}%"))
+#
+#     if genres:
+#         stmt = stmt.join(MovieModel.genres).where(GenreModel.name == genres)
+#
+#     sort_column = getattr(MovieModel, sort_by, MovieModel.name)
+#     stmt = stmt.order_by(sort_column.desc() if desc else sort_column)
+#
+#     result = await db.execute(stmt)
+#     return result.scalars().all()

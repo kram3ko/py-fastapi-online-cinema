@@ -601,3 +601,27 @@ async def list_comments(
     """
 
     return await get_movie_comments(db, movie_id)
+
+
+# @router.post("/movies/{movie_id}/favorite/", dependencies=[Depends(jwt_security)])
+# async def add_to_favorite(movie_id: int, db: AsyncSession = Depends(get_db), user: UserModel = Depends(get_current_user)):
+#     await add_favorite(db, user.id, movie_id)
+#     return {"detail": "Movie added to favorites"}
+#
+#
+# @router.delete("/movies/{movie_id}/favorite/", dependencies=[Depends(jwt_security)])
+# async def remove_from_favorite(movie_id: int, db: AsyncSession = Depends(get_db), user: UserModel = Depends(get_current_user)):
+#     await remove_favorite(db, user.id, movie_id)
+#     return {"detail": "Movie removed from favorites"}
+#
+#
+# @router.get("/favorites/", response_model=list[MovieListItemSchema])
+# async def list_favorites(
+#     name: str | None = None,
+#     genres: str | None = None,
+#     sort_by: str = "name",
+#     desc: bool = False,
+#     db: AsyncSession = Depends(get_db),
+#     user: UserModel = Depends(get_current_user)
+# ):
+#     return await get_user_favorites(db, user.id, name, genres, sort_by, desc)
