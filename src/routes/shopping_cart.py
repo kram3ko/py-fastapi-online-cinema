@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.dependencies import get_current_user
+from config.dependencies import get_current_user, require_admin
 from crud import orders as order_crud
 from crud import shopping_cart as cart_crud
 from crud.shopping_cart import (
@@ -151,3 +151,14 @@ async def pay_for_cart(
     )
 
     return paid_order
+
+
+@router.get("/admin/user/{user_id}", response_model=CartResponse)
+async def get_user_cart_as_admin(
+    user_id: int,
+    current_user: UserModel = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> CartResponse:
+    """Get user's shopping cart (admin only)."""
+    cart = await cart_crud.get_or_create_cart(db, user_id)
+    return cart
