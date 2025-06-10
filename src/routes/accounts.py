@@ -4,13 +4,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import BaseAppSettings, get_jwt_auth_manager, get_settings
-from config.dependencies import get_current_user
+from config.dependencies import get_current_user, require_admin
 from crud.user_service import UserService
 from database.deps import get_db
 from database.models.accounts import (
     RefreshTokenModel,
     UserGroupEnum,
     UserGroupModel,
+    UserModel,
 )
 from scheduler.tasks import (
     send_activation_complete_email_task,
@@ -19,6 +20,7 @@ from scheduler.tasks import (
     send_password_reset_email_task,
 )
 from schemas.accounts import (
+    ChangeUserGroupRequest,
     MessageResponseSchema,
     PasswordResetCompleteRequestSchema,
     PasswordResetRequestSchema,
@@ -31,7 +33,6 @@ from schemas.accounts import (
     UserRegistrationRequestSchema,
     UserRegistrationResponseSchema,
 )
-from security.http import jwt_security
 from security.interfaces import JWTAuthManagerInterface
 
 router = APIRouter()
@@ -90,7 +91,7 @@ async def register_user(
             status_code=status.HTTP_409_CONFLICT, detail=f"A user with this email {user_data.email} already exists."
         )
 
-    user_group = db.scalar(select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.USER))
+    user_group = await db.scalar(select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.USER))
 
     if not user_group:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Default user group not found.")
@@ -293,7 +294,6 @@ async def reset_password(
 async def login_user(
     login_data: UserLoginRequestSchema,
     db: AsyncSession = Depends(get_db),
-    settings: BaseAppSettings = Depends(get_settings),
     jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
 ) -> UserLoginResponseSchema:
     """Endpoint for user login."""
@@ -367,11 +367,10 @@ async def refresh_access_token(
     summary="User Logout",
     description="Logout user and invalidate all their refresh tokens.",
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(jwt_security)]
 )
 async def logout_user(
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_user),
 ) -> MessageResponseSchema:
     """Endpoint for user logout."""
     try:
@@ -391,3 +390,42 @@ async def logout_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An error occurred during logout."
         )
+
+
+@router.post(
+    "/users/{user_id}/change_group",
+    response_model=MessageResponseSchema,
+    summary="Change User Group",
+    description="Change the group of a user. Only admins can perform this action.",
+    status_code=status.HTTP_200_OK,
+    responses={
+        400: {"description": "Admin cannot change their own group."},
+        404: {"description": "User not found."},
+        500: {"description": "Group not found."},
+    },
+    dependencies=[Depends(require_admin)],
+)
+async def change_user_group(
+    user_id: int,
+    user_group: ChangeUserGroupRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+) -> MessageResponseSchema:
+    """
+    Change the group of a user by user_id. Only admins can perform this action.
+    Admins cannot change their own group.
+    """
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Admin cannot change their own group")
+
+    user_obj = await db.scalar(select(UserModel).where(UserModel.id == user_id))
+    if not user_obj:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    new_group = await db.scalar(select(UserGroupModel).where(UserGroupModel.name == user_group.group))
+    if not new_group:
+        raise HTTPException(status_code=500, detail="Group not found")
+
+    user_obj.group = new_group
+    await db.commit()
+    return MessageResponseSchema(message=f"User group changed to {user_group.group.value}")

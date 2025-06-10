@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, timedelta
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import select, delete, func
@@ -15,12 +15,6 @@ from database.models.accounts import (
     RefreshTokenModel
 )
 
-from scheduler.tasks import (
-    send_activation_email_task,
-    send_activation_complete_email_task,
-    send_password_reset_email_task,
-    send_password_reset_complete_email_task
-)
 
 @pytest.fixture(autouse=True)
 def mock_celery_tasks():
@@ -28,15 +22,16 @@ def mock_celery_tasks():
     Mock all Celery tasks to run synchronously.
     """
     with patch('scheduler.tasks.send_activation_email_task.delay') as mock_activation_email, \
-         patch('scheduler.tasks.send_activation_complete_email_task.delay') as mock_activation_complete_email, \
-         patch('scheduler.tasks.send_password_reset_email_task.delay') as mock_password_reset_email, \
-         patch('scheduler.tasks.send_password_reset_complete_email_task.delay') as mock_password_reset_complete_email:
+        patch('scheduler.tasks.send_activation_complete_email_task.delay') as mock_activation_complete_email, \
+        patch('scheduler.tasks.send_password_reset_email_task.delay') as mock_password_reset_email, \
+        patch('scheduler.tasks.send_password_reset_complete_email_task.delay') as mock_password_reset_complete_email:
         yield {
             'activation_email': mock_activation_email,
             'activation_complete_email': mock_activation_complete_email,
             'password_reset_email': mock_password_reset_email,
             'password_reset_complete_email': mock_password_reset_complete_email
         }
+
 
 @pytest.mark.asyncio
 async def test_register_user_success(client, db_session, seed_user_groups, mock_celery_tasks):
@@ -407,7 +402,8 @@ async def test_request_password_reset_token_success(client, db_session, seed_use
     reset_request_payload = {"email": registration_payload["email"]}
     reset_request_response = await client.post("/api/v1/accounts/password-reset/request/", json=reset_request_payload)
     assert reset_request_response.status_code == 200, "Expected status code 200 for successful reset request."
-    assert reset_request_response.json()["message"] == "If you are registered, you will receive an email with instructions."
+    assert reset_request_response.json()[
+               "message"] == "If you are registered, you will receive an email with instructions."
 
     # Verify token creation
     stmt = select(PasswordResetTokenModel).where(PasswordResetTokenModel.user_id == user.id)
@@ -978,7 +974,6 @@ async def test_refresh_access_token_token_not_found(client, jwt_manager):
 
     assert refresh_response.status_code == 401, "Expected status code 401 for token not found."
     assert refresh_response.json()["detail"] == "Refresh token not found.", "Unexpected error message."
-
 
 @pytest.mark.asyncio
 async def test_refresh_access_token_user_not_found(client, db_session, jwt_manager, seed_user_groups):

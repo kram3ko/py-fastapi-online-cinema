@@ -2,10 +2,12 @@ import os
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import joinedload
 
 from config.settings import BaseAppSettings, Settings, TestingSettings
 from database.deps import get_db
-from database.models.accounts import UserModel
+from database.models.accounts import UserGroupEnum, UserModel
 from notifications.emails import EmailSender, EmailSenderInterface
 from notifications.stripe_notificator import StripeEmailNotificator, StripeEmailSenderInterface
 from security.http import get_token
@@ -161,7 +163,9 @@ async def get_current_user(
                 detail="Invalid authentication credentials",
             )
 
-        user = await db.get(UserModel, user_id)
+        user = await db.scalar(
+            select(UserModel).options(joinedload(UserModel.group)).where(UserModel.id == user_id)
+        )
 
         if not isinstance(user, UserModel):
             raise HTTPException(
@@ -170,9 +174,20 @@ async def get_current_user(
             )
 
         return user
-
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
         )
+
+
+async def require_admin(current_user: UserModel = Depends(get_current_user)) -> UserModel:
+    if current_user.group.name != UserGroupEnum.ADMIN:
+        raise HTTPException(status_code=403, detail="Access forbidden: admins only")
+    return current_user
+
+
+async def require_moderator(current_user: UserModel = Depends(get_current_user)) -> UserModel:
+    if current_user.group.name != UserGroupEnum.MODERATOR:
+        raise HTTPException(status_code=403, detail="Access forbidden: moderator or admins only")
+    return current_user

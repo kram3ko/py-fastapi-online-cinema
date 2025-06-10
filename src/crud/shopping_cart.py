@@ -52,7 +52,11 @@ async def get_user_cart(db: AsyncSession, user_id: int) -> Optional[Cart]:
     """
     query = (
         select(Cart)
-        .options(selectinload(Cart.items).selectinload(CartItem.movie))
+        .options(
+            selectinload(Cart.items)
+            .selectinload(CartItem.movie)
+            .selectinload(MovieModel.genres)
+        )
         .where(Cart.user_id == user_id)
     )
     result = await db.execute(query)
@@ -124,7 +128,15 @@ async def add_movie_to_cart(
     cart_item = CartItem(cart_id=cart_id, movie_id=movie_id)
     db.add(cart_item)
     await db.commit()
-    await db.refresh(cart_item)
+
+    query = (
+        select(CartItem)
+        .options(selectinload(CartItem.movie).selectinload(MovieModel.genres))
+        .where(CartItem.id == cart_item.id)
+    )
+    result = await db.execute(query)
+    cart_item = result.scalar_one()
+
     return cart_item, None
 
 

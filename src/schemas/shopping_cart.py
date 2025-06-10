@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from schemas.movies import MovieListItemSchema
+
 
 class CartItemBase(BaseModel):
     movie_id: int
@@ -15,6 +17,7 @@ class CartItemResponse(CartItemBase):
     id: int
     cart_id: int
     added_at: datetime
+    movie: MovieListItemSchema
 
     model_config = ConfigDict(from_attributes=True)
 
