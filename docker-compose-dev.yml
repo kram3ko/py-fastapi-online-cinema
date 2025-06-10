@@ -1,6 +1,6 @@
 services:
   db:
-    image: 'postgres:latest'
+    image: postgres:latest
     container_name: postgres_online_cinema
     env_file:
       - .env
@@ -57,18 +57,16 @@ services:
       - online_cinema_network
 
   stripe_cli:
-      image: stripe/stripe-cli
-      container_name: stripe_cli_online_cinema
-      command: listen --forward-to web:8000/api/v1/payments/webhook
-      env_file:
-        - .env
-      environment:
-        - STRIPE_API_KEY=${STRIPE_SECRET_KEY}
-      depends_on:
-        web:
-          condition: service_started
-      networks:
-        - online_cinema_network
+    image: stripe/stripe-cli
+    container_name: stripe_cli_online_cinema
+    command: listen --forward-to web:8000/api/v1/payments/webhook
+    env_file:
+      - .env
+    depends_on:
+      web:
+        condition: service_started
+    networks:
+      - online_cinema_network
 
   migrator:
     build: .
