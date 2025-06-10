@@ -24,6 +24,8 @@ async def test_add_movie_to_cart(
     assert data["movie"]["id"] == test_movie.id
 
     cart = await db_session.get(Cart, data["cart_id"])
+    assert cart is not None, "Cart should exist"
+    
     stmt = select(CartItem).where(CartItem.cart_id == cart.id)
     result = await db_session.execute(stmt)
     items = result.scalars().all()
