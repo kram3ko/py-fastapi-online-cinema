@@ -80,9 +80,9 @@ class UserModel(Base):
     comments: Mapped[Optional["CommentModel"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
-    # favorite_movies: Mapped[Optional["FavoriteMovieModel"]] = relationship(
-    #     back_populates="user"
-    # )
+    favorites: Mapped[Optional["FavoriteMovieModel"]] = relationship(
+        back_populates="user"
+    )
 
     def __repr__(self):
         return f"<UserModel(id={self.id}, email={self.email}, is_active={self.is_active})>"
