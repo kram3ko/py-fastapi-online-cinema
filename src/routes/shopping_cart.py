@@ -42,7 +42,9 @@ async def add_movie_to_cart(
 ) -> CartItemResponse:
     """Add movie to cart."""
     cart = await cart_crud.get_or_create_cart(db, current_user.id)
-    cart_item, error = await cart_crud.add_movie_to_cart(db, cart.id, item.movie_id, current_user.id)
+    cart_item, error = await cart_crud.add_movie_to_cart(
+        db, cart.id, item.movie_id, current_user.id
+    )
 
     if error:
         if isinstance(error, MovieNotFoundError):
@@ -77,7 +79,9 @@ async def remove_movie_from_cart(
 ) -> MessageResponseSchema:
     """Remove movie from cart."""
     cart = await cart_crud.get_or_create_cart(db, current_user.id)
-    success, error = await cart_crud.remove_movie_from_cart(db, cart.id, movie_id)
+    success, error = await cart_crud.remove_movie_from_cart(
+        db, cart.id, movie_id
+    )
 
     if error:
         if isinstance(error, CartNotFoundError):
@@ -140,10 +144,10 @@ async def pay_for_cart(
     2. Process the payment for that order
     3. Return the order details
     """
-    # First create an order from the cart
     order = await order_crud.create_order_from_cart(current_user.id, db)
 
-    # Then process the payment for the order
-    paid_order = await order_crud.process_order_payment(db, order.id, current_user.id)
+    paid_order = await order_crud.process_order_payment(
+        db, order.id, current_user.id
+    )
 
     return paid_order
