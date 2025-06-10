@@ -2,10 +2,9 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
-from sqlalchemy.sql import func
 
 from database.models.accounts import UserModel
 from database.models.movies import MovieModel
@@ -40,12 +39,9 @@ async def create_order_from_cart(user_id: int, db: AsyncSession) -> OrderModel:
             detail="Your cart is empty.",
         )
 
-    # Collect movie IDs from the cart for efficient lookups
     movie_ids_in_cart = {item.movie_id for item in cart.items}
 
-    # Validation: Exclude already purchased movies
-    # Get all PAID orders for the user and their order_items
-    purchased_movie_ids_query = await db.execute(
+    purchased_query = await db.execute(
         select(OrderItemModel.movie_id)
         .join(OrderModel)
         .where(
@@ -53,11 +49,9 @@ async def create_order_from_cart(user_id: int, db: AsyncSession) -> OrderModel:
             OrderModel.status == OrderStatus.PAID,
         )
     )
-    purchased_movie_ids = {row[0] for row in purchased_movie_ids_query.all()}
+    purchased_movie_ids = {row[0] for row in purchased_query.all()}
 
-    # Validation: Check if there are other "pending" orders with the same movies
-    # This prevents duplicate orders for the same movies if a pending order already exists.
-    pending_movie_ids_in_other_orders_query = await db.execute(
+    pending_query = await db.execute(
         select(OrderItemModel.movie_id)
         .join(OrderModel)
         .where(
@@ -65,39 +59,34 @@ async def create_order_from_cart(user_id: int, db: AsyncSession) -> OrderModel:
             OrderModel.status == OrderStatus.PENDING,
         )
     )
-    pending_movie_ids_in_other_orders = {
-        row[0] for row in pending_movie_ids_in_other_orders_query.all()
-    }
+    pending_movie_ids = {row[0] for row in pending_query.all()}
 
-    # Create a new order
-    new_order = OrderModel(user_id=user_id, status=OrderStatus.PENDING)
+    # Create new order
+    new_order = OrderModel(user_id=user_id)
     db.add(new_order)
-    await db.flush()  # To get new_order.id before adding order items
+    await db.flush()
 
-    total_amount = 0.0
+    # Process cart items
     order_items_to_add = []
-    excluded_movies_details = (
-        []
-    )  # To provide detailed feedback to the user/logs
+    excluded_movies_details = []
+    total_amount = 0.0
 
-    for cart_item in cart.items:
-        movie = cart_item.movie
-        movie_id = movie.id
-
-        if movie_id in purchased_movie_ids:
+    for item in cart.items:
+        if item.movie_id in purchased_movie_ids:
             excluded_movies_details.append(
                 {
-                    "movie_id": movie_id,
-                    "title": movie.name,
+                    "movie_id": item.movie_id,
+                    "title": item.movie.name,
                     "reason": "Already purchased",
                 }
             )
             continue
-        if movie_id in pending_movie_ids_in_other_orders:
+
+        if item.movie_id in pending_movie_ids:
             excluded_movies_details.append(
                 {
-                    "movie_id": movie_id,
-                    "title": movie.name,
+                    "movie_id": item.movie_id,
+                    "title": item.movie.name,
                     "reason": "Already in a pending order",
                 }
             )
@@ -105,14 +94,14 @@ async def create_order_from_cart(user_id: int, db: AsyncSession) -> OrderModel:
 
         order_item = OrderItemModel(
             order_id=new_order.id,
-            movie_id=movie.id,
-            price_at_order=movie.price,
+            movie_id=item.movie_id,
+            price_at_order=item.movie.price,
         )
         order_items_to_add.append(order_item)
-        total_amount += float(movie.price)
+        total_amount += float(item.movie.price)
 
     if not order_items_to_add:
-        await db.rollback()  # Rollback the creation of an empty order
+        await db.rollback()
         detail_msg = "No valid movies to add to order."
         if excluded_movies_details:
             detail_msg += f" Excluded: {excluded_movies_details}"
@@ -124,20 +113,16 @@ async def create_order_from_cart(user_id: int, db: AsyncSession) -> OrderModel:
     new_order.total_amount = total_amount
     await db.commit()
 
-    # Clear the shopping cart after successful order creation
     for item in cart.items:
-        if (
-            item.movie_id in movie_ids_in_cart
-        ):  # Ensure we only delete items that were in the cart
+        if item.movie_id in movie_ids_in_cart:
             await db.delete(item)
-    await db.commit()  # Save the cart clearing changes
+    await db.commit()
 
     if excluded_movies_details:
         print(
             f"Warning: Some movies were excluded from the order: {excluded_movies_details}"
         )
 
-    # Load the complete order with all related data
     result = await db.execute(
         select(OrderModel)
         .where(OrderModel.id == new_order.id)
@@ -159,10 +144,10 @@ async def get_user_orders(user_id: int, db: AsyncSession) -> list[OrderModel]:
         select(OrderModel)
         .where(OrderModel.user_id == user_id)
         .options(
-            joinedload(OrderModel.order_items).joinedload(
+            selectinload(OrderModel.order_items).selectinload(
                 OrderItemModel.movie
             ),
-            joinedload(OrderModel.user).joinedload(UserModel.profile),
+            selectinload(OrderModel.user).selectinload(UserModel.profile),
         )
         .order_by(OrderModel.created_at.desc())
     )
@@ -180,13 +165,13 @@ async def get_order_detail(
         select(OrderModel)
         .where(OrderModel.id == order_id, OrderModel.user_id == user_id)
         .options(
-            joinedload(OrderModel.order_items).joinedload(
-                OrderItemModel.movie
-            ),
-            joinedload(OrderModel.user).joinedload(UserModel.profile),
+            selectinload(OrderModel.order_items)
+            .selectinload(OrderItemModel.movie)
+            .selectinload(MovieModel.genres),
+            selectinload(OrderModel.user).selectinload(UserModel.profile),
         )
     )
-    order = result.scalars().first()
+    order = result.scalar_one_or_none()
     if not order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -278,61 +263,31 @@ async def process_order_payment(
         # Use the current movie price for recalculation
         recalculated_total += float(movie.price)
 
-    # Check if the total amount has significantly changed
-    # Allow a small tolerance for floating-point inaccuracies
-    if (
-        order.total_amount is None
-        or abs(float(order.total_amount) - recalculated_total) > 0.01
-    ):
-        order.total_amount = recalculated_total
-        # In a real scenario, you might want to inform the user about price changes
-        # and ask for re-confirmation before proceeding with payment.
-        print(
-            f"Warning: Order {order_id} total amount "
-            f"re-calculated from {order.total_amount} to {recalculated_total}."
-        )
-
-    # Simulate payment processing
-    # this would involve integrating with a payment gateway (Stripe).
-    # If the payment is successful:
-    new_payment = PaymentModel(
+    payment = PaymentModel(
         user_id=user_id,
-        order_id=order_id,
-        amount=recalculated_total,  # Use the recalculated total amount
+        order_id=order.id,
         status=PaymentStatus.SUCCESSFUL,
-        external_payment_id="mock_payment_id_"
-        + str(datetime.now().timestamp()),  # Placeholder ID
+        amount=recalculated_total,
     )
-    db.add(new_payment)
-    await db.flush()  # Get the payment ID before adding payment items
+    db.add(payment)
+    await db.flush()
 
-    # Add PaymentItemModel for each OrderItemModel
-    payment_items_to_add = []
-    for order_item in order.order_items:
-        movie = await db.get(
-            MovieModel, order_item.movie_id
-        )  # Get movie again for price at payment
-        if not movie:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Movie {order_item.movie_id} disappeared "
-                f"during payment processing.",
-            )
-
+    payment_items = []
+    for item in order.order_items:
         payment_item = PaymentItemModel(
-            payment_id=new_payment.id,
-            order_item_id=order_item.id,
-            price_at_payment=movie.price,  # Price of the movie at the time of payment
+            payment_id=payment.id,
+            order_item_id=item.id,
+            price_at_payment=item.price_at_order,
         )
-        payment_items_to_add.append(payment_item)
-    db.add_all(payment_items_to_add)
+        payment_items.append(payment_item)
+    db.add_all(payment_items)
 
-    order.status = OrderStatus.PAID  # Mark the order as paid
-    await db.commit()  # Commit all changes: payment, payment items, order status update
+    order.status = OrderStatus.PAID
+    await db.commit()
 
     result = await db.execute(
         select(OrderModel)
-        .where(OrderModel.id == order_id)
+        .where(OrderModel.id == order.id)
         .options(
             selectinload(OrderModel.order_items).selectinload(
                 OrderItemModel.movie
@@ -354,8 +309,10 @@ async def get_all_orders(
     Retrieves all orders, with optional filters (for admin).
     """
     query = select(OrderModel).options(
-        joinedload(OrderModel.order_items).joinedload(OrderItemModel.movie),
-        joinedload(OrderModel.user).joinedload(UserModel.profile),
+        selectinload(OrderModel.order_items)
+        .selectinload(OrderItemModel.movie)
+        .selectinload(MovieModel.genres),
+        selectinload(OrderModel.user).selectinload(UserModel.profile),
     )
     if user_id:
         query = query.where(OrderModel.user_id == user_id)
