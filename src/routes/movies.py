@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi_pagination import Params
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from config.dependencies import get_current_user
 from crud.movie_service import (
@@ -37,7 +39,8 @@ from crud.movie_service import (
     update_star,
 )
 from database.deps import get_db
-from database.models import UserModel
+from database.models import UserModel, MovieModel, OrderItemModel, OrderModel
+from database.models.orders import OrderStatus
 from pagination.pages import Page
 from schemas.movies import (
     CertificationCreateSchema,
@@ -599,6 +602,31 @@ async def list_comments(
     """
 
     return await get_movie_comments(db, movie_id)
+
+
+@router.get("/purchased/", response_model=list[MovieListItemSchema])
+async def get_purchased_movies(
+    current_user: UserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> list[MovieListItemSchema]:
+    """
+    Get a list of all movies purchased by the current user.
+    """
+    result = await db.execute(
+        select(MovieModel)
+        .join(OrderItemModel)
+        .join(OrderModel)
+        .where(
+            OrderModel.user_id == current_user.id,
+            OrderModel.status == OrderStatus.PAID,
+        )
+        .options(
+            selectinload(MovieModel.genres),
+        )
+        .distinct()
+    )
+    movies = result.scalars().all()
+    return [MovieListItemSchema.model_validate(movie) for movie in movies]
 
 
 # @router.post("/movies/{movie_id}/favorite/", dependencies=[Depends(jwt_security)])
