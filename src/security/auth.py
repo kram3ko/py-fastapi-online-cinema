@@ -1,15 +1,19 @@
+from config.settings import Settings
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from config import settings
 from database.deps import get_db
-from database.models.accounts import UserModel
+from database.models.accounts import UserModel, UserGroupEnum
 
 security = HTTPBearer()
-
+settings = Settings()
+SECRET_KEY = settings.SECRET_KEY_ACCESS
+JWT_DECODER = settings.JWT_SIGNING_ALGORITHM
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -19,10 +23,10 @@ async def get_current_user(
         token = credentials.credentials
         payload = jwt.decode(
             token,
-            settings.SECRET_KEY,
-            algorithms=[settings.ALGORITHM]
+            SECRET_KEY,
+            algorithms=[JWT_DECODER]
         )
-        user_id: int = payload.get("sub")
+        user_id: int = payload.get("user_id")
         if user_id is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -34,7 +38,12 @@ async def get_current_user(
             detail="Could not validate credentials",
         )
 
-    result = await db.execute(select(UserModel).where(UserModel.id == user_id))
+    result = await db.execute(
+        select(UserModel)
+        .options(selectinload(UserModel.group))
+        .where(UserModel.id == user_id)
+    )
+
     user = result.scalar_one_or_none()
 
     if user is None:
@@ -42,9 +51,9 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
-    if user.group == "admin":
-        is_admin = True
-    is_admin = False
+
+    is_admin = user.group.name == UserGroupEnum.ADMIN
+
     return {
         "id": user.id,
         "email": user.email,
