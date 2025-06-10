@@ -3,7 +3,7 @@ from fastapi_pagination import Params
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config.dependencies import get_current_user
+from config.dependencies import get_current_user, require_admin
 from crud.movie_service import (
     add_comment,
     add_to_favorites,
@@ -68,8 +68,9 @@ from schemas.movies import (
     StarReadSchema,
     StarUpdateSchema,
 )
+from security.http import jwt_security
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(jwt_security)])
 
 
 @router.get(
@@ -123,7 +124,8 @@ async def get_movies_by_genre(
 @router.post(
     "/genres/",
     response_model=GenreReadSchema,
-    status_code=201
+    status_code=201,
+    dependencies=[Depends(require_admin)]
 )
 async def create_movie_genre(
         genre_data: GenreCreateSchema,
@@ -139,7 +141,8 @@ async def create_movie_genre(
 
 @router.put(
     "/genres/{genre_id}/",
-    response_model=GenreReadSchema
+    response_model=GenreReadSchema,
+    dependencies=[Depends(require_admin)]
 )
 async def update_movie_genre(
         genre_id: int,
@@ -155,7 +158,7 @@ async def update_movie_genre(
     return await update_genre(db, genre_id, genre_data)
 
 
-@router.delete("/genres/{genre_id}/")
+@router.delete("/genres/{genre_id}/", dependencies=[Depends(require_admin)])
 async def delete_movie_genre(
         genre_id: int,
         db: AsyncSession = Depends(get_db)
@@ -198,7 +201,8 @@ async def get_star_by_id(
 
 @router.post("/stars/",
              response_model=StarReadSchema,
-             status_code=201
+             status_code=201,
+             dependencies=[Depends(require_admin)]
              )
 async def create_movie_star(
         star_data: StarCreateSchema,
@@ -213,7 +217,8 @@ async def create_movie_star(
 
 
 @router.put("/stars/{star_id}/",
-            response_model=StarReadSchema
+            response_model=StarReadSchema,
+            dependencies=[Depends(require_admin)]
             )
 async def update_movie_star(
         star_id: int,
@@ -228,7 +233,7 @@ async def update_movie_star(
     return await update_star(db, star_id, star_data)
 
 
-@router.delete("/stars/{star_id}/")
+@router.delete("/stars/{star_id}/", dependencies=[Depends(require_admin)])
 async def delete_movie_star(
         star_id: int,
         db: AsyncSession = Depends(get_db)
@@ -275,7 +280,8 @@ async def get_director_by_id(
 
 @router.post("/directors/",
              response_model=DirectorReadSchema,
-             status_code=201
+             status_code=201,
+             dependencies=[Depends(require_admin)]
              )
 async def create_movie_director(
         director_data: DirectorCreateSchema,
@@ -290,7 +296,8 @@ async def create_movie_director(
 
 
 @router.put("/director/{director_id}/",
-            response_model=DirectorReadSchema
+            response_model=DirectorReadSchema,
+            dependencies=[Depends(require_admin)]
             )
 async def update_movie_director(
         director_id: int,
@@ -305,7 +312,7 @@ async def update_movie_director(
     return await update_director(db, director_id, director_data)
 
 
-@router.delete("/directors/{director_id}/")
+@router.delete("/directors/{director_id}/", dependencies=[Depends(require_admin)])
 async def delete_movie_director(
         director_id: int,
         db: AsyncSession = Depends(get_db)
@@ -348,7 +355,8 @@ async def get_certification_by_id(
 
 @router.post("/certifications/",
              response_model=CertificationReadSchema,
-             status_code=201
+             status_code=201,
+             dependencies=[Depends(require_admin)]
              )
 async def create_movie_certification(
         certification_data: CertificationCreateSchema,
@@ -363,7 +371,8 @@ async def create_movie_certification(
 
 
 @router.put("/certification/{certification_id}/",
-            response_model=CertificationReadSchema
+            response_model=CertificationReadSchema,
+            dependencies=[Depends(require_admin)]
             )
 async def update_movie_certification(
         certification_id: int,
@@ -382,7 +391,7 @@ async def update_movie_certification(
     )
 
 
-@router.delete("/certifications/{certification_id}/")
+@router.delete("/certifications/{certification_id}/", dependencies=[Depends(require_admin)])
 async def delete_movie_certification(
         certification_id: int,
         db: AsyncSession = Depends(get_db)
@@ -481,7 +490,8 @@ async def get_movie_by_id(
 
 @router.post("/movies/",
              response_model=MovieDetailSchema,
-             status_code=201
+             status_code=201,
+             dependencies=[Depends(require_admin)]
              )
 async def create_one_movie(
         data: MovieCreateSchema,
@@ -496,7 +506,8 @@ async def create_one_movie(
 
 
 @router.put("/movies/{movie_id}/",
-            response_model=MovieDetailSchema
+            response_model=MovieDetailSchema,
+            dependencies=[Depends(require_admin)]
             )
 async def update_one_movie(
     movie_id: int, data: MovieUpdateSchema, db: AsyncSession = Depends(get_db)
@@ -509,7 +520,7 @@ async def update_one_movie(
     return await update_movie(db, movie_id, data)
 
 
-@router.delete("/movies/{movie_id}/")
+@router.delete("/movies/{movie_id}/", dependencies=[Depends(require_admin)])
 async def delete_one_movie(
         movie_id: int,
         db: AsyncSession = Depends(get_db)
