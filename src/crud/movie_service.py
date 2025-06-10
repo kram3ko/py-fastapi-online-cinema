@@ -1,15 +1,14 @@
 from fastapi import HTTPException
 from sqlalchemy import Select, and_, delete, exists, func, or_, select, update
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-
 from crud import movie_crud
 from database.models import OrderItemModel, UserModel
 from database.models.movies import (
     CertificationModel,
     CommentModel,
     DirectorModel,
+    FavoriteMovieModel,
     GenreModel,
     MovieLikeModel,
     MovieModel,
@@ -21,6 +20,7 @@ from schemas.movies import (
     CommentCreateSchema,
     DirectorCreateSchema,
     DirectorUpdateSchema,
+    FavoriteReadSchema,
     GenreCreateSchema,
     GenreUpdateSchema,
     MovieCreateSchema,
@@ -704,7 +704,7 @@ async def like_or_dislike_movie(
         db (AsyncSession): The SQLAlchemy asynchronous database session.
         movie_id (int): The ID of the movie to like or dislike.
         user (UserModel): The currently authenticated user performing the action.
-        data (Query): Query parameter indicating the user's response. True = like, False = dislike.
+        is_like (Query): Query parameter indicating the user's response. True = like, False = dislike.
 
     Returns:
         MovieLikeResponseSchema: A response schema containing a confirmation message,
@@ -832,51 +832,121 @@ async def get_movie_comments(
     return list(result.scalars().all())
 
 
-# async def add_favorite(db: AsyncSession, user_id: int, movie_id: int) -> None:
-#     favorite = FavoriteMovieModel(user_id=user_id, movie_id=movie_id)
-#     db.add(favorite)
-#     try:
-#         await db.commit()
-#     except IntegrityError:
-#         await db.rollback()
-#         raise HTTPException(status_code=400, detail="Movie already in favorites.")
-#
-#
-# async def remove_favorite(db: AsyncSession, user_id: int, movie_id: int) -> None:
-#     result = await db.execute(
-#         delete(FavoriteMovieModel).where(
-#             FavoriteMovieModel.user_id == user_id,
-#             FavoriteMovieModel.movie_id == movie_id
-#         )
-#     )
-#     if result.rowcount == 0:
-#         raise HTTPException(status_code=404, detail="Favorite not found.")
-#     await db.commit()
-#
-#
-# async def get_user_favorites(
-#     db: AsyncSession,
-#     user_id: int,
-#     name: str | None = None,
-#     genres: str | None = None,
-#     sort_by: str = "name",
-#     desc: bool = False
-# ) -> list[MovieModel]:
-#
-#     stmt = (
-#         select(MovieModel)
-#         .join(FavoriteMovieModel, FavoriteMovieModel.movie_id == MovieModel.id)
-#         .where(FavoriteMovieModel.user_id == user_id)
-#     )
-#
-#     if name:
-#         stmt = stmt.where(MovieModel.name.ilike(f"%{name}%"))
-#
-#     if genres:
-#         stmt = stmt.join(MovieModel.genres).where(GenreModel.name == genres)
-#
-#     sort_column = getattr(MovieModel, sort_by, MovieModel.name)
-#     stmt = stmt.order_by(sort_column.desc() if desc else sort_column)
-#
-#     result = await db.execute(stmt)
-#     return result.scalars().all()
+async def add_to_favorites(
+        db: AsyncSession,
+        user_id: int,
+        movie_id: int
+) -> FavoriteMovieModel:
+
+    """
+    Add a movie to the user's favorites list.
+
+    Checks if the movie is already in the user's favorites. If not, adds it and returns the favorite record.
+
+    Args:
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        user_id (int): ID of the user adding the favorite.
+        movie_id (int): ID of the movie to be added.
+
+    Returns:
+        FavoriteReadSchema: The newly created favorite record.
+
+    Raises:
+        HTTPException: If the movie is already in the user's favorites.
+    """
+
+    favorite = await db.scalar(
+        select(FavoriteMovieModel).where(
+            FavoriteMovieModel.user_id == user_id,
+            FavoriteMovieModel.movie_id == movie_id
+        )
+    )
+    if favorite:
+        raise HTTPException(status_code=400, detail="Already in favorites")
+
+    new_favorite = FavoriteMovieModel(user_id=user_id, movie_id=movie_id)
+    db.add(new_favorite)
+    await db.commit()
+    await db.refresh(new_favorite, attribute_names=["movies"])
+    return FavoriteReadSchema(
+        id=new_favorite.id,
+        movie_id=new_favorite.movie_id,
+        movie_title=new_favorite.movies.name
+    )
+
+
+async def remove_from_favorites(db: AsyncSession, user_id: int, movie_id: int) -> str:
+
+    """
+    Remove a movie from the user's favorites.
+
+    Deletes the movie from the user's favorites list. If not found, raises a 404 error.
+
+    Args:
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        user_id (int): ID of the user removing the favorite.
+        movie_id (int): ID of the movie to be removed.
+
+    Raises:
+        HTTPException: If the movie is not found in the user's favorites.
+    """
+
+    result = await db.execute(
+        delete(FavoriteMovieModel).where(
+            FavoriteMovieModel.user_id == user_id,
+            FavoriteMovieModel.movie_id == movie_id
+        )
+    )
+    await db.commit()
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Favorite not found.")
+
+    return "Movie removed from favorites successfully."
+
+
+async def get_favorites(
+    db: AsyncSession,
+    user_id: int,
+    name: str | None = None,
+    genre_id: int | None = None,
+    sort_by: str = "name",
+) -> list[MovieModel]:
+
+    """
+    Retrieve the user's list of favorite movies.
+
+    Fetches all movies marked as favorites by the user, with optional filtering by name and genre,
+    and sorting by name or rating.
+
+    Args:
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        user_id (int): ID of the user whose favorites are being retrieved.
+        name (str | None): Optional filter to search by movie name (partial match).
+        genre_id (int | None): Optional genre filter by genre ID.
+        sort_by (str): Field to sort the results by. Can be "name" or "rating".
+
+    Returns:
+        list[MovieModel]: A list of favorite movies matching the filters.
+    """
+
+    stmt = (
+        select(MovieModel)
+        .options(selectinload(MovieModel.genres))
+        .join(FavoriteMovieModel, FavoriteMovieModel.movie_id == MovieModel.id)
+        .where(FavoriteMovieModel.user_id == user_id)
+    )
+
+    if name:
+        stmt = stmt.where(MovieModel.name.ilike(f"%{name}%"))
+
+    if genre_id:
+        stmt = stmt.join(MovieModel.genres).where(GenreModel.id == genre_id)
+
+    if sort_by == "name":
+        stmt = stmt.order_by(MovieModel.name)
+    elif sort_by == "rating":
+        stmt = stmt.order_by(MovieModel.meta_score.desc())
+
+    result = await db.execute(stmt)
+    movies = result.scalars().all()
+    return list(movies)
