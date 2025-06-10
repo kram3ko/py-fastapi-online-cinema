@@ -9,6 +9,20 @@ from schemas.movies import MovieListItemSchema
 from schemas.profiles import ProfileResponseSchema
 
 
+class OrderMovieSchema(BaseModel):
+    """
+    Simplified movie schema for order items that doesn't require genres.
+    """
+    id: int
+    name: str
+    year: int
+    imdb: Optional[float]
+    time: int
+    price: float
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class OrderItemResponse(BaseModel):
     """
     Pydantic schema for responding with a single order item.
@@ -17,7 +31,7 @@ class OrderItemResponse(BaseModel):
     id: int
     movie_id: int
     price_at_order: Decimal = Field(..., max_digits=10, decimal_places=2)
-    movie: MovieListItemSchema  # Movie details loaded with the order item
+    movie: OrderMovieSchema  # Movie details loaded with the order item
 
     model_config = ConfigDict(from_attributes=True)
 
