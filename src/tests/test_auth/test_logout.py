@@ -59,6 +59,16 @@ async def test_user(
     }
 
 
+@pytest_asyncio.fixture
+async def client_logout(test_user):
+    app.dependency_overrides[get_current_user] = lambda: test_user["user"]
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as async_client:
+        yield async_client
+
+    app.dependency_overrides.clear()
+
+
 @pytest.mark.asyncio
 async def test_logout_unauthorized(client):
     response = await client.get(
@@ -68,15 +78,13 @@ async def test_logout_unauthorized(client):
     assert response.status_code == 401
     assert response.json() == {"detail": "Authorization header is missing"}
 
+    response = await client.get(
+        "api/v1/accounts/logout/",
+        headers={"Authorization": f"Bearer wrong_token"},
+    )
 
-@pytest_asyncio.fixture
-async def client_logout(test_user):
-    app.dependency_overrides[get_current_user] = lambda: test_user["user"]
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as async_client:
-        yield async_client
-
-    app.dependency_overrides.clear()
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Invalid authentication credentials"}
 
 
 @pytest.mark.asyncio
