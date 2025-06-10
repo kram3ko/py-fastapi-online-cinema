@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi_pagination import Params
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from config.dependencies import get_current_user
@@ -39,7 +39,7 @@ from crud.movie_service import (
     update_star,
 )
 from database.deps import get_db
-from database.models import UserModel, MovieModel, OrderItemModel, OrderModel
+from database.models import MovieModel, OrderItemModel, OrderModel, UserModel
 from database.models.orders import OrderStatus
 from pagination.pages import Page
 from schemas.movies import (
