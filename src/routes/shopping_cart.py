@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.dependencies import get_current_user
 from crud import shopping_cart as cart_crud
+from crud import orders as order_crud
 from crud.shopping_cart import (
     CartNotFoundError,
     MovieAlreadyInCartError,
@@ -18,6 +19,7 @@ from schemas.shopping_cart import (
     CartItemResponse,
     CartResponse,
 )
+from schemas.orders import OrderResponse
 
 router = APIRouter()
 
@@ -124,3 +126,24 @@ async def clear_cart(
             )
 
     return MessageResponseSchema(message="Cart cleared successfully")
+
+
+@router.post("/pay", response_model=OrderResponse)
+async def pay_for_cart(
+    current_user: UserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> OrderResponse:
+    """
+    Pay for all movies in the cart at once.
+    This will:
+    1. Create an order from the cart
+    2. Process the payment for that order
+    3. Return the order details
+    """
+    # First create an order from the cart
+    order = await order_crud.create_order_from_cart(current_user.id, db)
+    
+    # Then process the payment for the order
+    paid_order = await order_crud.process_order_payment(db, order.id, current_user.id)
+    
+    return paid_order
