@@ -13,24 +13,52 @@ if TYPE_CHECKING:
 MovieGenresModel = Table(
     "movie_genres",
     Base.metadata,
-    Column("movie_id", ForeignKey("movies.id", ondelete="CASCADE"), primary_key=True, nullable=False),
-    Column("genre_id", ForeignKey("genres.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    Column(
+        "movie_id",
+        ForeignKey("movies.id", ondelete="CASCADE"),
+        primary_key=True,
+        nullable=False
+    ),
+    Column(
+        "genre_id",
+        ForeignKey("genres.id", ondelete="CASCADE"),
+        primary_key=True,
+        nullable=False
+    ),
 )
 """ Association table linking movies and genres (many_to_many)."""
 
 MovieDirectorsModel = Table(
     "movie_directors",
     Base.metadata,
-    Column("movie_id", ForeignKey("movies.id", ondelete="CASCADE"), primary_key=True),
-    Column("director_id", ForeignKey("directors.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "movie_id",
+        ForeignKey("movies.id", ondelete="CASCADE"),
+        primary_key=True
+    ),
+    Column(
+        "director_id",
+        ForeignKey("directors.id", ondelete="CASCADE"),
+        primary_key=True
+    ),
 )
 """ Association table linking movies and directors (many_to_many)."""
 
 MovieStarsModel = Table(
     "movie_stars",
     Base.metadata,
-    Column("movie_id", ForeignKey("movies.id", ondelete="CASCADE"), primary_key=True, nullable=False),
-    Column("star_id", ForeignKey("stars.id", ondelete="CASCADE"), primary_key=True, nullable=False),
+    Column(
+        "movie_id",
+        ForeignKey("movies.id", ondelete="CASCADE"),
+        primary_key=True,
+        nullable=False
+    ),
+    Column(
+        "star_id",
+        ForeignKey("stars.id", ondelete="CASCADE"),
+        primary_key=True,
+        nullable=False
+    ),
 )
 """ Association table linking movies and stars (many_to_many)."""
 
@@ -73,7 +101,11 @@ class StarModel(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
 
-    movies: Mapped[list["MovieModel"]] = relationship("MovieModel", secondary=MovieStarsModel, back_populates="stars")
+    movies: Mapped[list["MovieModel"]] = relationship(
+        "MovieModel",
+        secondary=MovieStarsModel,
+        back_populates="stars"
+    )
 
     def __repr__(self):
         return f"<Star(name='{self.name}')>"
@@ -113,7 +145,10 @@ class CertificationModel(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
 
-    movies: Mapped[list["MovieModel"]] = relationship("MovieModel", back_populates="certification")
+    movies: Mapped[list["MovieModel"]] = relationship(
+        "MovieModel",
+        back_populates="certification"
+    )
 
 
 class MovieModel(Base):
@@ -145,7 +180,12 @@ class MovieModel(Base):
     __table_args__ = (UniqueConstraint("name", "year", "time"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    uuid_movie: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False)
+    uuid_movie: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        default=uuid.uuid4,
+        unique=True,
+        nullable=False
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     year: Mapped[int] = mapped_column(nullable=False)
     time: Mapped[int] = mapped_column(nullable=False)
@@ -156,16 +196,33 @@ class MovieModel(Base):
     descriptions: Mapped[str] = mapped_column(Text, nullable=False)
     price: Mapped[float] = mapped_column(DECIMAL(10, 2))
 
-    certification_id: Mapped[int] = mapped_column(ForeignKey("certifications.id"), nullable=False)
-    certification: Mapped["CertificationModel"] = relationship("CertificationModel", back_populates="movies")
+    certification_id: Mapped[int] = mapped_column(
+        ForeignKey("certifications.id"),
+        nullable=False
+    )
+    certification: Mapped["CertificationModel"] = relationship(
+        "CertificationModel",
+        back_populates="movies"
+    )
 
     genres: Mapped[list["GenreModel"]] = relationship(
-        "GenreModel", secondary=MovieGenresModel, back_populates="movies"
+        "GenreModel",
+        secondary=MovieGenresModel,
+        back_populates="movies"
     )
 
-    stars: Mapped[list["StarModel"]] = relationship("StarModel", secondary=MovieStarsModel, back_populates="movies")
+    stars: Mapped[list["StarModel"]] = relationship(
+        "StarModel",
+        secondary=MovieStarsModel,
+        back_populates="movies"
+    )
 
     directors: Mapped[list["DirectorModel"]] = relationship(
-        "DirectorModel", secondary=MovieDirectorsModel, back_populates="movies"
+        "DirectorModel",
+        secondary=MovieDirectorsModel,
+        back_populates="movies"
     )
-    order_items: Mapped[list["OrderItemModel"]] = relationship("OrderItemModel", back_populates="movie")
+    order_items: Mapped[list["OrderItemModel"]] = relationship(
+        "OrderItemModel",
+        back_populates="movie"
+    )

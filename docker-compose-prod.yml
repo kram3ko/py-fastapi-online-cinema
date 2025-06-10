@@ -56,6 +56,20 @@ services:
     networks:
       - online_cinema_network
 
+  stripe_cli:
+    image: stripe/stripe-cli
+    container_name: stripe_cli_online_cinema
+    command: listen --forward-to web:8000/api/v1/payments/webhook
+    env_file:
+      - .env
+    environment:
+      - STRIPE_API_KEY=${STRIPE_SECRET_KEY}
+    depends_on:
+      web:
+        condition: service_started
+    networks:
+      - online_cinema_network
+
   migrator:
     build: .
     container_name: alembic_migrator_online_cinema
@@ -223,6 +237,8 @@ services:
       - "5540:5540"
     depends_on:
       - redis
+    env_file:
+      - .env
     restart: always
     networks:
       - online_cinema_network

@@ -1,7 +1,7 @@
 from fastapi import HTTPException
-from fastapi_pagination import Page, Params
-from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
+from sqlalchemy import Select, and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from crud import movie_crud
 from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
@@ -14,8 +14,9 @@ from schemas.movies import (
     GenreUpdateSchema,
     MovieCreateSchema,
     MovieDetailSchema,
-    MovieListItemSchema,
+    MovieFilterParamsSchema,
     MovieUpdateSchema,
+    SortOptions,
     StarCreateSchema,
     StarUpdateSchema,
 )
@@ -24,18 +25,21 @@ from schemas.movies import (
 async def list_genres(
         db: AsyncSession
 ) -> list[GenreModel]:
+
     """
     Retrieve all movie genres from the database.
     :param db: Async database session.
     :return: List of GenreModel instances.
     """
+
     return await movie_crud.get_all_genres(db)
 
 
-async def get_genre(
+async def get_all_movies_by_genre(
         db: AsyncSession,
         genre_id: int
-) -> GenreModel:
+) -> list[MovieModel]:
+
     """
     Get a specific genre by its ID.
     :param db: Async database session.
@@ -43,6 +47,29 @@ async def get_genre(
     :raises HTTPException: If genre is not found.
     :return: GenreModel instance.
     """
+
+    genre = await movie_crud.get_movie_by_genre(db, genre_id)
+    if not genre:
+        raise HTTPException(
+            status_code=404,
+            detail="Genre not found."
+        )
+    return genre
+
+
+async def get_genre(
+        db: AsyncSession,
+        genre_id: int
+) -> GenreModel:
+
+    """
+    Get a specific genre by ID.
+    :param db: Async database session.
+    :param genre_id: ID of the genre to retrieve.
+    :raises HTTPException: If gener is not found.
+    :return: GenerModel instance.
+    """
+
     genre = await movie_crud.get_genre_by_id(db, genre_id)
     if not genre:
         raise HTTPException(
@@ -56,13 +83,15 @@ async def create_genre(
         db: AsyncSession,
         genre_data: GenreCreateSchema
 ) -> GenreModel:
+
     """
     Create a new genre in the database.
     :param db: Async database session.
     :param genre_data: Genre creation schema.
     :return: Created GenreModel instance.
     """
-    return await movie_crud.create_genre(db, genre_data)
+
+    return await movie_crud.add_genre(db, genre_data)
 
 
 async def update_genre(
@@ -70,6 +99,7 @@ async def update_genre(
         genre_id: int,
         genre_data: GenreUpdateSchema
 ) -> GenreModel:
+
     """
     Update an existing genre by ID.
     :param db: Async database session.
@@ -78,7 +108,8 @@ async def update_genre(
     :raises HTTPException: If genre is not found.
     :return: Updated GenreModel instance.
     """
-    updated = await movie_crud.update_genre(
+
+    updated = await movie_crud.edit_genre(
         db,
         genre_id,
         genre_data
@@ -95,6 +126,7 @@ async def delete_genre(
         db: AsyncSession,
         genre_id: int
 ) -> dict[str, str]:
+
     """
     Delete a genre by ID.
     :param db: Async database session.
@@ -102,7 +134,8 @@ async def delete_genre(
     :raises HTTPException: If genre is not found.
     :return: Success message dict.
     """
-    deleted = await movie_crud.delete_genre(db, genre_id)
+
+    deleted = await movie_crud.remove_genre(db, genre_id)
     if not deleted:
         raise HTTPException(
             status_code=404,
@@ -114,11 +147,13 @@ async def delete_genre(
 async def list_stars(
         db: AsyncSession
 ) -> list[StarModel]:
+
     """
     Retrieve all movie stars from the database.
     :param db: Async database session.
     :return: List of StarModel instances.
     """
+
     return await movie_crud.get_all_stars(db)
 
 
@@ -126,6 +161,7 @@ async def get_star(
         db: AsyncSession,
         star_id: int
 ) -> StarModel:
+
     """
     Get a specific star by ID.
     :param db: Async database session.
@@ -133,6 +169,7 @@ async def get_star(
     :raises HTTPException: If star is not found.
     :return: StarModel instance.
     """
+
     star = await movie_crud.get_star_by_id(db, star_id)
     if not star:
         raise HTTPException(
@@ -146,13 +183,15 @@ async def create_star(
         db: AsyncSession,
         star_data: StarCreateSchema
 ) -> StarModel:
+
     """
     Create a new movie star.
     :param db: Async database session.
     :param star_data: Star creation schema.
     :return: Created StarModel instance.
     """
-    return await movie_crud.create_star(db, star_data)
+
+    return await movie_crud.add_star(db, star_data)
 
 
 async def update_star(
@@ -160,6 +199,7 @@ async def update_star(
         star_id: int,
         star_data: StarUpdateSchema
 ) -> StarModel:
+
     """
     Update a movie star by ID.
     :param db: Async database session.
@@ -168,7 +208,8 @@ async def update_star(
     :raises HTTPException: If star is not found.
     :return: Updated StarModel instance.
     """
-    updated = await movie_crud.update_star(db, star_id, star_data)
+
+    updated = await movie_crud.edit_star(db, star_id, star_data)
     if not updated:
         raise HTTPException(
             status_code=404,
@@ -181,6 +222,7 @@ async def delete_star(
         db: AsyncSession,
         star_id: int
 ) -> dict[str, str]:
+
     """
     Delete a movie star by ID.
     :param db: Async database session.
@@ -188,7 +230,8 @@ async def delete_star(
     :raises HTTPException: If star is not found.
     :return: Success message dict.
     """
-    deleted = await movie_crud.delete_star(db, star_id)
+
+    deleted = await movie_crud.remove_star(db, star_id)
     if not deleted:
         raise HTTPException(
             status_code=404,
@@ -200,11 +243,13 @@ async def delete_star(
 async def list_directors(
         db: AsyncSession
 ) -> list[DirectorModel]:
+
     """
     Retrieve all directors from the database.
     :param db: Async database session.
     :return: List of director instances.
     """
+
     return await movie_crud.get_all_directors(db)
 
 
@@ -212,6 +257,7 @@ async def get_director(
         db: AsyncSession,
         director_id: int
 ) -> DirectorModel:
+
     """
     Retrieve a specific director by ID.
     :param db: Async database session.
@@ -219,6 +265,7 @@ async def get_director(
     :raises HTTPException: If director is not found.
     :return: Director instance.
     """
+
     director = await movie_crud.get_director_by_id(
         db,
         director_id
@@ -235,13 +282,15 @@ async def create_director(
         db: AsyncSession,
         director_data: DirectorCreateSchema
 ) -> DirectorModel:
+
     """
     Create a new director.
     :param db: Async database session.
     :param director_data: Data for the new director.
     :return: Created director instance.
     """
-    return await movie_crud.create_director(db, director_data)
+
+    return await movie_crud.add_director(db, director_data)
 
 
 async def update_director(
@@ -249,6 +298,7 @@ async def update_director(
         director_id: int,
         director_data: DirectorUpdateSchema
 ) -> DirectorModel:
+
     """
     Update an existing director by ID.
     :param db: Async database session.
@@ -257,7 +307,8 @@ async def update_director(
     :raises HTTPException: If director is not found.
     :return: Updated director instance.
     """
-    updated = await movie_crud.update_director(
+
+    updated = await movie_crud.edit_director(
         db,
         director_id,
         director_data
@@ -274,6 +325,7 @@ async def delete_director(
         db: AsyncSession,
         director_id: int
 ) -> dict[str, str]:
+
     """
     Delete a director by ID.
     :param db: Async database session.
@@ -281,7 +333,8 @@ async def delete_director(
     :raises HTTPException: If director is not found.
     :return: Success message dict.
     """
-    deleted = await movie_crud.delete_director(db, director_id)
+
+    deleted = await movie_crud.remove_director(db, director_id)
     if not deleted:
         raise HTTPException(
             status_code=404,
@@ -293,11 +346,13 @@ async def delete_director(
 async def list_certifications(
         db: AsyncSession
 ) -> list[CertificationModel]:
+
     """
     Retrieve all certifications from the database.
     :param db: Async database session.
     :return: List of certification instances.
     """
+
     return await movie_crud.get_all_certifications(db)
 
 
@@ -305,6 +360,7 @@ async def get_certification(
         db: AsyncSession,
         certification_id: int
 ) -> CertificationModel:
+
     """
     Retrieve a specific certification by ID.
     :param db: Async database session.
@@ -312,6 +368,7 @@ async def get_certification(
     :raises HTTPException: If certification is not found.
     :return: Certification instance.
     """
+
     certification = await movie_crud.get_certification_by_id(
         db, certification_id
     )
@@ -327,13 +384,15 @@ async def create_certification(
         db: AsyncSession,
         certification_data: CertificationCreateSchema
 ) -> CertificationModel:
+
     """
     Create a new certification.
     :param db: Async database session.
     :param certification_data: Data for the new certification.
     :return: Created certification instance.
     """
-    return await movie_crud.create_certification(
+
+    return await movie_crud.add_certification(
         db,
         certification_data
     )
@@ -344,6 +403,7 @@ async def update_certification(
         certification_id: int,
         certification_data: CertificationUpdateSchema
 ) -> CertificationModel:
+
     """
     Update an existing certification by ID.
     :param db: Async database session.
@@ -352,7 +412,8 @@ async def update_certification(
     :raises HTTPException: If certification is not found.
     :return: Updated certification instance.
     """
-    updated = await movie_crud.update_certification(
+
+    updated = await movie_crud.edit_certification(
         db, certification_id,
         certification_data
     )
@@ -368,6 +429,7 @@ async def delete_certification(
         db: AsyncSession,
         certification_id: int
 ) -> dict[str, str]:
+
     """
     Delete a certification by ID.
     :param db: Async database session.
@@ -375,7 +437,8 @@ async def delete_certification(
     :raises HTTPException: If certification is not found.
     :return: Success message dict.
     """
-    deleted = await movie_crud.delete_certification(
+
+    deleted = await movie_crud.remove_certification(
         db,
         certification_id
     )
@@ -387,31 +450,139 @@ async def delete_certification(
     return {"detail": "Certification deleted successfully."}
 
 
-async def list_movies(
-    db: AsyncSession,
-    params: Params
-) -> list[MovieListItemSchema]:
+async def count_movies(db: AsyncSession) -> int:
+
     """
-    Retrieve paginated list of movies.
-    :param db: Async database session.
-    :param params: Pagination parameters.
-    :return: List of MovieListItemSchema instances.
+    Returns the total number of movies in the database.
+    Args:
+        db (AsyncSession): An asynchronous SQLAlchemy session for database access.
+    Returns:
+        int: The number of movie records in the MovieModel table. Returns 0 if there are no records.
     """
-    result = await apaginate(
-        db,
-        movie_crud.get_all_movies_stmt(),
-        params=params
+
+    stmt = select(func.count(MovieModel.id))
+    result = await db.execute(stmt)
+    return result.scalar() or 0
+
+
+async def get_filtered_movies(
+        db: AsyncSession,
+        filters: MovieFilterParamsSchema,
+        sort_by: SortOptions | None = None,
+) -> Select:
+
+    """
+    Builds a SQLAlchemy statement to retrieve movies from the database
+    based on provided filter and sorting parameters.
+
+    Args:
+        db (AsyncSession): An asynchronous SQLAlchemy session for database access.
+        filters (MovieFilterParamsSchema):
+        Object containing filtering criteria such as year, IMDb rating, and genre IDs.
+        sort_by (SortOptions | None): Optional sorting option to order the results (e.g. by year or rating).
+
+    Returns:
+        Select: A SQLAlchemy Select statement with applied filters and sorting.
+    """
+
+    stmt = select(MovieModel).options(selectinload(MovieModel.genres))
+    conditions = []
+
+    if filters.year:
+        conditions.append(MovieModel.year == filters.year)
+
+    if filters.min_imdb:
+        conditions.append(MovieModel.imdb >= filters.min_imdb)
+
+    if filters.genre_ids:
+        conditions.append(MovieModel.genres.any(GenreModel.id.in_(filters.genre_ids)))
+
+    if conditions:
+        stmt = stmt.where(and_(*conditions))
+
+    stmt = apply_sorting(stmt, sort_by)
+    return stmt
+
+
+def apply_sorting(stmt, sort_by: SortOptions | None) -> Select:
+
+    """
+    Applies sorting to a SQLAlchemy statement based on the given sort option.
+    Args:
+        stmt: A SQLAlchemy Select statement to which sorting will be applied.
+        sort_by (SortOptions | None): An optional enum value indicating the sorting criteria.
+            Supported options include:
+                - price_asc: Sort by movie price in ascending order.
+                - price_desc: Sort by movie price in descending order.
+                - release_date_asc: Sort by release year in ascending order.
+                - release_date_desc: Sort by release year in descending order.
+                - (default): Sort by movie name in descending order.
+
+    Returns:
+        The SQLAlchemy Select statement with the appropriate ORDER BY clause applied.
+    """
+
+    if sort_by == SortOptions.price_asc:
+        stmt = stmt.order_by(MovieModel.price.asc())
+    elif sort_by == SortOptions.price_desc:
+        stmt = stmt.order_by(MovieModel.price.desc())
+    elif sort_by == SortOptions.release_date_asc:
+        stmt = stmt.order_by(MovieModel.year.asc())
+    elif sort_by == SortOptions.release_date_desc:
+        stmt = stmt.order_by(MovieModel.year.desc())
+    # elif sort_by == SortOptions.popularity_desc:
+    #     stmt = stmt.order_by(MovieModel.likes.desc())
+    else:
+        stmt = stmt.order_by(MovieModel.name.desc())
+    return stmt
+
+
+async def search_movies_stmt(db: AsyncSession, search: str) -> Select:
+
+    """
+    Builds a SQLAlchemy statement to search for movies by name, description,
+    star name, or director name using a case-insensitive partial match.
+
+    Args:
+        db: An asynchronous SQLAlchemy session (not used directly in the function,
+            but likely passed for consistency with other async DB functions).
+        search (str): The search string to match against movie names, descriptions,
+            star names, and director names.
+
+    Returns:
+        Select: A SQLAlchemy Select statement that performs the search with outer joins
+        and eager loading of related models (stars, directors, genres).
+    """
+
+    search_term = f"%{search.lower()}%"
+    stmt = (
+        select(MovieModel)
+        .distinct()
+        .options(
+            selectinload(MovieModel.stars),
+            selectinload(MovieModel.directors),
+            selectinload(MovieModel.genres),
+        )
+        .outerjoin(MovieModel.stars)
+        .outerjoin(MovieModel.directors)
+        .where(
+            or_(
+                func.lower(MovieModel.name).ilike(search_term),
+                func.lower(MovieModel.descriptions).ilike(search_term),
+                func.lower(StarModel.name).ilike(search_term),
+                func.lower(DirectorModel.name).ilike(search_term),
+            )
+        )
+        .order_by(MovieModel.id.desc())
     )
 
-    if not result.results:
-        return []
-
-    return [MovieListItemSchema.model_validate(movie) for movie in result.results]
+    return stmt
 
 
 async def get_movie_detail(
         movie_id: int, db: AsyncSession
-) -> MovieDetailSchema:
+) -> MovieModel:
+
     """
     Get detailed movie info by ID with related data.
     :param movie_id: ID of the movie.
@@ -419,6 +590,7 @@ async def get_movie_detail(
     :raises HTTPException: If movie is not found.
     :return: MovieDetailSchema instance.
     """
+
     movie = await movie_crud.get_movie_by_id(movie_id, db)
 
     if not movie:
@@ -434,19 +606,22 @@ async def create_movie(
         db: AsyncSession,
         data: MovieCreateSchema
 ) -> MovieModel:
+
     """
     Create a new movie.
     :param db: Async database session.
     :param data: Movie creation schema.
     :return: Created MovieModel instance.
     """
-    return await movie_crud.create_movie(db, data)
+
+    return await movie_crud.add_movie(db, data)
 
 
 async def update_movie(
         db: AsyncSession,
         movie_id: int, data: MovieUpdateSchema
 ) -> MovieModel:
+
     """
     Update movie data by ID.
     :param db: Async database session.
@@ -455,7 +630,8 @@ async def update_movie(
     :raises HTTPException: If movie is not found.
     :return: Updated MovieModel instance.
     """
-    movie = await movie_crud.update_movie(db, movie_id, data)
+
+    movie = await movie_crud.edit_movie(db, movie_id, data)
     if not movie:
         raise HTTPException(
             status_code=404,
@@ -468,6 +644,7 @@ async def delete_movie(
         db: AsyncSession,
         movie_id: int
 ) -> dict[str, str]:
+
     """
     Delete a movie by ID.
     :param db: Async database session.
@@ -475,7 +652,8 @@ async def delete_movie(
     :raises HTTPException: If movie is not found.
     :return: Success message dict.
     """
-    deleted = await movie_crud.delete_movie(db, movie_id)
+
+    deleted = await movie_crud.remove_movie(db, movie_id)
     if not deleted:
         raise HTTPException(
             status_code=404,
