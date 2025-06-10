@@ -191,3 +191,14 @@ async def require_moderator(current_user: UserModel = Depends(get_current_user))
     if current_user.group.name != UserGroupEnum.MODERATOR:
         raise HTTPException(status_code=403, detail="Access forbidden: moderator or admins only")
     return current_user
+
+
+def allow_roles(*roles):
+    async def dependency(user: UserModel = Depends(get_current_user)):
+        if user.group.name not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Permission denied: you don't have the required permissions to perform this action. "
+            )
+        return user
+    return Depends(dependency)
