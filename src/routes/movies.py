@@ -524,7 +524,6 @@ async def delete_one_movie(
 @router.post("/movies_like/",
              response_model=MovieLikeResponseSchema,
              status_code=200,
-             dependencies=[Depends(jwt_security)],
              )
 async def like_movie(
         movie_id: int,
@@ -580,7 +579,6 @@ async def create_comment(
 
 @router.get("/movies/{movie_id}/comments/",
             response_model=list[CommentReadSchema],
-            dependencies=[Depends(jwt_security), Depends(get_current_user)]
             )
 async def list_comments(
     movie_id: int,
@@ -604,13 +602,19 @@ async def list_comments(
 
 
 # @router.post("/movies/{movie_id}/favorite/", dependencies=[Depends(jwt_security)])
-# async def add_to_favorite(movie_id: int, db: AsyncSession = Depends(get_db), user: UserModel = Depends(get_current_user)):
+# async def add_to_favorite(
+# movie_id: int,
+# db: AsyncSession = Depends(get_db),
+# user: UserModel = Depends(get_current_user)):
 #     await add_favorite(db, user.id, movie_id)
 #     return {"detail": "Movie added to favorites"}
 #
 #
 # @router.delete("/movies/{movie_id}/favorite/", dependencies=[Depends(jwt_security)])
-# async def remove_from_favorite(movie_id: int, db: AsyncSession = Depends(get_db), user: UserModel = Depends(get_current_user)):
+# async def remove_from_favorite(
+# movie_id: int,
+# db: AsyncSession = Depends(get_db),
+# user: UserModel = Depends(get_current_user)):
 #     await remove_favorite(db, user.id, movie_id)
 #     return {"detail": "Movie removed from favorites"}
 #

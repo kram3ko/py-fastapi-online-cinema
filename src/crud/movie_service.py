@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from sqlalchemy import Select, and_, exists, func, or_, select, delete
+from sqlalchemy import Select, and_, delete, exists, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload

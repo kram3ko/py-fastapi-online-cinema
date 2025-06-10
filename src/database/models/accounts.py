@@ -11,7 +11,7 @@ from security.passwords import hash_password, verify_password
 from security.utils import generate_secure_token
 
 if TYPE_CHECKING:
-    from database.models.movies import CommentModel, MovieLikeModel, FavoriteMovieModel
+    from database.models.movies import CommentModel, FavoriteMovieModel, MovieLikeModel
     from database.models.orders import OrderModel
     from database.models.payments import PaymentModel
     from database.models.shopping_cart import Cart
@@ -83,7 +83,6 @@ class UserModel(Base):
     # favorite_movies: Mapped[Optional["FavoriteMovieModel"]] = relationship(
     #     back_populates="user"
     # )
-
 
     def __repr__(self):
         return f"<UserModel(id={self.id}, email={self.email}, is_active={self.is_active})>"
