@@ -15,9 +15,9 @@ if TYPE_CHECKING:
 
 
 class OrderStatus(enum.Enum):
-    PENDING = "Pending"
-    PAID = "Paid"
-    CANCELED = "Canceled"
+    PENDING = "pending"
+    PAID = "paid"
+    CANCELED = "canceled"
 
 
 class OrderModel(Base):

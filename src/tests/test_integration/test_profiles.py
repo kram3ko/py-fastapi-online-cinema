@@ -86,25 +86,17 @@ async def test_create_user_profile_with_fake_s3(
 @pytest.mark.parametrize(
     "headers, expected_status, expected_detail",
     [
-        (None, 401, "Authorization header is missing"),
-        (
-                {"Authorization": "Token invalid_token"},
-                401,
-                "Invalid Authorization header format. Expected 'Bearer <token>'"
-        ),
+        (None, 403, "Not authenticated"),
+        ({"Authorization": "Token invalid_token"}, 403, "Invalid authentication credentials"),
     ],
 )
 async def test_create_user_profile_invalid_auth(client, headers, expected_status, expected_detail):
     """
-    Test profile creation with missing or incorrectly formatted Authorization header.
+    Tests profile creation with missing or incorrectly formatted Authorization header.
 
-    Expected result:
-    - The request should fail with 401 Unauthorized.
-    - The appropriate error message should be returned.
-
-    This test runs twice with:
-    1. No Authorization header at all.
-    2. Incorrect Authorization format (e.g., "Token invalid_token").
+    Expected:
+    - 403 and "Not authenticated" if the header is missing.
+    - 403 and "Invalid authentication credentials" if the format is incorrect.
     """
     profile_url = "/api/v1/profiles/users/1/profile/"
     response = await client.post(profile_url, headers=headers)

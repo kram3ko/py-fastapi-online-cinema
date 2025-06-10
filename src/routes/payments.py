@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from fastapi.responses import RedirectResponse
 
+from config.dependencies import get_current_user
 from crud.payments import create_payment, get_payment_by_id
 from database.deps import get_db
 from database.models.payments import PaymentModel, PaymentStatus
@@ -16,7 +17,6 @@ from schemas.payments import (
     PaymentListSchema,
     PaymentStatusSchema,
 )
-from security.auth import get_current_user
 from services.stripe_service import StripeService
 import stripe
 from services.stripe_service import stripe_settings

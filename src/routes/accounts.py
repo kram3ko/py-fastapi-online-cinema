@@ -33,7 +33,6 @@ from schemas.accounts import (
     UserRegistrationRequestSchema,
     UserRegistrationResponseSchema,
 )
-from security.http import jwt_security
 from security.interfaces import JWTAuthManagerInterface
 
 router = APIRouter()
@@ -92,7 +91,7 @@ async def register_user(
             status_code=status.HTTP_409_CONFLICT, detail=f"A user with this email {user_data.email} already exists."
         )
 
-    user_group = db.scalar(select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.USER))
+    user_group = await db.scalar(select(UserGroupModel).where(UserGroupModel.name == UserGroupEnum.USER))
 
     if not user_group:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Default user group not found.")
@@ -368,7 +367,6 @@ async def refresh_access_token(
     summary="User Logout",
     description="Logout user and invalidate all their refresh tokens.",
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(jwt_security)]
 )
 async def logout_user(
     db: AsyncSession = Depends(get_db),
@@ -394,13 +392,32 @@ async def logout_user(
         )
 
 
-@router.post("/users/{user_id}/change_group")
+@router.post(
+    "/users/{user_id}/change_group",
+    response_model=MessageResponseSchema,
+    summary="Change User Group",
+    description="Change the group of a user. Only admins can perform this action.",
+    status_code=status.HTTP_200_OK,
+    responses={
+        400: {"description": "Admin cannot change their own group."},
+        404: {"description": "User not found."},
+        500: {"description": "Group not found."},
+    },
+    dependencies=[Depends(require_admin)],
+)
 async def change_user_group(
     user_id: int,
     user_group: ChangeUserGroupRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: UserModel = Depends(require_admin)
+    current_user: UserModel = Depends(get_current_user),
 ) -> MessageResponseSchema:
+    """
+    Change the group of a user by user_id. Only admins can perform this action.
+    Admins cannot change their own group.
+    """
+    if user_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Admin cannot change their own group")
+
     user_obj = await db.scalar(select(UserModel).where(UserModel.id == user_id))
     if not user_obj:
         raise HTTPException(status_code=404, detail="User not found")

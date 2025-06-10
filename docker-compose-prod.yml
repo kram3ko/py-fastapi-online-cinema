@@ -1,6 +1,6 @@
 services:
   db:
-    image: 'postgres:latest'
+    image: postgres:latest
     container_name: postgres_online_cinema
     env_file:
       - .env
@@ -8,7 +8,7 @@ services:
       - "5432:5432"
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-#      - postgres_online_cinema_data:/var/lib/postgresql/data/
+    #      - postgres_online_cinema_data:/var/lib/postgresql/data/
     networks:
       - online_cinema_network
     healthcheck:
@@ -55,6 +55,18 @@ services:
       - ./src:/usr/src/fastapi
     networks:
       - online_cinema_network
+
+#  stripe_cli:
+#    image: stripe/stripe-cli
+#    container_name: stripe_cli_online_cinema
+#    command: listen --forward-to web:8000/api/v1/payments/webhook
+#    env_file:
+#      - .env
+#    depends_on:
+#      web:
+#        condition: service_started
+#    networks:
+#      - online_cinema_network
 
   migrator:
     build: .
@@ -230,8 +242,8 @@ services:
       - online_cinema_network
 
 volumes:
-#  postgres_online_cinema_data:
-#    driver: local
+  #  postgres_online_cinema_data:
+  #    driver: local
   pgadmin_online_cinema_data:
     driver: local
   minio_data:

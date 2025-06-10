@@ -1,20 +1,33 @@
 from fastapi import HTTPException
-from sqlalchemy import Select, and_, func, or_, select
+from sqlalchemy import Select, and_, delete, exists, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from crud import movie_crud
-from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
+from database.models import OrderItemModel, UserModel
+from database.models.movies import (
+    CertificationModel,
+    CommentModel,
+    DirectorModel,
+    FavoriteMovieModel,
+    GenreModel,
+    MovieLikeModel,
+    MovieModel,
+    StarModel,
+)
 from schemas.movies import (
     CertificationCreateSchema,
     CertificationUpdateSchema,
+    CommentCreateSchema,
     DirectorCreateSchema,
     DirectorUpdateSchema,
+    FavoriteReadSchema,
     GenreCreateSchema,
     GenreUpdateSchema,
     MovieCreateSchema,
     MovieDetailSchema,
     MovieFilterParamsSchema,
+    MovieLikeResponseSchema,
     MovieUpdateSchema,
     SortOptions,
     StarCreateSchema,
@@ -653,6 +666,16 @@ async def delete_movie(
     :return: Success message dict.
     """
 
+    query = select(exists().where(OrderItemModel.movie_id == movie_id))
+    result = await db.execute(query)
+    is_ordered = result.scalar()
+
+    if is_ordered:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete a movie that has been ordered by at least one user."
+        )
+
     deleted = await movie_crud.remove_movie(db, movie_id)
     if not deleted:
         raise HTTPException(
@@ -660,3 +683,271 @@ async def delete_movie(
             detail="Movie not found."
         )
     return {"detail": "Movie deleted successfully."}
+
+
+async def like_or_dislike_movie(
+        db: AsyncSession,
+        movie_id: int,
+        user: UserModel,
+        is_like: bool
+) -> MovieLikeResponseSchema:
+
+    """
+    Like or dislike a movie on behalf of the authenticated user.
+
+    This function allows a user to express a like (`True`) or dislike (`False`)
+    for a movie. If the user has already reacted to the movie, their response is updated.
+    Otherwise, a new like/dislike entry is created.
+
+    The function also returns the updated total number of likes and dislikes for the movie.
+
+    Args:
+        db (AsyncSession): The SQLAlchemy asynchronous database session.
+        movie_id (int): The ID of the movie to like or dislike.
+        user (UserModel): The currently authenticated user performing the action.
+        is_like (Query): Query parameter indicating the user's response. True = like, False = dislike.
+
+    Returns:
+        MovieLikeResponseSchema: A response schema containing a confirmation message,
+        and the total number of likes and dislikes for the movie.
+
+    Raises:
+        HTTPException: If the movie with the given ID does not exist.
+    """
+
+    movie = await db.get(MovieModel, movie_id)
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found.")
+
+    stmt = select(MovieLikeModel).where(
+        MovieLikeModel.movie_id == movie_id,
+        MovieLikeModel.user_id == user.id
+    )
+    result = await db.execute(stmt)
+    like_obj = result.scalar_one_or_none()
+
+    if like_obj:
+        like_obj.is_like = is_like
+        message = "The response has been updated. Thanks for the response!"
+    else:
+        like_obj = MovieLikeModel(
+            user_id=user.id,
+            movie_id=movie_id,
+            is_like=is_like
+        )
+        db.add(like_obj)
+        message = "Thanks for the response!"
+
+    await db.commit()
+
+    total_stmt = select(
+        func.count().filter(MovieLikeModel.is_like == True), # noqa E712
+        func.count().filter(MovieLikeModel.is_like == False) # noqa E712
+    ).where(MovieLikeModel.movie_id == movie_id)
+
+    total_result = await db.execute(total_stmt)
+    total_likes, total_dislikes = total_result.one()
+
+    return MovieLikeResponseSchema(
+        message=message,
+        total_likes=total_likes,
+        total_dislikes=total_dislikes
+    )
+
+
+async def add_comment(
+        db: AsyncSession,
+        movie_id: int,
+        user_id: int,
+        data: CommentCreateSchema
+) -> CommentModel:
+
+    """
+    Add a new comment to a movie.
+
+    Creates and stores a comment in the database associated with a specific movie and user.
+
+    Args:
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        user_id (int): ID of the user making the comment.
+        data (CommentCreateSchema): Data containing the movie ID and comment content.
+
+    Returns:
+        CommentModel: The created comment instance.
+    """
+
+    movie = await db.get(MovieModel, movie_id)
+    if not movie:
+        raise HTTPException(status_code=404, detail="Movie not found")
+
+    comment = CommentModel(
+        content=data.content,
+        rating=data.rating,
+        movie_id=movie_id,
+        user_id=user_id
+    )
+    db.add(comment)
+    await db.commit()
+    await db.refresh(comment)
+
+    result = await db.execute(
+        select(func.avg(CommentModel.rating)).where(CommentModel.movie_id == movie_id)
+    )
+    average_rating = result.scalar()
+
+    await db.execute(
+        update(MovieModel)
+        .where(MovieModel.id == movie_id)
+        .values(meta_score=average_rating)
+    )
+
+    await db.commit()
+
+    return comment
+
+
+async def get_movie_comments(
+        db: AsyncSession,
+        movie_id: int
+) -> list[CommentModel]:
+
+    """
+    Retrieve comments for a given movie.
+
+    Fetches all comments from the database that are associated with the specified movie,
+    ordered by creation time in descending order (most recent first).
+
+    Args:
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        movie_id (int): ID of the movie to retrieve comments for.
+
+    Returns:
+        list[CommentModel]: A list of comments related to the movie.
+    """
+
+    result = await db.execute(
+        select(CommentModel)
+        .filter_by(movie_id=movie_id)
+        .order_by(CommentModel.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def add_to_favorites(
+        db: AsyncSession,
+        user_id: int,
+        movie_id: int
+) -> FavoriteMovieModel:
+
+    """
+    Add a movie to the user's favorites list.
+
+    Checks if the movie is already in the user's favorites. If not, adds it and returns the favorite record.
+
+    Args:
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        user_id (int): ID of the user adding the favorite.
+        movie_id (int): ID of the movie to be added.
+
+    Returns:
+        FavoriteReadSchema: The newly created favorite record.
+
+    Raises:
+        HTTPException: If the movie is already in the user's favorites.
+    """
+
+    favorite = await db.scalar(
+        select(FavoriteMovieModel).where(
+            FavoriteMovieModel.user_id == user_id,
+            FavoriteMovieModel.movie_id == movie_id
+        )
+    )
+    if favorite:
+        raise HTTPException(status_code=400, detail="Already in favorites")
+
+    new_favorite = FavoriteMovieModel(user_id=user_id, movie_id=movie_id)
+    db.add(new_favorite)
+    await db.commit()
+    await db.refresh(new_favorite, attribute_names=["movies"])
+    return FavoriteReadSchema(
+        id=new_favorite.id,
+        movie_id=new_favorite.movie_id,
+        movie_title=new_favorite.movies.name
+    )
+
+
+async def remove_from_favorites(db: AsyncSession, user_id: int, movie_id: int) -> str:
+
+    """
+    Remove a movie from the user's favorites.
+
+    Deletes the movie from the user's favorites list. If not found, raises a 404 error.
+
+    Args:
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        user_id (int): ID of the user removing the favorite.
+        movie_id (int): ID of the movie to be removed.
+
+    Raises:
+        HTTPException: If the movie is not found in the user's favorites.
+    """
+
+    result = await db.execute(
+        delete(FavoriteMovieModel).where(
+            FavoriteMovieModel.user_id == user_id,
+            FavoriteMovieModel.movie_id == movie_id
+        )
+    )
+    await db.commit()
+    if result.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Favorite not found.")
+
+    return "Movie removed from favorites successfully."
+
+
+async def get_favorites(
+    db: AsyncSession,
+    user_id: int,
+    name: str | None = None,
+    genre_id: int | None = None,
+    sort_by: str = "name",
+) -> list[MovieModel]:
+
+    """
+    Retrieve the user's list of favorite movies.
+
+    Fetches all movies marked as favorites by the user, with optional filtering by name and genre,
+    and sorting by name or rating.
+
+    Args:
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        user_id (int): ID of the user whose favorites are being retrieved.
+        name (str | None): Optional filter to search by movie name (partial match).
+        genre_id (int | None): Optional genre filter by genre ID.
+        sort_by (str): Field to sort the results by. Can be "name" or "rating".
+
+    Returns:
+        list[MovieModel]: A list of favorite movies matching the filters.
+    """
+
+    stmt = (
+        select(MovieModel)
+        .options(selectinload(MovieModel.genres))
+        .join(FavoriteMovieModel, FavoriteMovieModel.movie_id == MovieModel.id)
+        .where(FavoriteMovieModel.user_id == user_id)
+    )
+
+    if name:
+        stmt = stmt.where(MovieModel.name.ilike(f"%{name}%"))
+
+    if genre_id:
+        stmt = stmt.join(MovieModel.genres).where(GenreModel.id == genre_id)
+
+    if sort_by == "name":
+        stmt = stmt.order_by(MovieModel.name)
+    elif sort_by == "rating":
+        stmt = stmt.order_by(MovieModel.meta_score.desc())
+
+    result = await db.execute(stmt)
+    movies = result.scalars().all()
+    return list(movies)

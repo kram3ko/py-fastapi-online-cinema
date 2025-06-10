@@ -1,9 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi_pagination import Params
 from fastapi_pagination.ext.sqlalchemy import paginate as apaginate
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from config.dependencies import get_current_user
 from crud.movie_service import (
+    add_comment,
+    add_to_favorites,
     create_certification,
     create_director,
     create_genre,
@@ -17,14 +22,18 @@ from crud.movie_service import (
     get_all_movies_by_genre,
     get_certification,
     get_director,
+    get_favorites,
     get_filtered_movies,
     get_genre,
+    get_movie_comments,
     get_movie_detail,
     get_star,
+    like_or_dislike_movie,
     list_certifications,
     list_directors,
     list_genres,
     list_stars,
+    remove_from_favorites,
     search_movies_stmt,
     update_certification,
     update_director,
@@ -33,14 +42,20 @@ from crud.movie_service import (
     update_star,
 )
 from database.deps import get_db
+from database.models import MovieModel, OrderItemModel, OrderModel, UserModel
+from database.models.orders import OrderStatus
 from pagination.pages import Page
 from schemas.movies import (
     CertificationCreateSchema,
     CertificationReadSchema,
     CertificationUpdateSchema,
+    CommentCreateSchema,
+    CommentReadSchema,
     DirectorCreateSchema,
     DirectorReadSchema,
     DirectorUpdateSchema,
+    FavoriteCreateSchema,
+    FavoriteReadSchema,
     GenreBaseSchema,
     GenreCreateSchema,
     GenreReadSchema,
@@ -48,6 +63,7 @@ from schemas.movies import (
     MovieCreateSchema,
     MovieDetailSchema,
     MovieFilterParamsSchema,
+    MovieLikeResponseSchema,
     MovieListItemSchema,
     MovieUpdateSchema,
     SortOptions,
@@ -510,3 +526,159 @@ async def delete_one_movie(
     if success:
         return {"detail": "Movie deleted successfully"}
     return {"detail": "Movie not found."}
+
+
+@router.post("/movies_like/",
+             response_model=MovieLikeResponseSchema,
+             status_code=200,
+             )
+async def like_movie(
+        movie_id: int,
+        is_like: bool = Query(True, description="True = Like, False = Dislike"),
+        db: AsyncSession = Depends(get_db),
+        user: UserModel = Depends(get_current_user),
+) -> MovieLikeResponseSchema:
+
+    """
+    Like or dislike a movie.
+
+    This endpoint allows the authenticated user to like or dislike a specific movie.
+    If the user has already reacted to the movie, their previous response will be updated.
+
+    Args:
+        movie_id (int): The ID of the movie to like or dislike.
+        is_like (bool): Query parameter. `True` to like, `False` to dislike.
+        db (AsyncSession): The SQLAlchemy asynchronous session, injected by FastAPI.
+        user (UserModel): The currently authenticated user, injected by FastAPI.
+
+    Returns:
+        MovieLikeResponseSchema: Contains a confirmation message,
+        and updated total likes and dislikes.
+    """
+
+    return await like_or_dislike_movie(db, movie_id, user, is_like)
+
+
+@router.post("/movies/comments/", response_model=CommentReadSchema)
+async def create_comment(
+    movie_id: int,
+    data: CommentCreateSchema,
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
+) -> CommentReadSchema:
+
+    """
+    Create a comment for a movie.
+
+    Allows an authenticated user to add a comment to a specific movie.
+
+    Args:
+        data (CommentCreateSchema): Data required to create a comment, including movie ID and text.
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        current_user (UserModel): Currently authenticated user.
+
+    Returns:
+        CommentReadSchema: The created comment and creation time.
+    """
+
+    return await add_comment(db, movie_id, current_user.id, data)
+
+
+@router.get("/movies/{movie_id}/comments/",
+            response_model=list[CommentReadSchema],
+            )
+async def list_comments(
+    movie_id: int,
+    db: AsyncSession = Depends(get_db)
+) -> list[CommentReadSchema]:
+
+    """
+    Retrieve all comments for a specific movie.
+
+    Fetches all user comments related to a given movie, ordered by creation time if applicable.
+
+    Args:
+        movie_id (int): The ID of the movie to retrieve comments for.
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+
+    Returns:
+        list[CommentReadSchema]: A list of comments associated with the movie.
+    """
+
+    return await get_movie_comments(db, movie_id)
+
+
+@router.post("/favorites/", response_model=FavoriteReadSchema)
+async def add_favorite(
+    data: FavoriteCreateSchema,
+    db: AsyncSession = Depends(get_db),
+    user: UserModel = Depends(get_current_user)
+) -> FavoriteReadSchema:
+
+    """
+    Add a movie to the user's favorites.
+
+    Adds the specified movie to the authenticated user's list of favorite movies.
+
+    Args:
+        data (FavoriteCreateSchema): Schema containing the ID of the movie to add.
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        user (UserModel): The currently authenticated user.
+
+    Returns:
+        FavoriteReadSchema: The newly added favorite record.
+    """
+
+    favorite = await add_to_favorites(db, user.id, data.movie_id)
+    return FavoriteReadSchema.from_orm(favorite)
+
+
+@router.delete("/favorites/{movie_id}/", response_model=str)
+async def delete_favorite(
+    movie_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: UserModel = Depends(get_current_user)
+) -> str:
+
+    """
+    Remove a movie from the user's favorites.
+
+    Deletes the specified movie from the authenticated user's favorites list.
+
+    Args:
+        movie_id (int): The ID of the movie to remove.
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        user (UserModel): The currently authenticated user.
+
+    """
+
+    return await remove_from_favorites(db, user.id, movie_id)
+
+
+@router.get("/favorites/", response_model=list[MovieListItemSchema])
+async def list_favorites(
+    search: str = Query("", description="Search by title"),
+    genre_id: int = Query(None),
+    sort_by: str = Query("title", enum=["title", "rating"]),
+    db: AsyncSession = Depends(get_db),
+    user: UserModel = Depends(get_current_user)
+) -> list[MovieListItemSchema]:
+
+    """
+    Retrieve the user's list of favorite movies.
+
+    Returns all movies marked as favorites by the authenticated user, with optional
+    filtering by genre, title search, and sorting.
+
+    Args:
+        search (str): Optional search query to filter by movie title.
+        genre_id (int | None): Optional genre ID for filtering.
+        sort_by (str): Field to sort the results by ("title" or "rating").
+        db (AsyncSession): Asynchronous SQLAlchemy session.
+        user (UserModel): The currently authenticated user.
+
+    Returns:
+        list[MovieListItemSchema]: A list of favorite movies.
+    """
+
+    return await get_favorites(db, user.id, search, genre_id, sort_by)

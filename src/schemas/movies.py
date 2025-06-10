@@ -1,10 +1,12 @@
 import uuid
+from datetime import datetime
 from enum import Enum
 from typing import Optional
 
 from fastapi import Query
 from pydantic import BaseModel, ConfigDict, Field
 
+from database.models.movies import FavoriteMovieModel
 from schemas.examples.movies import (
     certification_schema_example,
     director_schema_example,
@@ -294,4 +296,50 @@ class SortOptions(str, Enum):
     price_desc = "price_desc"
     release_date_asc = "release_date_asc"
     release_date_desc = "release_date_desc"
-    # popularity_desc = "popularity_desc"
+
+
+class MovieLikeRequestSchema(BaseModel):
+    movie_id: int
+    is_like: bool
+
+
+class MovieLikeResponseSchema(BaseModel):
+    message: str
+    total_likes: int
+    total_dislikes: int
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+
+class CommentCreateSchema(BaseModel):
+    content: str
+    rating: int = Field(..., ge=1, le=10)
+
+
+class CommentReadSchema(BaseModel):
+    id: int
+    content: str
+    rating: int
+    created_at: datetime
+    user_id: int
+    movie_id: int
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+
+class FavoriteCreateSchema(BaseModel):
+    movie_id: int
+
+
+class FavoriteReadSchema(BaseModel):
+    id: int
+    movie_id: int
+    movie_title: str
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )

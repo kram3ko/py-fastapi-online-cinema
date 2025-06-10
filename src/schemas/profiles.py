@@ -83,15 +83,16 @@ class ProfileCreateRequestSchema(BaseModel):
 
 
 class ProfileResponseSchema(BaseModel):
-    id: int | None
-    first_name: str | None
-    last_name: str | None
-    gender: str | None
-    date_of_birth: date | None
-    info: str | None
-    avatar: HttpUrl
+    id: int | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    gender: str | None = None
+    date_of_birth: date | None = None
+    info: str | None = None
+    avatar: HttpUrl | None = None
 
     model_config = ConfigDict(
+        from_attributes=True,
         json_schema_extra={
             "example": [
                 {

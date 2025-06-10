@@ -4,57 +4,79 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from database.models.accounts import UserModel
 from database.models.orders import OrderStatus
+from schemas.movies import MovieListItemSchema
+from schemas.profiles import ProfileResponseSchema
 
 
-class OrderItemResponse(BaseModel):
+class OrderMovieSchema(BaseModel):
+    """
+    Simplified movie schema for order items that doesn't require genres.
+    """
     id: int
-    movie_id: int
-    price_at_order: Decimal = Field(..., ge=0, max_digits=10, decimal_places=2)
+    name: str
+    year: int
+    imdb: Optional[float]
+    time: int
+    price: float
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class OrderBase(BaseModel):
-    user_id: int
+class OrderItemResponse(BaseModel):
+    """
+    Pydantic schema for responding with a single order item.
+    Includes details about the movie associated with the item.
+    """
+    id: int
     movie_id: int
-    price: Decimal = Field(default=Decimal("0.00"), ge=0, max_digits=10, decimal_places=2)
-    status: str
+    price_at_order: Decimal = Field(..., max_digits=10, decimal_places=2)
+    movie: OrderMovieSchema  # Movie details loaded with the order item
 
-
-class OrderCreate(OrderBase):
-    # The order is placed from the cart, so a list of movie IDs
-    # might not be directly sent in the request body, but inferred from the user's cart.
-    # Empty body for 'place order from my cart' scenario
-    pass
-
-
-class OrderUpdate(BaseModel):
-    price: Optional[Decimal] = Field(default=None, ge=0, max_digits=10, decimal_places=2)
-    status: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrderUpdateStatus(BaseModel):
+    """
+    Pydantic schema for updating the status of an order.
+    Typically used by administrative functions.
+    """
     status: OrderStatus
 
 
 class OrderResponse(BaseModel):
+    """
+    Pydantic schema for responding with full order details.
+    Includes associated order items and user profile information.
+    """
     id: int
     user_id: int
     created_at: datetime
     status: OrderStatus
-    total_amount: Optional[Decimal] = Field(default=None, ge=0, max_digits=10, decimal_places=2)
-    order_items: list[OrderItemResponse] = []
-    user: UserModel
+    total_amount: Decimal = Field(..., max_digits=10, decimal_places=2)
+    order_items: list[OrderItemResponse] = []  # List of items included in the order
+    user: ProfileResponseSchema  # User profile details for the order owner
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class OrderFilterParams(BaseModel):
+    """
+    Pydantic schema for filtering orders.
+    Used for query parameters in API endpoints, especially for admin views.
+    """
     user_id: Optional[int] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
     status: Optional[OrderStatus] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class OrderPaymentRequest(BaseModel):
+    """
+    Pydantic schema for requesting payment for an order.
+    Currently empty as the order ID is passed in the URL
+    but can be extended to include payment gateway specific data.
+    """
+    pass
