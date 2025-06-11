@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import get_settings, get_accounts_email_notificator, get_s3_storage_client
 from database.deps import get_db_contextmanager
-from database.models.accounts import UserGroupEnum, UserGroupModel
+from database.models.accounts import UserGroupEnum, UserGroupModel, UserModel
 from database.populate import CSVDatabaseSeeder
 from database.session_sqlite import reset_sqlite_database as reset_database
 from main import app
@@ -164,3 +164,23 @@ async def seed_database(db_session):
         await seeder.seed()
 
     yield db_session
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_user(db_session, seed_user_groups):
+    """
+    Create a test user for validation tests.
+    
+    This fixture creates a test user with the following properties:
+    - email: test@mate.com
+    - password: TestPassword123!
+    - group_id: 1 (User group)
+    - is_active: True
+    
+    The user is created before each test and cleaned up after.
+    """
+    user = UserModel.create(email="test@mate.com", raw_password="TestPassword123!", group_id=1)
+    user.is_active = True
+    db_session.add(user)
+    await db_session.commit()
+    return user

@@ -3,6 +3,7 @@ from collections.abc import Awaitable
 from typing import Callable
 
 from fastapi import Depends, HTTPException, status
+from jose.exceptions import ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
@@ -10,6 +11,7 @@ from sqlalchemy.orm import joinedload
 from config.settings import BaseAppSettings, Settings, TestingSettings
 from database.deps import get_db
 from database.models.accounts import UserGroupEnum, UserModel
+from exceptions import TokenExpiredError
 from notifications.emails import EmailSender, EmailSenderInterface
 from notifications.stripe_notificator import StripeEmailNotificator, StripeEmailSenderInterface
 from security.http import get_token
@@ -176,6 +178,11 @@ async def get_current_user(
             )
 
         return user
+    except TokenExpiredError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired.",
+        )
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
