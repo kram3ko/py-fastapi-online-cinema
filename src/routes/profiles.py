@@ -5,13 +5,12 @@ from pydantic import HttpUrl
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import get_jwt_auth_manager, get_s3_storage_client
+from config import get_s3_storage_client
+from config.dependencies import get_current_user
 from database.deps import get_db
 from database.models.accounts import GenderEnum, UserGroupEnum, UserGroupModel, UserModel, UserProfileModel
-from exceptions import BaseSecurityError, S3FileUploadError
+from exceptions import S3FileUploadError
 from schemas.profiles import ProfileCreateRequestSchema, ProfileResponseSchema
-from security.http import get_token
-from security.interfaces import JWTAuthManagerInterface
 from storages import S3StorageInterface
 
 router = APIRouter()
@@ -25,11 +24,10 @@ router = APIRouter()
 )
 async def create_profile(
     user_id: int,
-    token: str = Depends(get_token),
-    jwt_manager: JWTAuthManagerInterface = Depends(get_jwt_auth_manager),
+    profile_data: ProfileCreateRequestSchema = Form(..., media_type="multipart/form-data"),
+    user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     s3_client: S3StorageInterface = Depends(get_s3_storage_client),
-    profile_data: ProfileCreateRequestSchema = Form(),
 ) -> ProfileResponseSchema:
     """
     Creates a user profile.
@@ -42,11 +40,10 @@ async def create_profile(
 
     Args:
         user_id (int): The ID of the user for whom the profile is being created.
-        token (str): The authentication token.
-        jwt_manager (JWTAuthManagerInterface): JWT manager for decoding tokens.
+        profile_data (ProfileCreateRequestSchema): The profile data from the form.
+        user (UserModel): The authenticated user.
         db (AsyncSession): The asynchronous database session.
         s3_client (S3StorageInterface): The asynchronous S3 storage client.
-        profile_data (ProfileCreateSchema): The profile data from the form.
 
     Returns:
         ProfileResponseSchema: The created user profile details.
@@ -55,14 +52,8 @@ async def create_profile(
         HTTPException: If authentication fails, if the user is not found or inactive,
                        or if the profile already exists, or if S3 upload fails.
     """
-    try:
-        payload = jwt_manager.decode_access_token(token)
-        token_user_id = payload.get("user_id")
-    except BaseSecurityError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
-
-    if user_id != token_user_id:
-        user_group = await db.scalar(select(UserGroupModel).join(UserModel).where(UserModel.id == token_user_id))
+    if user_id != user.id:
+        user_group = await db.scalar(select(UserGroupModel).join(UserModel).where(UserModel.id == user.id))
 
         if not user_group or user_group.name == UserGroupEnum.USER:
             raise HTTPException(
@@ -107,6 +98,7 @@ async def create_profile(
 
     return ProfileResponseSchema(
         id=new_profile.id,
+        user_id=new_profile.user_id,
         first_name=new_profile.first_name,
         last_name=new_profile.last_name,
         gender=new_profile.gender,

@@ -452,16 +452,16 @@ async def test_profile_creation_fails_on_s3_upload_error(
     ("John1", "Doe", "John1 contains non-english letters"),
     ("John", "Doe1", "Doe1 contains non-english letters"),
 ])
-async def test_profile_creation_invalid_name(client, jwt_manager, first_name, last_name, expected_error):
+async def test_profile_creation_invalid_name(client, jwt_manager, test_user, first_name, last_name, expected_error):
     """
     Test that profile creation fails if the first_name or last_name contains non-English letters.
 
     This test sends a profile creation request with invalid names and expects a 422 response
     with an error message containing the specified error text.
     """
-    access_token = jwt_manager.create_access_token({"user_id": 1})
+    access_token = jwt_manager.create_access_token({"user_id": test_user.id})
 
-    profile_url = "/api/v1/profiles/users/1/profile/"
+    profile_url = f"/api/v1/profiles/users/{test_user.id}/profile/"
     headers = {"Authorization": f"Bearer {access_token}"}
     files = {
         "first_name": (None, first_name),
@@ -480,7 +480,7 @@ async def test_profile_creation_invalid_name(client, jwt_manager, first_name, la
 
 @pytest.mark.asyncio
 @pytest.mark.unit
-async def test_profile_creation_invalid_avatar_format(client, jwt_manager):
+async def test_profile_creation_invalid_avatar_format(client, jwt_manager, test_user):
     """
     Test that profile creation fails if the avatar has an unsupported format.
 
@@ -488,9 +488,9 @@ async def test_profile_creation_invalid_avatar_format(client, jwt_manager):
     which is unsupported. It expects the endpoint to return a 422 status code with an
     error message indicating "Invalid image format".
     """
-    access_token = jwt_manager.create_access_token({"user_id": 1})
+    access_token = jwt_manager.create_access_token({"user_id": test_user.id})
 
-    profile_url = "/api/v1/profiles/users/1/profile/"
+    profile_url = f"/api/v1/profiles/users/{test_user.id}/profile/"
     headers = {"Authorization": f"Bearer {access_token}"}
     files = {
         "first_name": (None, "John"),
@@ -509,7 +509,7 @@ async def test_profile_creation_invalid_avatar_format(client, jwt_manager):
 
 @pytest.mark.asyncio
 @pytest.mark.unit
-async def test_profile_creation_avatar_too_large(db_session, client, jwt_manager):
+async def test_profile_creation_avatar_too_large(db_session, client, jwt_manager, test_user):
     """
     Test that profile creation fails if the avatar exceeds 1MB.
 
@@ -517,14 +517,14 @@ async def test_profile_creation_avatar_too_large(db_session, client, jwt_manager
     that exceeds the allowed size limit (1MB). It expects the endpoint to return a 422 status code
     with an error message indicating that the image size exceeds the allowed limit.
     """
-    access_token = jwt_manager.create_access_token({"user_id": 1})
+    access_token = jwt_manager.create_access_token({"user_id": test_user.id})
 
     img = Image.new("RGB", (10000, 10000), color="blue")
     img_bytes = BytesIO()
     img.save(img_bytes, format="JPEG")
     img_bytes.seek(0)
 
-    profile_url = "/api/v1/profiles/users/1/profile/"
+    profile_url = f"/api/v1/profiles/users/{test_user.id}/profile/"
     headers = {"Authorization": f"Bearer {access_token}"}
     files = {
         "first_name": (None, "John"),
@@ -542,7 +542,7 @@ async def test_profile_creation_avatar_too_large(db_session, client, jwt_manager
 
 @pytest.mark.asyncio
 @pytest.mark.unit
-async def test_profile_creation_invalid_gender(client, jwt_manager):
+async def test_profile_creation_invalid_gender(client, jwt_manager, test_user):
     """
     Test that profile creation fails if gender is invalid.
 
@@ -550,9 +550,9 @@ async def test_profile_creation_invalid_gender(client, jwt_manager):
     It expects the endpoint to return a 422 status code with an error message indicating that
     the gender must be one of the allowed values.
     """
-    access_token = jwt_manager.create_access_token({"user_id": 1})
+    access_token = jwt_manager.create_access_token({"user_id": test_user.id})
 
-    profile_url = "/api/v1/profiles/users/1/profile/"
+    profile_url = f"/api/v1/profiles/users/{test_user.id}/profile/"
     headers = {"Authorization": f"Bearer {access_token}"}
     files = {
         "first_name": (None, "John"),
@@ -575,15 +575,15 @@ async def test_profile_creation_invalid_gender(client, jwt_manager):
     ("1800-01-01", "Invalid birth date - year must be greater than 1900."),
     ("2010-01-01", "You must be at least 18 years old to register."),
 ])
-async def test_profile_creation_invalid_birth_date(client, jwt_manager, birth_date, expected_error):
+async def test_profile_creation_invalid_birth_date(client, jwt_manager, test_user, birth_date, expected_error):
     """
     Test that profile creation fails if birth_date is invalid.
 
     This test sends a profile creation request with an invalid birth_date value and expects
     the endpoint to return a 422 status code along with an appropriate error message.
     """
-    access_token = jwt_manager.create_access_token({"user_id": 1})
-    profile_url = "/api/v1/profiles/users/1/profile/"
+    access_token = jwt_manager.create_access_token({"user_id": test_user.id})
+    profile_url = f"/api/v1/profiles/users/{test_user.id}/profile/"
     headers = {"Authorization": f"Bearer {access_token}"}
     files = {
         "first_name": (None, "John"),
@@ -602,15 +602,15 @@ async def test_profile_creation_invalid_birth_date(client, jwt_manager, birth_da
 @pytest.mark.asyncio
 @pytest.mark.unit
 @pytest.mark.parametrize("info_value", ["", "   "])
-async def test_profile_creation_empty_info(client, jwt_manager, info_value):
+async def test_profile_creation_empty_info(client, jwt_manager, test_user, info_value):
     """
     Test that profile creation fails if the info field is empty or contains only spaces.
 
     This test sends a profile creation request with an invalid info value and expects
     a 422 response with an error message indicating that the info field cannot be empty.
     """
-    access_token = jwt_manager.create_access_token({"user_id": 1})
-    profile_url = "/api/v1/profiles/users/1/profile/"
+    access_token = jwt_manager.create_access_token({"user_id": test_user.id})
+    profile_url = f"/api/v1/profiles/users/{test_user.id}/profile/"
     headers = {"Authorization": f"Bearer {access_token}"}
     files = {
         "first_name": (None, "John"),

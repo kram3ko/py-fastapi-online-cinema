@@ -174,25 +174,24 @@ async def seed_database(db_session):
         await seeder.seed()
 
     yield db_session
+    
 
-
-@pytest_asyncio.fixture(scope="function")
-async def test_user(db_session: AsyncSession):
-    """Create a test user for shopping cart tests."""
-    from database.models.accounts import UserModel, UserGroupEnum
-    from database.models import UserGroupModel
-
-    group = UserGroupModel(name=UserGroupEnum.USER)
-    db_session.add(group)
-    await db_session.flush()
-
-    user = UserModel(
-        email="test@example.com", is_active=True, group_id=group.id
-    )
-    user.password = "TestPassword17%"
+async def test_user(db_session, seed_user_groups):
+    """
+    Create a test user for validation tests.
+    
+    This fixture creates a test user with the following properties:
+    - email: test@mate.com
+    - password: TestPassword123!
+    - group_id: 1 (User group)
+    - is_active: True
+    
+    The user is created before each test and cleaned up after.
+    """
+    user = UserModel.create(email="test@mate.com", raw_password="TestPassword123!", group_id=1)
+    user.is_active = True
     db_session.add(user)
     await db_session.commit()
-    await db_session.refresh(user)
     return user
 
 
@@ -242,3 +241,22 @@ async def auth_client(
     client.headers["Authorization"] = f"Bearer {access_token}"
 
     return client
+
+  # @pytest_asyncio.fixture(scope="function")
+# async def test_user(db_session: AsyncSession):
+#     """Create a test user for shopping cart tests."""
+#     from database.models.accounts import UserModel, UserGroupEnum
+#     from database.models import UserGroupModel
+
+#     group = UserGroupModel(name=UserGroupEnum.USER)
+#     db_session.add(group)
+#     await db_session.flush()
+
+#     user = UserModel(
+#         email="test@example.com", is_active=True, group_id=group.id
+#     )
+#     user.password = "TestPassword17%"
+#     db_session.add(user)
+#     await db_session.commit()
+#     await db_session.refresh(user)
+#     return user
