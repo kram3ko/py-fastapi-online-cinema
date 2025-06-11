@@ -143,7 +143,7 @@ class CSVDatabaseSeeder:
         """
         # Get group names from enum
         group_names = [group.value for group in UserGroupEnum]
-        
+
         # Use _get_or_create_bulk to handle existing groups
         await self._get_or_create_bulk(UserGroupModel, group_names, "name")
         await self._db_session.flush()
