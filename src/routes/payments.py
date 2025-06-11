@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from fastapi.responses import RedirectResponse
 
+from database.models import UserModel
+from security.auth import get_current_user_is_admin
 from config.dependencies import get_current_user
 from crud.payments import create_payment, get_payment_by_id
 from database.deps import get_db
@@ -27,7 +29,7 @@ router = APIRouter(tags=["payments"])
 @router.post("/create-intent", response_model=dict)
 async def create_payment_intent(
     payment_data: PaymentCreateSchema,
-    current_user: dict = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     if payment_data.amount <= 0:
@@ -37,7 +39,7 @@ async def create_payment_intent(
         )
 
     try:
-        payment = await create_payment(payment_data, current_user["id"], db)
+        payment = await create_payment(payment_data, current_user.id, db)
         intent_data = await StripeService.create_payment_intent(payment_data)
         payment.external_payment_id = intent_data["payment_intent_id"]
         await db.commit()
@@ -92,14 +94,14 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -
 
 @router.get("/history", response_model=PaymentListSchema)
 async def get_payment_history(
-    current_user: dict = Depends(get_current_user),
+    current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
 ) -> PaymentListSchema:
     query = (
         select(PaymentModel)
-        .where(PaymentModel.user_id == current_user["id"])
+        .where(PaymentModel.user_id == current_user.id)
         .options(
             selectinload(PaymentModel.payment_items),
             selectinload(PaymentModel.order)
@@ -123,7 +125,7 @@ async def get_payment_history(
 
 @router.get("/admin", response_model=PaymentListSchema)
 async def admin_get_payments(
-        current_user: dict = Depends(get_current_user),
+        is_admin: bool = Depends(get_current_user_is_admin),
         db: AsyncSession = Depends(get_db),
         user_id: int | None = None,
         payment_status: PaymentStatusSchema | None = None,
@@ -132,7 +134,7 @@ async def admin_get_payments(
         skip: int = Query(0, ge=0),
         limit: int = Query(10, ge=1, le=100),
 ):
-    if not current_user.get("is_admin"):
+    if not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access admin endpoints"
@@ -170,12 +172,12 @@ async def admin_get_payments(
 
 @router.get("/admin/statistics")
 async def get_payment_statistics(
-    current_user: dict = Depends(get_current_user),
+    is_admin: bool = Depends(get_current_user_is_admin),
     db: AsyncSession = Depends(get_db),
     start_date: datetime | None = None,
     end_date: datetime | None = None,
 ) -> dict:
-    if not current_user.get("is_admin"):
+    if not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access admin endpoints"
@@ -207,10 +209,10 @@ async def get_payment_statistics(
 @router.post("/{payment_id}/refund")
 async def refund_payment(
     payment_id: int,
-    current_user: dict = Depends(get_current_user),
+    is_admin: bool = Depends(get_current_user_is_admin),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    if not current_user.get("is_admin"):
+    if not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to refund payments"
@@ -251,7 +253,8 @@ async def refund_payment(
 @router.get("/{payment_id}", response_model=PaymentBaseSchema)
 async def get_payment_details(
         payment_id: int,
-        current_user: dict = Depends(get_current_user),
+        current_user: UserModel = Depends(get_current_user),
+        is_admin: bool = Depends(get_current_user_is_admin),
         db: AsyncSession = Depends(get_db),
 ):
     payment = await get_payment_by_id(payment_id, db)
@@ -261,7 +264,7 @@ async def get_payment_details(
             detail="Payment not found"
         )
 
-    if payment.user_id != current_user["id"] and not current_user.get("is_admin"):
+    if payment.user_id != current_user.id and not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to view this payment"
