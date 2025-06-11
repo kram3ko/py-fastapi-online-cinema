@@ -10,7 +10,7 @@ from config import (
 )
 from database.deps import get_db_contextmanager
 from database.models.accounts import UserGroupEnum, UserGroupModel, UserModel
-from database.models.movies import MovieModel, CertificationModel
+from database.models.shopping_cart import Cart
 from database.populate import CSVDatabaseSeeder
 from database.session_sqlite import reset_sqlite_database as reset_database
 from main import app
@@ -19,7 +19,6 @@ from security.token_manager import JWTAuthManager
 from storages import S3StorageClient
 from tests.doubles.fakes.storage import FakeS3Storage
 from tests.doubles.stubs.emails import StubEmailSender
-from database.models.shopping_cart import Cart, CartItem
 
 
 def pytest_configure(config):
@@ -174,8 +173,9 @@ async def seed_database(db_session):
         await seeder.seed()
 
     yield db_session
-    
 
+
+@pytest_asyncio.fixture(scope="function")
 async def test_user(db_session, seed_user_groups):
     """
     Create a test user for validation tests.
@@ -241,22 +241,3 @@ async def auth_client(
     client.headers["Authorization"] = f"Bearer {access_token}"
 
     return client
-
-  # @pytest_asyncio.fixture(scope="function")
-# async def test_user(db_session: AsyncSession):
-#     """Create a test user for shopping cart tests."""
-#     from database.models.accounts import UserModel, UserGroupEnum
-#     from database.models import UserGroupModel
-
-#     group = UserGroupModel(name=UserGroupEnum.USER)
-#     db_session.add(group)
-#     await db_session.flush()
-
-#     user = UserModel(
-#         email="test@example.com", is_active=True, group_id=group.id
-#     )
-#     user.password = "TestPassword17%"
-#     db_session.add(user)
-#     await db_session.commit()
-#     await db_session.refresh(user)
-#     return user
