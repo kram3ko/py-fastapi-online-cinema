@@ -1,5 +1,6 @@
 from decimal import Decimal
 from typing import Optional
+from datetime import datetime, timedelta
 
 import stripe
 from fastapi import HTTPException, status
@@ -11,6 +12,9 @@ from schemas.payments import PaymentCreateSchema
 stripe_settings = get_settings()
 stripe.api_key = stripe_settings.STRIPE_SECRET_KEY
 
+SUCCESS_URL = f"{stripe_settings.FRONTEND_URL}:8000/api/v1/payments/success/?session_id={{CHECKOUT_SESSION_ID}}"
+CANCEL_URL = f"{stripe_settings.FRONTEND_URL}:8000/api/v1/payments/cancel/?session_id={{CHECKOUT_SESSION_ID}}"
+
 
 class StripeService:
     @staticmethod
@@ -18,17 +22,30 @@ class StripeService:
         try:
             amount_cents = int(payment_data.amount * 100)
 
-            intent = stripe.PaymentIntent.create(
-                amount=amount_cents,
-                currency=stripe_settings.STRIPE_CURRENCY,
+            session = stripe.checkout.Session.create(
+                payment_method_types=['card'],
+                line_items=[{
+                    'price_data': {
+                        'currency': stripe_settings.STRIPE_CURRENCY,
+                        'product_data': {
+                            'name': f'Order #{payment_data.order_id}',
+                        },
+                        'unit_amount': amount_cents,
+                    },
+                    'quantity': 1,
+                }],
+                mode='payment',
+                success_url=SUCCESS_URL,
+                cancel_url=CANCEL_URL,
                 metadata={
-                    "order_id": payment_data.order_id,
-                }
+                    'order_id': payment_data.order_id,
+                },
+                expires_at=int((datetime.now() + timedelta(minutes=30)).timestamp())
             )
 
             return {
-                "client_secret": intent.client_secret,
-                "payment_intent_id": intent.id
+                "payment_url": session.url,
+                "payment_intent_id": session.payment_intent if session.payment_intent else session.id
             }
         except stripe.error.StripeError as e:  # type: ignore[attr-defined]
             raise HTTPException(
@@ -53,21 +70,21 @@ class StripeService:
                 detail="Invalid signature"
             )
 
-        if event.type == "payment_intent.succeeded":
-            payment_intent = event.data.object
+        if event.type == "checkout.session.completed":
+            session = event.data.object
             return {
-                "external_payment_id": payment_intent.id,
+                "external_payment_id": session.id,
                 "status": PaymentStatus.SUCCESSFUL,
-                "amount": Decimal(payment_intent.amount) / 100,
-                "order_id": payment_intent.metadata.get("order_id")
+                "amount": Decimal(session.amount_total) / 100,
+                "order_id": session.metadata.get("order_id")
             }
-        elif event.type == "payment_intent.payment_failed":
-            payment_intent = event.data.object
+        elif event.type == "checkout.session.expired":
+            session = event.data.object
             return {
-                "external_payment_id": payment_intent.id,
+                "external_payment_id": session.id,
                 "status": PaymentStatus.CANCELED,
-                "amount": Decimal(payment_intent.amount) / 100,
-                "order_id": payment_intent.metadata.get("order_id")
+                "amount": Decimal(session.amount_total) / 100,
+                "order_id": session.metadata.get("order_id")
             }
 
         return None
@@ -81,11 +98,26 @@ class StripeService:
                     detail="No external payment ID found"
                 )
 
-            refund = stripe.Refund.create(
-                payment_intent=payment.external_payment_id
-            )
+            try:
 
-            return refund.status == "succeeded"
+                refund = stripe.Refund.create(
+                    payment_intent=payment.external_payment_id
+                )
+                return refund.status == "succeeded"
+            except stripe.error.StripeError:
+
+                session = stripe.checkout.Session.retrieve(payment.external_payment_id)
+                if not session.payment_intent:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="No payment intent found for this session"
+                    )
+                
+                refund = stripe.Refund.create(
+                    payment_intent=session.payment_intent
+                )
+                return refund.status == "succeeded"
+
         except stripe.error.StripeError as e:  # type: ignore[attr-defined]
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

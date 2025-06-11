@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from fastapi.responses import RedirectResponse
 
 from config.dependencies import get_current_user
 from crud.payments import create_payment, get_payment_by_id
@@ -16,8 +18,10 @@ from schemas.payments import (
     PaymentStatusSchema,
 )
 from services.stripe_service import StripeService
+import stripe
+from services.stripe_service import stripe_settings
 
-router = APIRouter(prefix="/payments", tags=["payments"])
+router = APIRouter(tags=["payments"])
 
 
 @router.post("/create-intent", response_model=dict)
@@ -39,8 +43,9 @@ async def create_payment_intent(
         await db.commit()
 
         return {
-            "client_secret": intent_data["client_secret"],
-            "payment_id": payment.id
+            "payment_url": intent_data["payment_url"],
+            "payment_id": payment.id,
+            "external_payment_id": intent_data["payment_intent_id"]
         }
     except SQLAlchemyError as e:
         await db.rollback()
@@ -48,28 +53,6 @@ async def create_payment_intent(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
-
-
-@router.get("/{payment_id}", response_model=PaymentBaseSchema)
-async def get_payment_details(
-    payment_id: int,
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> PaymentBaseSchema:
-    payment = await get_payment_by_id(payment_id, db)
-    if not payment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Payment not found"
-        )
-
-    if payment.user_id != current_user["id"] and not current_user.get("is_admin"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view this payment"
-        )
-
-    return payment
 
 
 @router.post("/webhook")
@@ -114,7 +97,15 @@ async def get_payment_history(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
 ) -> PaymentListSchema:
-    query = select(PaymentModel).where(PaymentModel.user_id == current_user["id"])
+    query = (
+        select(PaymentModel)
+        .where(PaymentModel.user_id == current_user["id"])
+        .options(
+            selectinload(PaymentModel.payment_items),
+            selectinload(PaymentModel.order)
+        )
+        .order_by(PaymentModel.created_at.desc())
+    )
     total = await db.scalar(select(func.count()).select_from(query.subquery()))
 
     result = await db.execute(
@@ -132,27 +123,33 @@ async def get_payment_history(
 
 @router.get("/admin", response_model=PaymentListSchema)
 async def admin_get_payments(
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-    user_id: int | None = None,
-    payment_status: PaymentStatusSchema | None = None,
-    start_date: datetime | None = None,
-    end_date: datetime | None = None,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=100),
-) -> PaymentListSchema:
+        current_user: dict = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+        user_id: int | None = None,
+        payment_status: PaymentStatusSchema | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        skip: int = Query(0, ge=0),
+        limit: int = Query(10, ge=1, le=100),
+):
     if not current_user.get("is_admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access admin endpoints"
         )
 
-    query = select(PaymentModel)
+    query = (
+        select(PaymentModel)
+        .options(
+            selectinload(PaymentModel.payment_items),
+            selectinload(PaymentModel.order)
+        )
+    )
 
     if user_id:
         query = query.where(PaymentModel.user_id == user_id)
     if payment_status:
-        query = query.where(PaymentModel.status == status)
+        query = query.where(PaymentModel.status == payment_status)
     if start_date:
         query = query.where(PaymentModel.created_at >= start_date)
     if end_date:
@@ -249,3 +246,71 @@ async def refund_payment(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+
+
+@router.get("/{payment_id}", response_model=PaymentBaseSchema)
+async def get_payment_details(
+        payment_id: int,
+        current_user: dict = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db),
+):
+    payment = await get_payment_by_id(payment_id, db)
+    if not payment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment not found"
+        )
+
+    if payment.user_id != current_user["id"] and not current_user.get("is_admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view this payment"
+        )
+
+    return payment
+
+
+@router.get("/success/")
+async def payment_success(
+    session_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        result = await db.execute(
+            select(PaymentModel).where(
+                PaymentModel.external_payment_id == session.id
+            )
+        )
+        payment = result.scalar_one_or_none()
+        
+        if payment:
+            payment.status = PaymentStatus.SUCCESSFUL
+            await db.commit()
+            
+        return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
+    except Exception:
+        return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
+
+
+@router.get("/cancel/")
+async def payment_cancel(
+    session_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        result = await db.execute(
+            select(PaymentModel).where(
+                PaymentModel.external_payment_id == session.id
+            )
+        )
+        payment = result.scalar_one_or_none()
+        
+        if payment:
+            payment.status = PaymentStatus.CANCELED
+            await db.commit()
+            
+        return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
+    except Exception:
+        return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")

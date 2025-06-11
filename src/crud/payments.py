@@ -10,13 +10,21 @@ from schemas.payments import PaymentCreateSchema, PaymentStatusSchema, PaymentUp
 
 async def create_payment(
     payment: PaymentCreateSchema,
+    user_id: int,
     db: AsyncSession
 ) -> PaymentModel:
-    db_payment = PaymentModel(**payment.model_dump())
-    db.add(db_payment)
-    await db.commit()
-    await db.refresh(db_payment)
-    return db_payment
+    try:
+        payment_data = payment.model_dump()
+        payment_data["user_id"] = user_id
+        db_payment = PaymentModel(**payment_data)
+        db.add(db_payment)
+        await db.flush()
+        await db.refresh(db_payment)
+        await db.commit()
+        return db_payment
+    except Exception as e:
+        await db.rollback()
+        raise e
 
 
 async def get_payment(
