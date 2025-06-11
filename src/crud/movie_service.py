@@ -543,8 +543,6 @@ def apply_sorting(stmt, sort_by: SortOptions | None) -> Select:
         stmt = stmt.order_by(MovieModel.year.asc())
     elif sort_by == SortOptions.release_date_desc:
         stmt = stmt.order_by(MovieModel.year.desc())
-    # elif sort_by == SortOptions.popularity_desc:
-    #     stmt = stmt.order_by(MovieModel.likes.desc())
     else:
         stmt = stmt.order_by(MovieModel.name.desc())
     return stmt

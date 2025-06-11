@@ -84,6 +84,7 @@ class ProfileCreateRequestSchema(BaseModel):
 
 class ProfileResponseSchema(BaseModel):
     id: int | None = None
+    user_id: int | None = None
     first_name: str | None = None
     last_name: str | None = None
     gender: str | None = None
@@ -92,17 +93,17 @@ class ProfileResponseSchema(BaseModel):
     avatar: HttpUrl | None = None
 
     model_config = ConfigDict(
-        from_attributes=True,
         json_schema_extra={
-            "example": [
+            "examples": [
                 {
                     "id": 1,
-                    "first_name": "John",
-                    "last_name": "Doe",
-                    "gender": "male",
+                    "user_id": 1,
+                    "first_name": "john",
+                    "last_name": "doe",
+                    "gender": "man",
                     "date_of_birth": "1990-01-01",
-                    "info": "Some info",
-                    "avatar": "https://example.com/avatar.jpg"
+                    "info": "This is a test profile.",
+                    "avatar": "https://example.com/avatars/1_avatar.jpg"
                 }
             ]
         }
