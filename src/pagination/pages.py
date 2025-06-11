@@ -22,7 +22,7 @@ class Params(BaseModel, AbstractParams):
 
 
 class Page(AbstractPage[T], Generic[T]):
-    results: list[T]
+    items: list[T]
     total_items: int
     total_pages: int
     next_page: str | None = Field(
@@ -50,7 +50,7 @@ class Page(AbstractPage[T], Generic[T]):
         total_pages = (total + params.size - 1) // params.size
 
         return cls(
-            results=list(items),
+            items=list(items),
             total_items=total,
             total_pages=total_pages,
             next_page=f"{url}?page={params.page + 1}&size={params.size}"
