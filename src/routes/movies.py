@@ -438,10 +438,10 @@ async def get_movies(
         },
     )
 
-    if not result.results:
+    if not result.items:
         raise HTTPException(status_code=404, detail="No movies found.")
 
-    result.results = [
+    result.items = [
         MovieListItemSchema(
             id=movie.id,
             name=movie.name,
@@ -451,7 +451,7 @@ async def get_movies(
             price=movie.price,
             genres=movie.genres
         )
-        for movie in result.results
+        for movie in result.items
     ]
 
     return result

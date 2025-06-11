@@ -98,9 +98,9 @@ jobs:
           pip install poetry
           poetry install
 
-  #      - name: Run movies tests
-  #        run: |
-  #          poetry run pytest src/tests/test_integration/test_movies.py
+      - name: Run movies tests
+        run: |
+          poetry run pytest src/tests/test_integration/test_movies.py
 
   test-carts:
     runs-on: ubuntu-latest

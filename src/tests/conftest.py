@@ -9,6 +9,7 @@ from config import (
     get_s3_storage_client,
 )
 from database.deps import get_db_contextmanager
+from database.models import CertificationModel, GenreModel, StarModel, DirectorModel
 from database.models.accounts import UserGroupEnum, UserGroupModel, UserModel
 from database.models.shopping_cart import Cart
 from database.populate import CSVDatabaseSeeder
@@ -196,6 +197,54 @@ async def test_user(db_session, seed_user_groups):
 
 
 @pytest_asyncio.fixture(scope="function")
+async def auth_client(
+    client: AsyncClient,
+    test_user: UserModel,
+    jwt_manager: JWTAuthManagerInterface,
+):
+    """
+    Provide an authenticated async HTTP client for testing with regular user privileges.
+    """
+    access_token = jwt_manager.create_access_token({"user_id": test_user.id})
+    client.headers["Authorization"] = f"Bearer {access_token}"
+    return client
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_moderator(db_session, seed_user_groups):
+    """
+    Create a test moderator for validation tests.
+
+    This fixture creates a test moderator with the following properties:
+    - email: moderator@mate.com
+    - password: TestPassword123!
+    - group_id: 2 (Moderator group)
+    - is_active: True
+
+    The moderator is created before each test and cleaned up after.
+    """
+    moderator = UserModel.create(email="moderator@mate.com", raw_password="TestPassword123!", group_id=2)
+    moderator.is_active = True
+    db_session.add(moderator)
+    await db_session.commit()
+    return moderator
+
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_moderator_client(
+    client: AsyncClient,
+    test_moderator: UserModel,
+    jwt_manager: JWTAuthManagerInterface,
+):
+    """
+    Provide an authenticated async HTTP client for testing with moderator privileges.
+    """
+    access_token = jwt_manager.create_access_token({"user_id": test_moderator.id})
+    client.headers["Authorization"] = f"Bearer {access_token}"
+    return client
+
+
+@pytest_asyncio.fixture(scope="function")
 async def test_movie(db_session: AsyncSession):
     """Create a test movie for shopping cart tests."""
     from database.models.movies import MovieModel, CertificationModel
@@ -229,15 +278,29 @@ async def test_cart(db_session: AsyncSession, test_user: UserModel):
 
 
 @pytest_asyncio.fixture(scope="function")
-async def auth_client(
-    client: AsyncClient,
-    test_user: UserModel,
-    jwt_manager: JWTAuthManagerInterface,
-):
+async def seed_movie_relations(db_session: AsyncSession):
     """
-    Provide an authenticated async HTTP client for testing.
+    Ensure that at least one genre, star, director, and certification exist in the database with id=1.
     """
-    access_token = jwt_manager.create_access_token({"user_id": test_user.id})
-    client.headers["Authorization"] = f"Bearer {access_token}"
-
-    return client
+    # Certification
+    cert = await db_session.get(CertificationModel, 1)
+    if not cert:
+        cert = CertificationModel(id=1, name="PG-13")
+        db_session.add(cert)
+    # Genre
+    genre = await db_session.get(GenreModel, 1)
+    if not genre:
+        genre = GenreModel(id=1, name="Action")
+        db_session.add(genre)
+    # Star
+    star = await db_session.get(StarModel, 1)
+    if not star:
+        star = StarModel(id=1, name="Leonardo DiCaprio")
+        db_session.add(star)
+    # Director
+    director = await db_session.get(DirectorModel, 1)
+    if not director:
+        director = DirectorModel(id=1, name="Christopher Nolan")
+        db_session.add(director)
+    await db_session.commit()
+    yield

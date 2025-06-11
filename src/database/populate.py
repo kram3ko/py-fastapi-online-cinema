@@ -22,9 +22,9 @@ class CSVDatabaseSeeder:
         self._db_session = db_session
 
     async def is_db_populated(self) -> bool:
-        result = await self._db_session.execute(select(UserGroupModel).limit(1))
-        first_group = result.scalars().first()
-        return first_group is not None
+        result = await self._db_session.execute(select(MovieModel).limit(1))
+        first_movie = result.scalars().first()
+        return first_movie is not None
 
     async def _seed_movies_from_csv(self) -> None:
         """
@@ -34,7 +34,7 @@ class CSVDatabaseSeeder:
 
         # Create stars
         all_stars: set[str] = set()
-        for stars_str in data["star"].dropna():
+        for stars_str in data["stars"].dropna():
             all_stars.update(star.strip() for star in stars_str.split(","))
         stars = {star: StarModel(name=star) for star in all_stars}
         for star in stars.values():
@@ -42,7 +42,7 @@ class CSVDatabaseSeeder:
         await self._db_session.flush()
 
         # Create certifications
-        certifications = {cert: CertificationModel(name=cert) for cert in data["certification"].unique()}
+        certifications = {cert: CertificationModel(name=cert) for cert in data["certification"].dropna().unique()}
         for cert in certifications.values():
             self._db_session.add(cert)
         await self._db_session.flush()
@@ -81,7 +81,7 @@ class CSVDatabaseSeeder:
                 certification_id=certifications[row["certification"]].id,
                 genres=[genres[genre.strip()] for genre in row["genres"].split(",")],
                 directors=[directors[director.strip()] for director in row["directors"].split(",")],
-                stars=[stars[star.strip()] for star in row["star"].split(",")] if pd.notna(row["star"]) else [],
+                stars=[stars[star.strip()] for star in row["stars"].split(",")] if pd.notna(row["stars"]) else [],
             )
             self._db_session.add(movie)
 
@@ -105,7 +105,7 @@ class CSVDatabaseSeeder:
             "certification",
             "genres",
             "directors",
-            "star",
+            "stars",
         ]
 
         for col in required_columns:
@@ -125,12 +125,12 @@ class CSVDatabaseSeeder:
         data["certification"] = data["certification"].astype(str)
         data["genres"] = data["genres"].astype(str)
         data["directors"] = data["directors"].astype(str)
-        data["star"] = data["star"].astype(str)
+        data["stars"] = data["stars"].astype(str)
 
         # Clean up genres, directors and stars
         data["genres"] = data["genres"].apply(lambda x: ",".join(sorted(set(g.strip() for g in x.split(",")))))
         data["directors"] = data["directors"].apply(lambda x: ",".join(sorted(set(d.strip() for d in x.split(",")))))
-        data["star"] = data["star"].apply(lambda x: ",".join(sorted(set(s.strip() for s in x.split(",")))))
+        data["stars"] = data["stars"].apply(lambda x: ",".join(sorted(set(s.strip() for s in x.split(",")))))
 
         print("Preprocessing CSV file...")
         data.to_csv(self._csv_file_path, index=False)
@@ -141,12 +141,13 @@ class CSVDatabaseSeeder:
         """
         Seeds user groups from enums.
         """
-        # Seed user groups
-        user_groups = [{"name": group.value} for group in UserGroupEnum]
-        if user_groups:
-            await self._db_session.execute(insert(UserGroupModel).values(user_groups))
-            await self._db_session.flush()
-            print("User groups seeded successfully.")
+        # Get group names from enum
+        group_names = [group.value for group in UserGroupEnum]
+        
+        # Use _get_or_create_bulk to handle existing groups
+        await self._get_or_create_bulk(UserGroupModel, group_names, "name")
+        await self._db_session.flush()
+        print("User groups seeded successfully.")
 
     async def _get_or_create_bulk(self, model, items: list[str], unique_field: str) -> dict[str, object]:
         existing_dict: dict[str, object] = {}
@@ -201,7 +202,7 @@ class CSVDatabaseSeeder:
         await self._db_session.flush()
 
     async def _prepare_reference_data(self, data: pd.DataFrame) -> dict[str, object]:
-        stars = {star.strip() for stars_ in data["star"].dropna() for star in stars_.split(",") if star.strip()}
+        stars = {star.strip() for stars_ in data["stars"].dropna() for star in stars_.split(",") if star.strip()}
         star_map = await self._get_or_create_bulk(StarModel, list(stars), "name")
         return star_map
 
@@ -215,7 +216,7 @@ class CSVDatabaseSeeder:
 
         for i, (_, row) in enumerate(tqdm(data.iterrows(), total=data.shape[0], desc="Processing associations")):
             movie_id = movie_ids[i]
-            for star_name in row["star"].split(","):
+            for star_name in row["stars"].split(","):
                 star_name_clean = star_name.strip()
                 if star_name_clean:
                     star = star_map[star_name_clean]
