@@ -24,10 +24,10 @@ router = APIRouter()
 )
 async def create_profile(
     user_id: int,
+    profile_data: ProfileCreateRequestSchema = Form(..., media_type="multipart/form-data"),
     user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
     s3_client: S3StorageInterface = Depends(get_s3_storage_client),
-    profile_data: ProfileCreateRequestSchema = Form(..., media_type="multipart/form-data"),
 ) -> ProfileResponseSchema:
     """
     Creates a user profile.
@@ -40,10 +40,10 @@ async def create_profile(
 
     Args:
         user_id (int): The ID of the user for whom the profile is being created.
+        profile_data (ProfileCreateRequestSchema): The profile data from the form.
         user (UserModel): The authenticated user.
         db (AsyncSession): The asynchronous database session.
         s3_client (S3StorageInterface): The asynchronous S3 storage client.
-        profile_data (ProfileCreateRequestSchema): The profile data from the form.
 
     Returns:
         ProfileResponseSchema: The created user profile details.
