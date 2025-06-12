@@ -1,11 +1,12 @@
 from datetime import datetime
 
+import stripe
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from fastapi.responses import RedirectResponse
 
 from config.dependencies import get_current_user
 from crud.payments import create_payment, get_payment_by_id
@@ -17,9 +18,7 @@ from schemas.payments import (
     PaymentListSchema,
     PaymentStatusSchema,
 )
-from services.stripe_service import StripeService
-import stripe
-from services.stripe_service import stripe_settings
+from services.stripe_service import StripeService, stripe_settings
 
 router = APIRouter(tags=["payments"])
 
@@ -131,7 +130,7 @@ async def admin_get_payments(
         end_date: datetime | None = None,
         skip: int = Query(0, ge=0),
         limit: int = Query(10, ge=1, le=100),
-):
+) -> PaymentListSchema:
     if not current_user.get("is_admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -253,7 +252,7 @@ async def get_payment_details(
         payment_id: int,
         current_user: dict = Depends(get_current_user),
         db: AsyncSession = Depends(get_db),
-):
+) -> PaymentBaseSchema | None:
     payment = await get_payment_by_id(payment_id, db)
     if not payment:
         raise HTTPException(
@@ -274,7 +273,7 @@ async def get_payment_details(
 async def payment_success(
     session_id: str,
     db: AsyncSession = Depends(get_db)
-):
+) -> RedirectResponse | None:
     try:
         session = stripe.checkout.Session.retrieve(session_id)
         result = await db.execute(
@@ -283,11 +282,11 @@ async def payment_success(
             )
         )
         payment = result.scalar_one_or_none()
-        
+
         if payment:
             payment.status = PaymentStatus.SUCCESSFUL
             await db.commit()
-            
+
         return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
     except Exception:
         return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
@@ -297,7 +296,7 @@ async def payment_success(
 async def payment_cancel(
     session_id: str,
     db: AsyncSession = Depends(get_db)
-):
+) -> RedirectResponse | None:
     try:
         session = stripe.checkout.Session.retrieve(session_id)
         result = await db.execute(
@@ -306,11 +305,11 @@ async def payment_cancel(
             )
         )
         payment = result.scalar_one_or_none()
-        
+
         if payment:
             payment.status = PaymentStatus.CANCELED
             await db.commit()
-            
+
         return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
     except Exception:
         return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
