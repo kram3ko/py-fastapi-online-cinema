@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from config.dependencies import get_current_user
+from config.dependencies import get_current_user, require_admin
 from crud.payments import create_payment, get_payment_by_id
 from database.deps import get_db
 from database.models import UserModel
@@ -19,9 +19,6 @@ from schemas.payments import (
     PaymentListSchema,
     PaymentStatusSchema,
 )
-
-from security.auth import get_current_user_is_admin
-
 from services.stripe_service import StripeService, stripe_settings
 
 router = APIRouter(tags=["payments"])
@@ -126,20 +123,16 @@ async def get_payment_history(
 
 @router.get("/admin", response_model=PaymentListSchema)
 async def admin_get_payments(
-        is_admin: bool = Depends(get_current_user_is_admin),
-        db: AsyncSession = Depends(get_db),
-        user_id: int | None = None,
-        payment_status: PaymentStatusSchema | None = None,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
-        skip: int = Query(0, ge=0),
-        limit: int = Query(10, ge=1, le=100),
+    is_admin: bool = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+    user_id: int | None = None,
+    payment_status: PaymentStatusSchema | None = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
 ) -> PaymentListSchema:
-  
     if not is_admin:
-
-    if not current_user.get("is_admin"):
-
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not authorized to access admin endpoints"
@@ -177,7 +170,7 @@ async def admin_get_payments(
 
 @router.get("/admin/statistics")
 async def get_payment_statistics(
-    is_admin: bool = Depends(get_current_user_is_admin),
+    is_admin: bool = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
     start_date: datetime | None = None,
     end_date: datetime | None = None,
@@ -214,7 +207,7 @@ async def get_payment_statistics(
 @router.post("/{payment_id}/refund")
 async def refund_payment(
     payment_id: int,
-    is_admin: bool = Depends(get_current_user_is_admin),
+    is_admin: bool = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     if not is_admin:
@@ -257,10 +250,10 @@ async def refund_payment(
 
 @router.get("/{payment_id}", response_model=PaymentBaseSchema)
 async def get_payment_details(
-        payment_id: int,
-        current_user: UserModel = Depends(get_current_user),
-        is_admin: bool = Depends(get_current_user_is_admin),
-        db: AsyncSession = Depends(get_db),
+    payment_id: int,
+    current_user: UserModel = Depends(get_current_user),
+    is_admin: bool = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
 
 ) -> PaymentBaseSchema:
     payment = await get_payment_by_id(payment_id, db)
