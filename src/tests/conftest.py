@@ -22,6 +22,10 @@ from tests.doubles.fakes.storage import FakeS3Storage
 from tests.doubles.stubs.emails import StubEmailSender
 
 
+from unittest.mock import AsyncMock
+from services.stripe_service import StripeService
+
+
 def pytest_configure(config):
     config.addinivalue_line(
         "markers", "order: Specify the order of test execution"
@@ -304,3 +308,60 @@ async def seed_movie_relations(db_session: AsyncSession):
         db_session.add(director)
     await db_session.commit()
     yield
+
+
+@pytest_asyncio.fixture(autouse=True)
+def mock_stripe_service(monkeypatch):
+    """
+    Automatically patch StripeService methods for all tests using mocked behavior.
+    """
+    monkeypatch.setattr(
+        StripeService,
+        "create_payment_intent",
+        AsyncMock(return_value={
+            "payment_intent_id": "pi_test_123456",
+            "payment_url": "https://mock.stripe.test/pay/pi_test_123456"
+        }),
+    )
+    monkeypatch.setattr(
+        StripeService,
+        "handle_webhook",
+        AsyncMock(return_value={
+            "external_payment_id": "pi_test_123456",
+            "status": "SUCCESSFUL"
+        }),
+    )
+    monkeypatch.setattr(
+        StripeService,
+        "refund_payment",
+        AsyncMock(return_value=True),
+    )
+
+
+# ⬇️ Авторизовані клієнти (користувач / адмін)
+@pytest_asyncio.fixture(scope="function")
+async def auth_user_token(test_user: UserModel, jwt_manager: JWTAuthManagerInterface):
+    return jwt_manager.create_access_token({"user_id": test_user.id})
+
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_admin_token(test_moderator: UserModel, jwt_manager: JWTAuthManagerInterface):
+    return jwt_manager.create_access_token({"user_id": test_moderator.id})
+
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_user_client(
+    client: AsyncClient,
+    auth_user_token: str,
+):
+    client.headers["Authorization"] = f"Bearer {auth_user_token}"
+    return client
+
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_admin_client(
+    client: AsyncClient,
+    auth_admin_token: str,
+):
+    client.headers["Authorization"] = f"Bearer {auth_admin_token}"
+    return client
