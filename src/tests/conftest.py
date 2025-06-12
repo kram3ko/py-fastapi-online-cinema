@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config import (
     get_settings,
     get_accounts_email_notificator,
-    get_s3_storage_client,
 )
+from config.dependencies import get_dropbox_storage_client
 from database.deps import get_db_contextmanager
 from database.models import CertificationModel, GenreModel, StarModel, DirectorModel
 from database.models.accounts import UserGroupEnum, UserGroupModel, UserModel
@@ -17,8 +17,8 @@ from database.session_sqlite import reset_sqlite_database as reset_database
 from main import app
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
-from storages import S3StorageClient
-from tests.doubles.fakes.storage import FakeS3Storage
+from storages import DropboxStorageClient
+from tests.doubles.fakes.storage import FakeDropboxStorage
 from tests.doubles.stubs.emails import StubEmailSender
 
 
@@ -63,41 +63,42 @@ async def email_sender_stub():
 
 
 @pytest_asyncio.fixture(scope="function")
-async def s3_storage_fake():
+async def dropbox_storage_fake():
     """
     Provide a fake S3 storage client.
 
-    This fixture returns an instance of FakeS3Storage for testing purposes.
+    This fixture returns an instance of FakeDropboxStorage for testing purposes.
     """
-    return FakeS3Storage()
+    return FakeDropboxStorage()
 
 
 @pytest_asyncio.fixture(scope="function")
-async def s3_client(settings):
+async def dropbox_client(settings):
     """
     Provide an S3 storage client.
 
     This fixture returns an instance of S3StorageClient configured with the application settings.
     """
-    return S3StorageClient(
-        endpoint_url=settings.S3_STORAGE_ENDPOINT,
-        access_key=settings.S3_STORAGE_ACCESS_KEY,
-        secret_key=settings.S3_STORAGE_SECRET_KEY,
-        bucket_name=settings.S3_BUCKET_NAME,
+    return DropboxStorageClient(
+        access_token=settings.DROPBOX_ACCESS_TOKEN,
+        app_key=settings.DROPBOX_APP_KEY,
+        app_secret=settings.DROPBOX_APP_SECRET,
+        refresh_token=settings.DROPBOX_REFRESH_TOKEN
     )
 
 
 @pytest_asyncio.fixture(scope="function")
-async def client(email_sender_stub, s3_storage_fake):
+async def client(email_sender_stub, dropbox_storage_fake):
     """
     Provide an asynchronous HTTP client for testing.
+
 
     Overrides the dependencies for email sender and S3 storage with test doubles.
     """
     app.dependency_overrides[get_accounts_email_notificator] = (
         lambda: email_sender_stub
     )
-    app.dependency_overrides[get_s3_storage_client] = lambda: s3_storage_fake
+    app.dependency_overrides[get_dropbox_storage_client] = lambda: dropbox_storage_fake
 
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"

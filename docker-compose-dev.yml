@@ -212,8 +212,6 @@ services:
       - "5540:5540"
     depends_on:
       - redis
-    env_file:
-      - .env
     restart: always
     networks:
       - online_cinema_network
