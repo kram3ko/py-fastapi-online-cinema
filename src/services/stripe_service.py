@@ -104,7 +104,7 @@ class StripeService:
                     payment_intent=payment.external_payment_id
                 )
                 return refund.status == "succeeded"
-            except stripe.error.StripeError:
+            except stripe.error.StripeError:  # type: ignore[attr-defined]
 
                 session = stripe.checkout.Session.retrieve(payment.external_payment_id)
                 if not session.payment_intent:
