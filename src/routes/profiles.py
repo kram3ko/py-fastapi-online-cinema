@@ -5,13 +5,12 @@ from pydantic import HttpUrl
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import get_s3_storage_client
-from config.dependencies import get_current_user
+from config.dependencies import get_current_user, get_dropbox_storage_client
 from database.deps import get_db
 from database.models.accounts import GenderEnum, UserGroupEnum, UserGroupModel, UserModel, UserProfileModel
 from exceptions import S3FileUploadError
 from schemas.profiles import ProfileCreateRequestSchema, ProfileResponseSchema
-from storages import S3StorageInterface
+from storages import DropboxStorageInterface
 
 router = APIRouter()
 
@@ -27,7 +26,7 @@ async def create_profile(
     profile_data: ProfileCreateRequestSchema = Form(..., media_type="multipart/form-data"),
     user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-    s3_client: S3StorageInterface = Depends(get_s3_storage_client),
+    dropbox: DropboxStorageInterface = Depends(get_dropbox_storage_client),
 ) -> ProfileResponseSchema:
     """
     Creates a user profile.
@@ -43,7 +42,7 @@ async def create_profile(
         profile_data (ProfileCreateRequestSchema): The profile data from the form.
         user (UserModel): The authenticated user.
         db (AsyncSession): The asynchronous database session.
-        s3_client (S3StorageInterface): The asynchronous S3 storage client.
+        dropbox (DropboxStorageInterface): The Dropbox storage client.
 
     Returns:
         ProfileResponseSchema: The created user profile details.
@@ -73,7 +72,7 @@ async def create_profile(
     avatar_key = f"avatars/{user.id}_{profile_data.avatar.filename}"
 
     try:
-        await s3_client.upload_file(file_name=avatar_key, file_data=avatar_bytes)
+        await dropbox.upload_file(file_name=avatar_key, file_data=avatar_bytes)
     except S3FileUploadError as e:
         print(f"Error uploading avatar to S3: {e}")
         raise HTTPException(
@@ -94,7 +93,7 @@ async def create_profile(
     db.add(new_profile)
     await db.commit()
 
-    avatar_url = await s3_client.get_file_url(new_profile.avatar)
+    avatar_url = await dropbox.get_file_url(new_profile.avatar)
 
     return ProfileResponseSchema(
         id=new_profile.id,

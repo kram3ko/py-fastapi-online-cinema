@@ -2,7 +2,6 @@ from typing import Union
 import dropbox
 from dropbox.exceptions import ApiError, AuthError
 
-from exceptions import DropboxConnectionError, DropboxFileUploadError
 from storages.interfaces import DropboxStorageInterface
 
 
@@ -61,9 +60,9 @@ class DropboxStorageClient(DropboxStorageInterface):
                 mode=dropbox.files.WriteMode.overwrite
             )
         except (AuthError, ApiError) as e:
-            raise DropboxConnectionError(f"Failed to connect to Dropbox storage: {str(e)}") from e
+            raise ConnectionError(f"Failed to connect to Dropbox storage: {str(e)}") from e
         except Exception as e:
-            raise DropboxFileUploadError(f"Failed to upload to Dropbox storage: {str(e)}") from e
+            raise RuntimeError(f"Failed to upload to Dropbox storage: {str(e)}") from e
 
     async def get_file_url(self, file_name: str) -> str:
         """
@@ -80,4 +79,4 @@ class DropboxStorageClient(DropboxStorageInterface):
             link = self._dbx.files_get_temporary_link(f"/online-cinema/{file_name}")
             return link.link
         except Exception as e:
-            raise DropboxConnectionError(f"Failed to get file URL from Dropbox: {str(e)}") from e
+            raise RuntimeError(f"Failed to get file URL from Dropbox: {str(e)}") from e
