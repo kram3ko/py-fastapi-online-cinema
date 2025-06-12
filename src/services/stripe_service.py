@@ -1,6 +1,6 @@
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Optional
-from datetime import datetime, timedelta
 
 import stripe
 from fastapi import HTTPException, status
@@ -23,22 +23,22 @@ class StripeService:
             amount_cents = int(payment_data.amount * 100)
 
             session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
+                payment_method_types=["card"],
                 line_items=[{
-                    'price_data': {
-                        'currency': stripe_settings.STRIPE_CURRENCY,
-                        'product_data': {
-                            'name': f'Order #{payment_data.order_id}',
+                    "price_data": {
+                        "currency": stripe_settings.STRIPE_CURRENCY,
+                        "product_data": {
+                            "name": f"Order #{payment_data.order_id}",
                         },
-                        'unit_amount': amount_cents,
+                        "unit_amount": amount_cents,
                     },
-                    'quantity': 1,
+                    "quantity": 1,
                 }],
-                mode='payment',
+                mode="payment",
                 success_url=SUCCESS_URL,
                 cancel_url=CANCEL_URL,
                 metadata={
-                    'order_id': payment_data.order_id,
+                    "order_id": payment_data.order_id,
                 },
                 expires_at=int((datetime.now() + timedelta(minutes=30)).timestamp())
             )
@@ -104,7 +104,7 @@ class StripeService:
                     payment_intent=payment.external_payment_id
                 )
                 return refund.status == "succeeded"
-            except stripe.error.StripeError:
+            except stripe.error.StripeError:  # type: ignore[attr-defined]
 
                 session = stripe.checkout.Session.retrieve(payment.external_payment_id)
                 if not session.payment_intent:
@@ -112,7 +112,7 @@ class StripeService:
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="No payment intent found for this session"
                     )
-                
+
                 refund = stripe.Refund.create(
                     payment_intent=session.payment_intent
                 )
