@@ -3,7 +3,6 @@ from collections.abc import Awaitable
 from typing import Callable
 
 from fastapi import Depends, HTTPException, status
-from jose.exceptions import ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
@@ -17,7 +16,9 @@ from notifications.stripe_notificator import StripeEmailNotificator, StripeEmail
 from security.http import get_token
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
-from storages import S3StorageClient, S3StorageInterface
+from storages import S3StorageInterface, DropboxStorageInterface
+from storages.dropbox import DropboxStorageClient
+from storages.s3 import S3StorageClient
 
 
 def get_settings() -> Settings:
@@ -117,6 +118,31 @@ def get_s3_storage_client(
     )
 
 
+def get_dropbox_storage_client(
+    settings: BaseAppSettings = Depends(get_settings),
+) -> DropboxStorageInterface:
+    """
+    Retrieve an instance of the storage interface configured with Dropbox settings.
+
+    This function instantiates a DropboxStorageClient using the provided settings, which include the Dropbox
+    access token, app key, app secret, and refresh token. The returned client can be used to interact with Dropbox
+    storage service for file uploads and URL generation.
+
+    Args:
+        settings (BaseAppSettings, optional): The application settings,
+        provided via dependency injection from `get_settings`.
+
+    Returns:
+        S3StorageInterface: An instance of DropboxStorageClient configured with the appropriate Dropbox settings.
+    """
+    return DropboxStorageClient(
+        access_token=settings.DROPBOX_ACCESS_TOKEN,
+        app_key=settings.DROPBOX_APP_KEY,
+        app_secret=settings.DROPBOX_APP_SECRET,
+        refresh_token=settings.DROPBOX_REFRESH_TOKEN
+    )
+
+
 def get_stripe_email_notificator(
     settings: BaseAppSettings = Depends(get_settings),
 ) -> StripeEmailSenderInterface:
@@ -190,15 +216,15 @@ async def get_current_user(
         )
 
 
-async def require_admin(current_user: UserModel = Depends(get_current_user)) -> UserModel:
-    if current_user.group.name != UserGroupEnum.ADMIN:
-        raise HTTPException(status_code=403, detail="Access forbidden: admins only")
-    return current_user
-
-
 async def require_moderator(current_user: UserModel = Depends(get_current_user)) -> UserModel:
     if current_user.group.name != UserGroupEnum.MODERATOR:
         raise HTTPException(status_code=403, detail="Access forbidden: moderator or admins only")
+    return current_user
+
+
+async def require_admin(current_user: UserModel = Depends(get_current_user)) -> UserModel:
+    if current_user.group.name != UserGroupEnum.ADMIN:
+        raise HTTPException(status_code=403, detail="Access forbidden: admins only")
     return current_user
 
 
