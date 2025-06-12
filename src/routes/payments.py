@@ -273,7 +273,7 @@ async def get_payment_details(
 async def payment_success(
     session_id: str,
     db: AsyncSession = Depends(get_db)
-) -> RedirectResponse | None:
+) -> RedirectResponse:
     try:
         session = stripe.checkout.Session.retrieve(session_id)
         result = await db.execute(
@@ -296,7 +296,7 @@ async def payment_success(
 async def payment_cancel(
     session_id: str,
     db: AsyncSession = Depends(get_db)
-) -> RedirectResponse | None:
+) -> RedirectResponse:
     try:
         session = stripe.checkout.Session.retrieve(session_id)
         result = await db.execute(
