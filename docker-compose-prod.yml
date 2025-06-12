@@ -115,6 +115,8 @@ services:
       - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - web
+      - flower
+      -
     env_file:
       - ./docker/nginx/.env
     networks:
