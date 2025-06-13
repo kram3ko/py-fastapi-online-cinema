@@ -27,17 +27,21 @@ class StorageInterface(ABC):
 
 class S3StorageInterface(StorageInterface):
     """Interface for S3-compatible storage implementations"""
+    @abstractmethod
     async def upload_file(self, file_name: str, file_data: Union[bytes, bytearray]) -> None:
         pass
 
+    @abstractmethod
     async def get_file_url(self, file_name: str) -> str:
         pass
 
 
 class DropboxStorageInterface(StorageInterface):
     """Interface for Dropbox storage implementations"""
+    @abstractmethod
     async def upload_file(self, file_name: str, file_data: Union[bytes, bytearray]) -> None:
         pass
 
+    @abstractmethod
     async def get_file_url(self, file_name: str) -> str:
         pass
