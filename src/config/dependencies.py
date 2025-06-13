@@ -16,7 +16,7 @@ from notifications.stripe_notificator import StripeEmailNotificator, StripeEmail
 from security.http import get_token
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
-from storages import S3StorageInterface, DropboxStorageInterface
+from storages import DropboxStorageInterface, S3StorageInterface
 from storages.dropbox import DropboxStorageClient
 from storages.s3 import S3StorageClient
 

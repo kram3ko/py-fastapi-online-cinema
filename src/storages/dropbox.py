@@ -1,4 +1,5 @@
 from typing import Union
+
 import dropbox
 from dropbox.exceptions import ApiError, AuthError
 
@@ -20,12 +21,12 @@ class DropboxStorageClient(DropboxStorageInterface):
             raise ValueError("Dropbox access token must be provided")
         if not app_key or not app_secret:
             raise ValueError("Dropbox app key and secret must be provided")
-            
+
         self._access_token = access_token
         self._app_key = app_key
         self._app_secret = app_secret
         self._refresh_token = refresh_token
-        
+
         # Initialize Dropbox client with refresh token if available
         if refresh_token:
             self._dbx = dropbox.Dropbox(

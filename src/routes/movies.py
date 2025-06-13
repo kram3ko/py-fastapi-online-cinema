@@ -71,6 +71,7 @@ from schemas.movies import (
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
+
 @router.get(
     "/genres/",
     response_model=list[GenreReadSchema]
