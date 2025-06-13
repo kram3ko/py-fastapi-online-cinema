@@ -49,24 +49,22 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      minio:
-        condition: service_healthy
     volumes:
       - ./src:/usr/src/fastapi
     networks:
       - online_cinema_network
 
-#  stripe_cli:
-#    image: stripe/stripe-cli
-#    container_name: stripe_cli_online_cinema
-#    command: listen --forward-to web:8000/api/v1/payments/webhook
-#    env_file:
-#      - .env
-#    depends_on:
-#      web:
-#        condition: service_started
-#    networks:
-#      - online_cinema_network
+  stripe_cli:
+    image: stripe/stripe-cli
+    container_name: stripe_cli_online_cinema
+    command: listen --forward-to web:8000/api/v1/payments/webhook
+    env_file:
+      - .env
+    depends_on:
+      web:
+        condition: service_started
+    networks:
+      - online_cinema_network
 
   migrator:
     build: .
@@ -235,8 +233,6 @@ services:
       - "5540:5540"
     depends_on:
       - redis
-    env_file:
-      - .env
     restart: always
     networks:
       - online_cinema_network
