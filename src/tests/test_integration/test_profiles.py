@@ -12,8 +12,8 @@ from exceptions import S3FileUploadError
 
 @pytest.mark.asyncio
 @pytest.mark.unit
-async def test_create_user_profile_with_fake_s3(
-        db_session, seed_user_groups, reset_db, jwt_manager, s3_storage_fake, client
+async def test_create_user_profile_with_fake_dropbox(
+        db_session, seed_user_groups, reset_db, jwt_manager, dropbox_storage_fake, client
 ):
     """
     Positive test for creating a user profile.
@@ -22,7 +22,7 @@ async def test_create_user_profile_with_fake_s3(
     1. Create a test user and activate them.
     2. Generate an access token using `jwt_manager`.
     3. Send a profile creation request with an avatar.
-    4. Verify that the avatar was uploaded to `FakeS3Storage`.
+    4. Verify that the avatar was uploaded to `FakeDropboxStorage`.
     5. Verify that the profile was created in the database.
     """
     user = UserModel.create(email="test@mate.com", raw_password="TestPassword123!", group_id=1)
@@ -63,9 +63,9 @@ async def test_create_user_profile_with_fake_s3(
     assert profile_data["date_of_birth"] == "1990-01-01", "Date of birth does not match."
     assert "avatar" in profile_data, "Avatar URL is missing!"
 
-    assert avatar_key in s3_storage_fake.storage, "Avatar file was not uploaded to Fake S3 Storage!"
-    expected_url = f"http://fake-s3.local/{avatar_key}"
-    actual_url = await s3_storage_fake.get_file_url(avatar_key)
+    assert avatar_key in dropbox_storage_fake.storage, "Avatar file was not uploaded to Fake dropbox Storage!"
+    expected_url = f"http://fake-dropbox.local/{avatar_key}"
+    actual_url = await dropbox_storage_fake.get_file_url(avatar_key)
     assert actual_url == expected_url, "Avatar URL does not match expected URL."
 
     stmt_profile = select(UserProfileModel).where(UserProfileModel.user_id == user.id)
@@ -146,7 +146,7 @@ async def test_create_user_profile_expired_token(client, jwt_manager):
 @pytest.mark.asyncio
 @pytest.mark.unit
 async def test_admin_creates_user_profile(
-        db_session, seed_user_groups, reset_db, jwt_manager, s3_storage_fake, client
+        db_session, seed_user_groups, reset_db, jwt_manager, dropbox_storage_fake, client
 ):
     """
     Test that an admin can create a profile for another user.
@@ -155,7 +155,7 @@ async def test_admin_creates_user_profile(
     1. Create an admin user and a regular user.
     2. Generate an access token for the admin.
     3. Send a request to create a profile for the regular user.
-    4. Verify that the avatar was uploaded to FakeS3Storage.
+    4. Verify that the avatar was uploaded to FakeDropboxStorage.
     5. Verify that the profile was created in the database.
     """
     admin_user = UserModel.create(email="admin@mate.com", raw_password="AdminPass123!", group_id=3)
@@ -205,9 +205,9 @@ async def test_admin_creates_user_profile(
     assert profile_data["date_of_birth"] == "1990-01-01"
     assert "avatar" in profile_data, "Avatar URL is missing!"
 
-    assert avatar_key in s3_storage_fake.storage, "Avatar file was not uploaded to Fake S3 Storage!"
-    expected_url = f"http://fake-s3.local/{avatar_key}"
-    actual_url = await s3_storage_fake.get_file_url(avatar_key)
+    assert avatar_key in dropbox_storage_fake.storage, "Avatar file was not uploaded to Fake Dropbox Storage!"
+    expected_url = f"http://fake-dropbox.local/{avatar_key}"
+    actual_url = await dropbox_storage_fake.get_file_url(avatar_key)
     assert actual_url == expected_url, "Avatar URL does not match expected URL."
 
     stmt_profile = select(UserProfileModel).where(UserProfileModel.user_id == regular_user.id)
@@ -226,7 +226,7 @@ async def test_admin_creates_user_profile(
 @pytest.mark.asyncio
 @pytest.mark.unit
 async def test_user_cannot_create_another_user_profile(
-        db_session, seed_user_groups, reset_db, jwt_manager, s3_storage_fake, client
+        db_session, seed_user_groups, reset_db, jwt_manager, dropbox_storage_fake, client
 ):
     """
     Test that a regular user cannot create a profile for another user.
@@ -286,7 +286,7 @@ async def test_user_cannot_create_another_user_profile(
 @pytest.mark.asyncio
 @pytest.mark.unit
 async def test_inactive_user_cannot_create_profile(
-        db_session, seed_user_groups, reset_db, jwt_manager, s3_storage_fake, client
+        db_session, seed_user_groups, reset_db, jwt_manager, dropbox_storage_fake, client
 ):
     """
     Test that an inactive user cannot create a profile.
@@ -338,7 +338,7 @@ async def test_inactive_user_cannot_create_profile(
 @pytest.mark.asyncio
 @pytest.mark.unit
 async def test_cannot_create_profile_twice(
-        db_session, seed_user_groups, reset_db, jwt_manager, s3_storage_fake, client
+        db_session, seed_user_groups, reset_db, jwt_manager, dropbox_storage_fake, client
 ):
     """
     Test that a user cannot create a profile twice.
@@ -393,15 +393,15 @@ async def test_cannot_create_profile_twice(
 
 @pytest.mark.asyncio
 @pytest.mark.unit
-async def test_profile_creation_fails_on_s3_upload_error(
-        db_session, seed_user_groups, reset_db, jwt_manager, s3_storage_fake, client
+async def test_profile_creation_fails_on_dropbox_upload_error(
+        db_session, seed_user_groups, reset_db, jwt_manager, dropbox_storage_fake, client
 ):
     """
-    Test that profile creation fails if S3 upload fails.
+    Test that profile creation fails if Dropbox upload fails.
 
     Steps:
     1. Create and activate a user.
-    2. Mock `s3_storage_fake.upload_file` to raise `S3FileUploadError`.
+    2. Mock `dropbox.upload_file` to raise `DropboxFileUploadError`.
     3. Attempt to create a profile.
     4. Verify that the request fails with 500 Internal Server Error and no profile is created in the database.
     """
@@ -432,7 +432,7 @@ async def test_profile_creation_fails_on_s3_upload_error(
         "avatar": ("avatar.jpg", img_bytes, "image/jpeg"),
     }
 
-    with patch.object(s3_storage_fake, "upload_file", side_effect=S3FileUploadError("Simulated S3 failure")):
+    with patch.object(dropbox_storage_fake, "upload_file", side_effect=S3FileUploadError("Simulated Dropbox failure")):
         response = await client.post(profile_url, headers=headers, files=files)
 
     assert response.status_code == 500, f"Expected 500, got {response.status_code}"
@@ -443,7 +443,7 @@ async def test_profile_creation_fails_on_s3_upload_error(
     stmt_profile = select(UserProfileModel).where(UserProfileModel.user_id == user.id)
     result_profile = await db_session.execute(stmt_profile)
     profile_in_db = result_profile.scalars().first()
-    assert profile_in_db is None, "Profile should not be created when S3 upload fails!"
+    assert profile_in_db is None, "Profile should not be created when Dropbox upload fails!"
 
 
 @pytest.mark.asyncio

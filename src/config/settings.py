@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings
 
 class BaseAppSettings(BaseSettings):
     BASE_DIR: Path = Path(__file__).parent.parent
-    PATH_TO_DB: str = str(BASE_DIR / "database" / "source" / "theater.db")
+    PATH_TO_DB: str = str(BASE_DIR / "database" / "source" / "online_cinema.db")
     PATH_TO_MOVIES_CSV: str = str(BASE_DIR / "database" / "seed_data" / "imdb_movies.csv")
 
     PATH_TO_EMAIL_TEMPLATES_DIR: str = str(BASE_DIR / "notifications" / "templates")
@@ -26,11 +26,10 @@ class BaseAppSettings(BaseSettings):
     EMAIL_USE_TLS: bool = os.getenv("EMAIL_USE_TLS", "False").lower() == "true"
     MAILHOG_API_PORT: int = int(os.getenv("MAILHOG_API_PORT", 8025))
 
-    S3_STORAGE_HOST: str = os.getenv("MINIO_HOST", "minio-theater")
-    S3_STORAGE_PORT: int = int(os.getenv("MINIO_PORT", 9000))
-    S3_STORAGE_ACCESS_KEY: str = os.getenv("MINIO_ROOT_USER", "minioadmin")
-    S3_STORAGE_SECRET_KEY: str = os.getenv("MINIO_ROOT_PASSWORD", "some_password")
-    S3_BUCKET_NAME: str = os.getenv("MINIO_STORAGE", "online-cinema-storage")
+    DROPBOX_ACCESS_TOKEN: str = os.getenv("DROPBOX_ACCESS_TOKEN", "dropbox_access_token")
+    DROPBOX_REFRESH_TOKEN: str = os.getenv("DROPBOX_REFRESH_TOKEN", "dropbox_refresh_token")
+    DROPBOX_APP_KEY: str = os.getenv("DROPBOX_APP_KEY", "dropbox_app_key")
+    DROPBOX_APP_SECRET: str = os.getenv("DROPBOX_APP_SECRET", "dropbox_app_secret")
 
     CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
     CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
@@ -39,10 +38,6 @@ class BaseAppSettings(BaseSettings):
     STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "test_publishable_key")
     STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "test_webhook_secret")
     STRIPE_CURRENCY: str = os.getenv("STRIPE_CURRENCY", "usd")
-
-    @property
-    def S3_STORAGE_ENDPOINT(self) -> str:
-        return f"http://{self.S3_STORAGE_HOST}:{self.S3_STORAGE_PORT}"
 
 
 class Settings(BaseAppSettings):

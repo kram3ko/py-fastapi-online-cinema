@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi_pagination import add_pagination
 
 from routes.accounts import router as accounts_router
+from routes.index import router as index_router
 from routes.movies import router as movie_router
 from routes.orders import router as orders_router
 from routes.payments import router as payments_router
@@ -19,6 +20,6 @@ app.include_router(movie_router, prefix=f"{api_version_prefix}/online_cinema", t
 app.include_router(payments_router, prefix=f"{api_version_prefix}/payments", tags=["payments"])
 app.include_router(cart_router, prefix=f"{api_version_prefix}/cart", tags=["cart"])
 app.include_router(orders_router, prefix=f"{api_version_prefix}/orders", tags=["orders"])
-
+app.include_router(index_router, tags=["index"])
 
 add_pagination(app)

@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Union
 
 
-class S3StorageInterface(ABC):
+class StorageInterface(ABC):
+    """Base interface for all storage implementations"""
     @abstractmethod
     async def upload_file(self, file_name: str, file_data: Union[bytes, bytearray]) -> None:
         """
@@ -10,16 +11,33 @@ class S3StorageInterface(ABC):
 
         :param file_name: The name of the file to be stored.
         :param file_data: The file data in bytes.
-        :return: URL of the uploaded file.
         """
         pass
 
     @abstractmethod
     async def get_file_url(self, file_name: str) -> str:
         """
-        Generate a public URL for a file stored in the S3-compatible storage.
+        Generate a public URL for a file stored in the storage.
 
-        :param file_name: The name of the file stored in the bucket.
+        :param file_name: The name of the file stored.
         :return: The full URL to access the file.
         """
+        pass
+
+
+class S3StorageInterface(StorageInterface):
+    """Interface for S3-compatible storage implementations"""
+    async def upload_file(self, file_name: str, file_data: Union[bytes, bytearray]) -> None:
+        pass
+
+    async def get_file_url(self, file_name: str) -> str:
+        pass
+
+
+class DropboxStorageInterface(StorageInterface):
+    """Interface for Dropbox storage implementations"""
+    async def upload_file(self, file_name: str, file_data: Union[bytes, bytearray]) -> None:
+        pass
+
+    async def get_file_url(self, file_name: str) -> str:
         pass
