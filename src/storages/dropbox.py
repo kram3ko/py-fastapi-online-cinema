@@ -7,7 +7,13 @@ from storages.interfaces import DropboxStorageInterface
 
 
 class DropboxStorageClient(DropboxStorageInterface):
-    def __init__(self, access_token: str, app_key: str = None, app_secret: str = None, refresh_token: str = None):
+    def __init__(
+        self,
+        access_token: str | None,
+        app_key: str | None = None,
+        app_secret: str | None = None,
+        refresh_token: str | None = None
+    ):
         """
         Initialize the Dropbox Storage Client.
 
