@@ -1,3 +1,6 @@
+from datetime import datetime, timezone
+from typing import cast
+from fastapi.responses import JSONResponse
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -319,6 +322,49 @@ async def login_user(
         access_token=access_token,
         refresh_token=refresh_token,
     )
+
+
+@router.get(
+    "/logout/",
+    response_model=MessageResponseSchema,
+    summary="User Logout",
+    description="Logs out the user by clearing authentication cookies and deleting refresh tokens.",
+    status_code=status.HTTP_200_OK,
+)
+async def logout_user(
+    current_user: UserModel = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> JSONResponse:
+    """
+    Endpoint for user logout.
+
+    Logs out the authenticated user by clearing their authentication cookies and deleting
+    all associated refresh tokens from the database.
+
+    Args:
+        current_user (UserModel): The currently authenticated user.
+        db (AsyncSession): The asynchronous database session.
+
+    Returns:
+        JSONResponse: A success message indicating the user has been logged out.
+    """
+    await db.execute(delete(RefreshTokenModel).where(RefreshTokenModel.user_id == current_user.id))
+    await db.commit()
+
+    response = JSONResponse(
+        content={"message": "User logged out successfully."},
+        status_code=status.HTTP_200_OK,
+    )
+    response.set_cookie(
+        key="Authorization",
+        value="",
+        max_age=0,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+    )
+
+    return response
 
 
 @router.post(
