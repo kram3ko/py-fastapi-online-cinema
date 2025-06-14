@@ -8,28 +8,23 @@ templates = Jinja2Templates(directory="templates")
 
 @router.get("/", response_class=HTMLResponse)
 async def read_root(request: Request) -> HTMLResponse:
-    base_url = request.base_url
     hostname = request.url.hostname
-    scheme = request.url.scheme
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    base_url = request.base_url
 
-    def custom_url(port: int, path: str) -> str:
+    def correct_url(port: int, prefix: str) -> str:
         if hostname in {"127.0.0.1", "localhost"}:
             return f"{scheme}://{hostname}:{port}/"
-        return f"{base_url}{path}"
+        return f"{base_url}{prefix}"
 
     docs_url = f"{base_url}docs"
-    pgadmin_url = custom_url(3333, "pgadmin")
-    flower_url = custom_url(5540, "flower")
-    mailhog_url = custom_url(8025, "mailhog")
-    redisinsight_url = f"{scheme}://{hostname}:5540"
+    pgadmin_url = correct_url(3333, "pgadmin")
+    flower_url = correct_url(5555, "flower")
+    mailhog_url = correct_url(8025, "mailhog")
+    redisinsight_url = f"{scheme}://{hostname}:{5540}"
 
     return templates.TemplateResponse("index.html", {
         "request": request,
-        "member1": "Volodya Vinohradov",
-        "member2": "Krystya las_name",
-        "member3": "Bronn last_name",
-        "member4": "Happy last_name",
-        "member5": "Lebron last_name",
         "pgadmin_url": pgadmin_url,
         "flower": flower_url,
         "docs_url": docs_url,
