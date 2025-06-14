@@ -103,11 +103,6 @@ services:
     image: minio/minio:latest
     container_name: minio_online_cinema
     command: server --console-address ":9001" --address ":9000" /data
-    environment:
-      MINIO_BROWSER: "on"
-      MINIO_BROWSER_REDIRECT_URL: "https://kram3ko.run.place:5514"
-      MINIO_SERVER_URL: "https://kram3ko.run.place:5514"
-      MINIO_API_CORS_ALLOW_ORIGIN: "*"
     ports:
       - "9000:9000"
       - "9001:9001"
