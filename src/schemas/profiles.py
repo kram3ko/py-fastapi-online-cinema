@@ -1,8 +1,7 @@
 from datetime import date
 
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException, UploadFile, status
 from pydantic import BaseModel, ConfigDict, HttpUrl, ValidationInfo, field_validator
-from starlette import status
 
 from validation import validate_birth_date, validate_gender, validate_image, validate_name
 

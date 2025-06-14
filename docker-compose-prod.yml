@@ -69,7 +69,7 @@ services:
   migrator:
     build: .
     container_name: alembic_migrator_online_cinema
-    command: ["/bin/bash", "/commands/run_migration.sh"]
+    command: [ "/bin/bash", "/commands/run_migration.sh" ]
     depends_on:
       db:
         condition: service_healthy
@@ -88,7 +88,7 @@ services:
       context: .
       dockerfile: ./docker/mailhog/Dockerfile
     container_name: mailhog_online_cinema
-    command: ["/bin/bash", "-c", "/commands/setup_mailhog_auth.sh && ~/go/bin/MailHog"]
+    command: [ "/bin/bash", "-c", "/commands/setup_mailhog_auth.sh && ~/go/bin/MailHog" ]
     ports:
       - "8025:8025"
       - "1025:1025"
@@ -108,7 +108,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "5513:5513"
+      - "5540:5540"
     volumes:
       - ./configs/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
@@ -196,8 +196,8 @@ services:
   redisinsight:
     image: redislabs/redisinsight:latest
     container_name: redisinsight_online_cinema
-    ports:
-      - "5540:5540"
+    expose:
+      - 5540
     depends_on:
       - redis
     restart: always
