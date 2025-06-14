@@ -4,15 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.dependencies import get_current_user, require_admin
 from crud import orders as order_crud
 from crud import shopping_cart as cart_crud
-from crud.shopping_cart import (
+from database.deps import get_db
+from database.models.accounts import UserModel
+from exceptions.shopping_cart import (
     CartNotFoundError,
     MovieAlreadyInCartError,
     MovieAlreadyPurchasedError,
     MovieNotFoundError,
     MovieNotInCartError,
 )
-from database.deps import get_db
-from database.models.accounts import UserModel
 from schemas.accounts import MessageResponseSchema
 from schemas.orders import OrderResponse
 from schemas.shopping_cart import (

@@ -17,15 +17,8 @@ from database.models.payments import (
 from database.models.shopping_cart import Cart, CartItem
 
 
-async def create_order_from_cart(user_id: int, db: AsyncSession) -> OrderModel:
-    """
-    Creates a new order for a user based on their current shopping cart.
-    Handles movie availability, purchased movies, and pending orders.
-
-    Raises:
-        HTTPException: If the cart is empty, or if no valid movies can be added to the order.
-    """
-    # Retrieve the user's cart and its items
+async def get_user_cart_with_items(user_id: int, db: AsyncSession) -> Cart:
+    """Get user's cart with its items and movies."""
     cart_result = await db.execute(
         select(Cart)
         .where(Cart.user_id == user_id)
@@ -38,9 +31,11 @@ async def create_order_from_cart(user_id: int, db: AsyncSession) -> OrderModel:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Your cart is empty.",
         )
+    return cart
 
-    movie_ids_in_cart = {item.movie_id for item in cart.items}
 
+async def get_purchased_movie_ids(user_id: int, db: AsyncSession) -> set[int]:
+    """Get set of movie IDs that user has already purchased."""
     purchased_query = await db.execute(
         select(OrderItemModel.movie_id)
         .join(OrderModel)
@@ -49,8 +44,11 @@ async def create_order_from_cart(user_id: int, db: AsyncSession) -> OrderModel:
             OrderModel.status == OrderStatus.PAID,
         )
     )
-    purchased_movie_ids = {row[0] for row in purchased_query.all()}
+    return {row[0] for row in purchased_query.all()}
 
+
+async def get_pending_movie_ids(user_id: int, db: AsyncSession) -> set[int]:
+    """Get set of movie IDs that are in user's pending orders."""
     pending_query = await db.execute(
         select(OrderItemModel.movie_id)
         .join(OrderModel)
@@ -59,7 +57,70 @@ async def create_order_from_cart(user_id: int, db: AsyncSession) -> OrderModel:
             OrderModel.status == OrderStatus.PENDING,
         )
     )
-    pending_movie_ids = {row[0] for row in pending_query.all()}
+    return {row[0] for row in pending_query.all()}
+
+
+async def process_cart_items(
+    cart: Cart,
+    purchased_movie_ids: set[int],
+    pending_movie_ids: set[int],
+    order_id: int,
+) -> tuple[list[OrderItemModel], list[dict], float]:
+    """Process cart items and create order items."""
+    order_items_to_add = []
+    excluded_movies_details = []
+    total_amount = 0.0
+
+    for item in cart.items:
+        if item.movie_id in purchased_movie_ids:
+            excluded_movies_details.append({
+                "movie_id": item.movie_id,
+                "title": item.movie.name,
+                "reason": "Already purchased",
+            })
+            continue
+
+        if item.movie_id in pending_movie_ids:
+            excluded_movies_details.append({
+                "movie_id": item.movie_id,
+                "title": item.movie.name,
+                "reason": "Already in a pending order",
+            })
+            continue
+
+        order_item = OrderItemModel(
+            order_id=order_id,
+            movie_id=item.movie_id,
+            price_at_order=item.movie.price,
+        )
+        order_items_to_add.append(order_item)
+        total_amount += float(item.movie.price)
+
+    return order_items_to_add, excluded_movies_details, total_amount
+
+
+async def clear_cart_items(cart: Cart, db: AsyncSession) -> None :
+    """Clear all items from the cart."""
+    for item in cart.items:
+        await db.delete(item)
+    await db.commit()
+
+
+async def create_order_from_cart(user_id: int, db: AsyncSession) -> OrderModel:
+    """
+    Creates a new order for a user based on their current shopping cart.
+    Handles movie availability, purchased movies, and pending orders.
+
+    Raises:
+        HTTPException: If the cart is empty, or if no valid movies can be added to the order.
+    """
+
+    # Get cart and validate
+    cart = await get_user_cart_with_items(user_id, db)
+
+    # Get purchased and pending movies
+    purchased_movie_ids = await get_purchased_movie_ids(user_id, db)
+    pending_movie_ids = await get_pending_movie_ids(user_id, db)
 
     # Create new order
     new_order = OrderModel(user_id=user_id)
@@ -67,38 +128,9 @@ async def create_order_from_cart(user_id: int, db: AsyncSession) -> OrderModel:
     await db.flush()
 
     # Process cart items
-    order_items_to_add = []
-    excluded_movies_details = []
-    total_amount = 0.0
-
-    for item in cart.items:
-        if item.movie_id in purchased_movie_ids:
-            excluded_movies_details.append(
-                {
-                    "movie_id": item.movie_id,
-                    "title": item.movie.name,
-                    "reason": "Already purchased",
-                }
-            )
-            continue
-
-        if item.movie_id in pending_movie_ids:
-            excluded_movies_details.append(
-                {
-                    "movie_id": item.movie_id,
-                    "title": item.movie.name,
-                    "reason": "Already in a pending order",
-                }
-            )
-            continue
-
-        order_item = OrderItemModel(
-            order_id=new_order.id,
-            movie_id=item.movie_id,
-            price_at_order=item.movie.price,
-        )
-        order_items_to_add.append(order_item)
-        total_amount += float(item.movie.price)
+    order_items_to_add, excluded_movies_details, total_amount = await process_cart_items(
+        cart, purchased_movie_ids, pending_movie_ids, new_order.id
+    )
 
     if not order_items_to_add:
         await db.rollback()
@@ -109,27 +141,23 @@ async def create_order_from_cart(user_id: int, db: AsyncSession) -> OrderModel:
             status_code=status.HTTP_400_BAD_REQUEST, detail=detail_msg
         )
 
+    # Add order items and update total
     db.add_all(order_items_to_add)
     new_order.total_amount = total_amount
     await db.commit()
 
-    for item in cart.items:
-        if item.movie_id in movie_ids_in_cart:
-            await db.delete(item)
-    await db.commit()
+    # Clear cart
+    await clear_cart_items(cart, db)
 
     if excluded_movies_details:
-        print(
-            f"Warning: Some movies were excluded from the order: {excluded_movies_details}"
-        )
+        print(f"Warning: Some movies were excluded from the order: {excluded_movies_details}")
 
+    # Return complete order with relationships
     result = await db.execute(
         select(OrderModel)
         .where(OrderModel.id == new_order.id)
         .options(
-            selectinload(OrderModel.order_items).selectinload(
-                OrderItemModel.movie
-            ),
+            selectinload(OrderModel.order_items).selectinload(OrderItemModel.movie),
             selectinload(OrderModel.user).selectinload(UserModel.profile),
         )
     )
@@ -144,9 +172,7 @@ async def get_user_orders(user_id: int, db: AsyncSession) -> list[OrderModel]:
         select(OrderModel)
         .where(OrderModel.user_id == user_id)
         .options(
-            selectinload(OrderModel.order_items).selectinload(
-                OrderItemModel.movie
-            ),
+            selectinload(OrderModel.order_items).selectinload(OrderItemModel.movie),
             selectinload(OrderModel.user).selectinload(UserModel.profile),
         )
         .order_by(OrderModel.created_at.desc())
@@ -187,9 +213,7 @@ async def cancel_order(
     Cancels an order (updates its status to CANCELED).
     Raises HTTPException if order not found, already paid/canceled.
     """
-    order = await get_order_detail(
-        db, order_id, user_id
-    )  # Reuse function for fetching and access check
+    order = await get_order_detail(db, order_id, user_id)
 
     if order.status == OrderStatus.PAID:
         raise HTTPException(
@@ -218,14 +242,11 @@ async def process_order_payment(
     Raises:
         HTTPException: If the order is already paid, canceled, or a movie is unavailable.
     """
-
     result = await db.execute(
         select(OrderModel)
         .where(OrderModel.id == order_id, OrderModel.user_id == user_id)
         .options(
-            selectinload(OrderModel.order_items).selectinload(
-                OrderItemModel.movie
-            ),
+            selectinload(OrderModel.order_items).selectinload(OrderItemModel.movie),
             selectinload(OrderModel.user).selectinload(UserModel.profile),
         )
     )
@@ -289,9 +310,7 @@ async def process_order_payment(
         select(OrderModel)
         .where(OrderModel.id == order.id)
         .options(
-            selectinload(OrderModel.order_items).selectinload(
-                OrderItemModel.movie
-            ),
+            selectinload(OrderModel.order_items).selectinload(OrderItemModel.movie),
             selectinload(OrderModel.user).selectinload(UserModel.profile),
         )
     )
