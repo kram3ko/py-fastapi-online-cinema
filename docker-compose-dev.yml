@@ -107,7 +107,7 @@ services:
     command: server --console-address ":9001" /data
     ports:
       - "9000:9000"
-      - "9001:9001"
+      - "5514:9001"
     env_file:
       - .env
     volumes:
@@ -191,7 +191,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: flower_online_cinema
-    command: celery -A scheduler.celery_app flower --address=0.0.0.0 --url-prefix=/flower
+    command: celery -A scheduler.celery_app flower --address=0.0.0.0
     ports:
       - "5555:5555"
     env_file:

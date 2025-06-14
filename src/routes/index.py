@@ -22,6 +22,7 @@ async def read_root(request: Request) -> HTMLResponse:
     flower_url = correct_url(5555, "flower")
     mailhog_url = correct_url(8025, "mailhog")
     redisinsight_url = f"{scheme}://{hostname}:{5540}"
+    minio_url = f"{scheme}://{hostname}:{5514}"
 
     return templates.TemplateResponse("index.html", {
         "request": request,
@@ -30,4 +31,5 @@ async def read_root(request: Request) -> HTMLResponse:
         "docs_url": docs_url,
         "mailhog_url": mailhog_url,
         "redisinsight_url": redisinsight_url,
+        "minio_url": minio_url
     })
