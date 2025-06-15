@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -21,12 +22,14 @@ from schemas.payments import (
 )
 from services.stripe_service import StripeService, stripe_settings
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["payments"])
 
 
 @router.post("/create-intent", response_model=dict)
 async def create_payment_intent(
     payment_data: PaymentCreateSchema,
+    request: Request,
     current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
@@ -38,7 +41,7 @@ async def create_payment_intent(
 
     try:
         payment = await create_payment(payment_data, current_user.id, db)
-        intent_data = await StripeService.create_payment_intent(payment_data)
+        intent_data = await StripeService.create_payment_intent(payment_data, request)
         payment.external_payment_id = intent_data["payment_intent_id"]
         await db.commit()
 
@@ -60,14 +63,18 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -
     try:
         payload = await request.body()
         sig_header = request.headers.get("stripe-signature")
+        
+        logger.info(f"Received webhook with signature: {sig_header}")
 
         if not sig_header:
+            logger.error("No Stripe signature found in webhook")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No Stripe signature found"
             )
 
         webhook_data = await StripeService.handle_webhook(payload, sig_header)
+        logger.info(f"Processed webhook data: {webhook_data}")
 
         if webhook_data:
             result = await db.execute(
@@ -80,10 +87,20 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -
             if payment:
                 payment.status = webhook_data["status"]
                 await db.commit()
+                logger.info(f"Updated payment {payment.id} status to {webhook_data['status']}")
+            else:
+                logger.warning(f"Payment not found for external_id: {webhook_data['external_payment_id']}")
 
         return {"status": "success"}
     except SQLAlchemyError as e:
+        logger.error(f"Database error in webhook: {str(e)}")
         await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error in webhook: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
