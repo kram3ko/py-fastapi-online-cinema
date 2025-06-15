@@ -22,7 +22,6 @@ class PaymentStatusSchema(str, Enum):
 
 class PaymentCreateSchema(BaseModel):
     order_id: int
-    amount: Decimal
 
 
 class PaymentUpdateSchema(BaseModel):

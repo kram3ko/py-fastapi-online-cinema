@@ -1,5 +1,5 @@
-from datetime import datetime
 import logging
+from datetime import datetime
 
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -12,15 +12,15 @@ from sqlalchemy.orm import selectinload
 from config.dependencies import get_current_user, require_admin
 from crud.payments import create_payment, get_payment_by_id
 from database.deps import get_db
-from database.models import UserModel
-from database.models.payments import PaymentModel, PaymentStatus
+from database.models import UserModel, OrderItemModel
+from database.models.payments import PaymentModel, PaymentStatus, PaymentItemModel
 from schemas.payments import (
     PaymentBaseSchema,
     PaymentCreateSchema,
     PaymentListSchema,
     PaymentStatusSchema,
 )
-from services.stripe_service import StripeService, stripe_settings
+from services.stripe_service import StripeService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["payments"])
@@ -33,15 +33,9 @@ async def create_payment_intent(
     current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    if payment_data.amount <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Payment amount must be greater than 0"
-        )
-
     try:
         payment = await create_payment(payment_data, current_user.id, db)
-        intent_data = await StripeService.create_payment_intent(payment_data, request)
+        intent_data = await StripeService.create_payment_intent(payment_data, request, db)
         payment.external_payment_id = intent_data["payment_intent_id"]
         await db.commit()
 
@@ -63,7 +57,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -
     try:
         payload = await request.body()
         sig_header = request.headers.get("stripe-signature")
-        
+
         logger.info(f"Received webhook with signature: {sig_header}")
 
         if not sig_header:
@@ -118,7 +112,7 @@ async def get_payment_history(
         select(PaymentModel)
         .where(PaymentModel.user_id == current_user.id)
         .options(
-            selectinload(PaymentModel.payment_items),
+            selectinload(PaymentModel.payment_items).selectinload(PaymentItemModel.order_item).selectinload(OrderItemModel.movie),
             selectinload(PaymentModel.order)
         )
         .order_by(PaymentModel.created_at.desc())

@@ -4,7 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from database.models.payments import PaymentModel
+from database.models.payments import PaymentModel, PaymentItemModel
+from database.models.orders import OrderModel, OrderItemModel
 from schemas.payments import PaymentCreateSchema, PaymentStatusSchema, PaymentUpdateSchema
 
 
@@ -14,13 +15,40 @@ async def create_payment(
     db: AsyncSession
 ) -> PaymentModel:
     try:
+        # Get order with items
+        result = await db.execute(
+            select(OrderModel)
+            .where(OrderModel.id == payment.order_id)
+            .options(selectinload(OrderModel.order_items))
+        )
+        order = result.scalar_one_or_none()
+        if not order:
+            raise ValueError("Order not found")
+
+        # Calculate total amount from order items
+        total_amount = sum(float(item.price_at_order) for item in order.order_items)
+
+        # Create payment
         payment_data = payment.model_dump()
         payment_data["user_id"] = user_id
+        payment_data["amount"] = total_amount
         db_payment = PaymentModel(**payment_data)
         db.add(db_payment)
         await db.flush()
-        await db.refresh(db_payment)
+
+        # Create payment items
+        payment_items = []
+        for item in order.order_items:
+            payment_item = PaymentItemModel(
+                payment_id=db_payment.id,
+                order_item_id=item.id,
+                price_at_payment=item.price_at_order
+            )
+            payment_items.append(payment_item)
+        db.add_all(payment_items)
+
         await db.commit()
+        await db.refresh(db_payment)
         return db_payment
     except Exception as e:
         await db.rollback()
@@ -90,12 +118,11 @@ async def get_all_payments(
 
 
 async def get_payment_by_id(payment_id: int, db: AsyncSession) -> PaymentModel | None:
-
     result = await db.execute(
         select(PaymentModel)
         .where(PaymentModel.id == payment_id)
         .options(
-            selectinload(PaymentModel.payment_items),
+            selectinload(PaymentModel.payment_items).selectinload(PaymentItemModel.order_item).selectinload(OrderItemModel.movie),
             selectinload(PaymentModel.user),
             selectinload(PaymentModel.order)
         )

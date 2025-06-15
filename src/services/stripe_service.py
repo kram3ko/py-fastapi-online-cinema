@@ -3,21 +3,49 @@ from typing import Optional
 
 import stripe
 from fastapi import HTTPException, status, Request
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from config import get_settings
 from services.stripe_events import STRIPE_EVENT_HANDLERS
 from database.models.payments import PaymentModel
+from database.models.orders import OrderModel, OrderItemModel
 from schemas.payments import PaymentCreateSchema
 
 stripe_settings = get_settings()
 
 class StripeService:
     @staticmethod
-    async def create_payment_intent(payment_data: PaymentCreateSchema, request: Request) -> dict:
+    async def create_payment_intent(payment_data: PaymentCreateSchema, request: Request, db) -> dict:
         try:
-            amount_cents = int(payment_data.amount * 100)
-            
-            # Get base URL from request
+            result = await db.execute(
+                select(OrderModel)
+                .where(OrderModel.id == payment_data.order_id)
+                .options(
+                    selectinload(OrderModel.order_items).selectinload(OrderItemModel.movie)
+                )
+            )
+            order = result.scalar_one_or_none()
+            if not order:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Order not found"
+                )
+
+            line_items = []
+            for item in order.order_items:
+                line_items.append({
+                    "price_data": {
+                        "currency": stripe_settings.STRIPE_CURRENCY,
+                        "product_data": {
+                            "name": item.movie.name,
+                            "description": f"Year: {item.movie.year}, Price: {item.price_at_order}",
+                        },
+                        "unit_amount": int(item.price_at_order * 100),
+                    },
+                    "quantity": 1,
+                })
+
             base_url = request.base_url
             success_url = f"{base_url}api/v1/payments/success/?session_id={{CHECKOUT_SESSION_ID}}"
             cancel_url = f"{base_url}api/v1/payments/cancel/?session_id={{CHECKOUT_SESSION_ID}}"
@@ -25,16 +53,7 @@ class StripeService:
             session = stripe.checkout.Session.create(
                 api_key=stripe_settings.STRIPE_SECRET_KEY,
                 payment_method_types=["card"],
-                line_items=[{
-                    "price_data": {
-                        "currency": stripe_settings.STRIPE_CURRENCY,
-                        "product_data": {
-                            "name": f"Order #{payment_data.order_id}",
-                        },
-                        "unit_amount": amount_cents,
-                    },
-                    "quantity": 1,
-                }],
+                line_items=line_items,
                 mode="payment",
                 success_url=success_url,
                 cancel_url=cancel_url,
