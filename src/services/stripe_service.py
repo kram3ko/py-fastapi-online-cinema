@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Optional
 
 import stripe
@@ -9,18 +9,22 @@ from sqlalchemy.orm import selectinload
 from config import get_settings
 from services.stripe_events import STRIPE_EVENT_HANDLERS
 from database.models.payments import PaymentModel
-from database.models.orders import OrderModel, OrderItemModel
-from schemas.payments import PaymentCreateSchema
+from database.models.orders import OrderModel, OrderItemModel, OrderStatus
+from schemas.payments import PaymentCreateSchema, PaymentIntentResponse
 
 stripe_settings = get_settings()
 
 class StripeService:
     @staticmethod
-    async def create_payment_intent(payment_data: PaymentCreateSchema, request: Request, db) -> dict:
+    async def create_payment_intent(payment_data: PaymentCreateSchema, request: Request, db, user_id: int) -> PaymentIntentResponse:
         try:
             result = await db.execute(
                 select(OrderModel)
-                .where(OrderModel.id == payment_data.order_id)
+                .where(
+                    OrderModel.id == payment_data.order_id,
+                    OrderModel.user_id == user_id,
+                    OrderModel.status == OrderStatus.PENDING
+                )
                 .options(
                     selectinload(OrderModel.order_items).selectinload(OrderItemModel.movie)
                 )
@@ -29,26 +33,28 @@ class StripeService:
             if not order:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Order not found"
+                    detail="Order not found or not available for payment"
                 )
 
-            line_items = []
-            for item in order.order_items:
-                line_items.append({
+            total_amount = sum(item.price_at_order for item in order.order_items)
+            line_items = [
+                {
                     "price_data": {
                         "currency": stripe_settings.STRIPE_CURRENCY,
                         "product_data": {
                             "name": item.movie.name,
-                            "description": f"Year: {item.movie.year}, Price: {item.price_at_order}",
                         },
-                        "unit_amount": int(item.price_at_order * 100),
+                        "unit_amount": int(item.price_at_order * 100),  # Convert to cents
                     },
                     "quantity": 1,
-                })
+                }
+                for item in order.order_items
+            ]
 
-            base_url = request.base_url
-            success_url = f"{base_url}api/v1/payments/success/?session_id={{CHECKOUT_SESSION_ID}}"
-            cancel_url = f"{base_url}api/v1/payments/cancel/?session_id={{CHECKOUT_SESSION_ID}}"
+            base_url = str(request.base_url)
+            success_url = f"{base_url}api/v1/payments/success?payment_intent={{CHECKOUT_SESSION_ID}}"
+            cancel_url = f"{base_url}api/v1/payments/cancel?payment_intent={{CHECKOUT_SESSION_ID}}"
+
 
             session = stripe.checkout.Session.create(
                 api_key=stripe_settings.STRIPE_SECRET_KEY,
@@ -60,13 +66,19 @@ class StripeService:
                 metadata={
                     "order_id": payment_data.order_id,
                 },
-                expires_at=int((datetime.now() + timedelta(minutes=30)).timestamp())
+                payment_intent_data={
+                    "metadata": {
+                        "order_id": payment_data.order_id,
+                    }
+                }
             )
 
-            return {
-                "payment_url": session.url,
-                "payment_intent_id": session.payment_intent if session.payment_intent else session.id
-            }
+            return PaymentIntentResponse(
+                payment_url=session.url,
+                payment_id=payment_data.order_id,
+                external_payment_id=str(session.payment_intent),
+                amount=Decimal(total_amount)
+            )
         except stripe.error.StripeError as e:  # type: ignore[attr-defined]
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
