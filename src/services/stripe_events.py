@@ -15,7 +15,7 @@ class StripeEventType:
 def handle_checkout_session_completed(event_data: Dict[str, Any]) -> Dict[str, Any]:
     session = event_data.object
     return {
-        "external_payment_id": session.id,
+        "external_payment_id": session.payment_intent,
         "status": PaymentStatus.SUCCESSFUL,
         "amount": Decimal(session.amount_total) / 100,
         "order_id": session.metadata.get("order_id")
@@ -25,7 +25,7 @@ def handle_checkout_session_completed(event_data: Dict[str, Any]) -> Dict[str, A
 def handle_checkout_session_expired(event_data: Dict[str, Any]) -> Dict[str, Any]:
     session = event_data.object
     return {
-        "external_payment_id": session.id,
+        "external_payment_id": session.payment_intent,
         "status": PaymentStatus.CANCELED,
         "amount": Decimal(session.amount_total) / 100,
         "order_id": session.metadata.get("order_id")
