@@ -19,6 +19,10 @@ from schemas.payments import (
     PaymentCreateSchema,
     PaymentListSchema,
     PaymentStatusSchema,
+    PaymentIntentResponse,
+    WebhookResponse,
+    PaymentStatisticsResponse,
+    RefundResponse,
 )
 from services.stripe_service import StripeService
 
@@ -26,24 +30,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["payments"])
 
 
-@router.post("/create-intent", response_model=dict)
+@router.post("/create-intent", response_model=PaymentIntentResponse)
 async def create_payment_intent(
     payment_data: PaymentCreateSchema,
     request: Request,
     current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> PaymentIntentResponse:
     try:
         payment = await create_payment(payment_data, current_user.id, db)
         intent_data = await StripeService.create_payment_intent(payment_data, request, db)
         payment.external_payment_id = intent_data["payment_intent_id"]
         await db.commit()
 
-        return {
-            "payment_url": intent_data["payment_url"],
-            "payment_id": payment.id,
-            "external_payment_id": intent_data["payment_intent_id"]
-        }
+        return PaymentIntentResponse(
+            payment_url=intent_data["payment_url"],
+            payment_id=payment.id,
+            external_payment_id=intent_data["payment_intent_id"]
+        )
     except SQLAlchemyError as e:
         await db.rollback()
         raise HTTPException(
@@ -52,8 +56,8 @@ async def create_payment_intent(
         )
 
 
-@router.post("/webhook")
-async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
+@router.post("/webhook", response_model=WebhookResponse)
+async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> WebhookResponse:
     try:
         payload = await request.body()
         sig_header = request.headers.get("stripe-signature")
@@ -85,7 +89,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -
             else:
                 logger.warning(f"Payment not found for external_id: {webhook_data['external_payment_id']}")
 
-        return {"status": "success"}
+        return WebhookResponse()
     except SQLAlchemyError as e:
         logger.error(f"Database error in webhook: {str(e)}")
         await db.rollback()
@@ -179,13 +183,13 @@ async def admin_get_payments(
     )
 
 
-@router.get("/admin/statistics")
+@router.get("/admin/statistics", response_model=PaymentStatisticsResponse)
 async def get_payment_statistics(
     is_admin: bool = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
     start_date: datetime | None = None,
     end_date: datetime | None = None,
-) -> dict:
+) -> PaymentStatisticsResponse:
     if not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -206,21 +210,21 @@ async def get_payment_statistics(
     successful_payments = sum(1 for p in payments if p.status == PaymentStatus.SUCCESSFUL)
     refunded_payments = sum(1 for p in payments if p.status == PaymentStatus.REFUNDED)
 
-    return {
-        "total_amount": total_amount,
-        "total_payments": len(payments),
-        "successful_payments": successful_payments,
-        "refunded_payments": refunded_payments,
-        "success_rate": (successful_payments / len(payments)) * 100 if payments else 0
-    }
+    return PaymentStatisticsResponse(
+        total_amount=total_amount,
+        total_payments=len(payments),
+        successful_payments=successful_payments,
+        refunded_payments=refunded_payments,
+        success_rate=(successful_payments / len(payments)) * 100 if payments else 0
+    )
 
 
-@router.post("/{payment_id}/refund")
+@router.post("/{payment_id}/refund", response_model=RefundResponse)
 async def refund_payment(
     payment_id: int,
     is_admin: bool = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> RefundResponse:
     if not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -245,7 +249,7 @@ async def refund_payment(
         if success:
             payment.status = PaymentStatus.REFUNDED
             await db.commit()
-            return {"status": "refunded"}
+            return RefundResponse()
 
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

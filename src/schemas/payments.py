@@ -24,6 +24,14 @@ class PaymentCreateSchema(BaseModel):
     order_id: int
 
 
+class PaymentIntentResponse(BaseModel):
+    payment_url: str
+    payment_id: int
+    external_payment_id: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class PaymentUpdateSchema(BaseModel):
     status: Optional[PaymentStatusSchema] = None
     external_payment_id: Optional[str] = None
@@ -59,3 +67,19 @@ class AdminPaymentFilter(BaseModel):
     end_date: Optional[datetime] = None
     skip: int = 0
     limit: int = 10
+
+
+class WebhookResponse(BaseModel):
+    status: str = "success"
+
+
+class PaymentStatisticsResponse(BaseModel):
+    total_amount: Decimal
+    total_payments: int
+    successful_payments: int
+    refunded_payments: int
+    success_rate: float
+
+
+class RefundResponse(BaseModel):
+    status: str = "refunded"
