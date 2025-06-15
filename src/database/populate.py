@@ -1,6 +1,7 @@
 import asyncio
 import math
 import uuid
+from decimal import Decimal
 
 import pandas as pd
 from sqlalchemy import insert, select
@@ -10,8 +11,10 @@ from tqdm import tqdm
 
 from config import get_settings
 from database.deps import get_db_contextmanager
-from database.models.accounts import UserGroupEnum, UserGroupModel
+from database.models.accounts import UserGroupEnum, UserGroupModel, UserModel
 from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
+from database.models.orders import OrderModel, OrderItemModel, OrderStatus
+from database.models.shopping_cart import Cart, CartItem
 
 CHUNK_SIZE = 1000
 
@@ -89,6 +92,9 @@ class CSVDatabaseSeeder:
         print("Movies seeded successfully.")
 
     def _preprocess_csv(self) -> pd.DataFrame:
+        """
+        Preprocesses CSV data to ensure correct data types and formats.
+        """
         data = pd.read_csv(self._csv_file_path)
 
         # Ensure all required columns are present
@@ -137,24 +143,15 @@ class CSVDatabaseSeeder:
         print(f"CSV file saved to {self._csv_file_path}")
         return data
 
-    async def _seed_user_groups(self) -> None:
-        """
-        Seeds user groups from enums.
-        """
-        # Get group names from enum
-        group_names = [group.value for group in UserGroupEnum]
-
-        # Use _get_or_create_bulk to handle existing groups
-        await self._get_or_create_bulk(UserGroupModel, group_names, "name")
-        await self._db_session.flush()
-        print("User groups seeded successfully.")
-
     async def _get_or_create_bulk(self, model, items: list[str], unique_field: str) -> dict[str, object]:
+        """
+        Gets or creates multiple records in bulk.
+        """
         existing_dict: dict[str, object] = {}
 
         if items:
             for i in range(0, len(items), CHUNK_SIZE):
-                chunk_str: list[str] = items[i : i + CHUNK_SIZE]
+                chunk_str: list[str] = items[i: i + CHUNK_SIZE]
                 result = await self._db_session.execute(
                     select(model).where(getattr(model, unique_field).in_(chunk_str))
                 )
@@ -168,12 +165,12 @@ class CSVDatabaseSeeder:
 
         if new_records:
             for i in range(0, len(new_records), CHUNK_SIZE):
-                chunk_dict: list[dict[str, str]] = new_records[i : i + CHUNK_SIZE]
+                chunk_dict: list[dict[str, str]] = new_records[i: i + CHUNK_SIZE]
                 await self._db_session.execute(insert(model).values(chunk_dict))
                 await self._db_session.flush()
 
             for i in range(0, len(new_items), CHUNK_SIZE):
-                chunk_str_new: list[str] = new_items[i : i + CHUNK_SIZE]
+                chunk_str_new: list[str] = new_items[i: i + CHUNK_SIZE]
                 result_new = await self._db_session.execute(
                     select(model).where(getattr(model, unique_field).in_(chunk_str_new))
                 )
@@ -185,6 +182,9 @@ class CSVDatabaseSeeder:
         return existing_dict
 
     async def _bulk_insert(self, table, data_list: list[dict[str, int]]) -> None:
+        """
+        Inserts multiple records in bulk.
+        """
         total_records = len(data_list)
         if total_records == 0:
             return
@@ -202,6 +202,9 @@ class CSVDatabaseSeeder:
         await self._db_session.flush()
 
     async def _prepare_reference_data(self, data: pd.DataFrame) -> dict[str, object]:
+        """
+        Prepares reference data for bulk operations.
+        """
         stars = {star.strip() for stars_ in data["stars"].dropna() for star in stars_.split(",") if star.strip()}
         star_map = await self._get_or_create_bulk(StarModel, list(stars), "name")
         return star_map
@@ -212,6 +215,9 @@ class CSVDatabaseSeeder:
         movie_ids: list[int],
         star_map: dict[str, StarModel],
     ) -> list[dict[str, int]]:
+        """
+        Prepares association data for bulk operations.
+        """
         movie_stars_data: list[dict[str, int]] = []
 
         for i, (_, row) in enumerate(tqdm(data.iterrows(), total=data.shape[0], desc="Processing associations")):
@@ -225,6 +231,9 @@ class CSVDatabaseSeeder:
         return movie_stars_data
 
     def _prepare_movies_data(self, data: pd.DataFrame) -> list[dict[str, int | str]]:
+        """
+        Prepares movie data for bulk operations.
+        """
         movies_data: list[dict[str, int | str]] = []
         for _, row in data.iterrows():
             movies_data.append(
@@ -238,16 +247,130 @@ class CSVDatabaseSeeder:
             )
         return movies_data
 
+    async def _seed_orders_from_csv(self) -> None:
+        """
+        Seeds orders from CSV file.
+        """
+        data = pd.read_csv("database/seed_data/orders.csv")
+
+        # Get all existing movie IDs
+        result = await self._db_session.execute(select(MovieModel.id))
+        existing_movie_ids = {row[0] for row in result.all()}
+
+        for _, row in data.iterrows():
+            movie_id = int(row["movie_id"])
+            # Skip if movie doesn't exist
+            if movie_id not in existing_movie_ids:
+                continue
+
+            # Create order
+            order = OrderModel(
+                user_id=int(row["user_id"]),
+                status=OrderStatus[row["status"].upper()],
+                total_amount=Decimal(str(row["price_at_order"]))
+            )
+            self._db_session.add(order)
+            await self._db_session.flush()  # To get order.id
+
+            # Create order item
+            order_item = OrderItemModel(
+                order_id=order.id,
+                movie_id=movie_id,
+                price_at_order=Decimal(str(row["price_at_order"]))
+            )
+            self._db_session.add(order_item)
+
+        await self._db_session.commit()
+        print("Orders seeded successfully.")
+
+    async def _seed_carts_from_csv(self) -> None:
+        """
+        Seeds shopping carts from CSV file.
+        """
+        # Create carts for users
+        for user_id in range(1, 6):  # For users 1 through 5
+            cart = Cart(user_id=user_id)
+            self._db_session.add(cart)
+        await self._db_session.commit()
+        print("Carts created successfully.")
+
+        # Read cart data from CSV
+        data = pd.read_csv("database/seed_data/carts.csv")
+
+        # Get all existing movie IDs
+        result = await self._db_session.execute(select(MovieModel.id))
+        existing_movie_ids = {row[0] for row in result.all()}
+
+        for _, row in data.iterrows():
+            movie_id = int(row["movie_id"])
+            # Skip if movie doesn't exist
+            if movie_id not in existing_movie_ids:
+                continue
+
+            # Add movie to user's cart
+            result = await self._db_session.execute(
+                select(Cart).where(Cart.user_id == int(row["user_id"]))
+            )
+            cart = result.scalar_one_or_none()
+            if cart:
+                cart_item = CartItem(cart_id=cart.id, movie_id=movie_id)
+                self._db_session.add(cart_item)
+
+        await self._db_session.commit()
+        print("Cart items added successfully.")
+
+    async def _seed_user_groups(self) -> None:
+        """
+        Seeds user groups from enums.
+        """
+        # Get group names from enum
+        group_names = [group.value for group in UserGroupEnum]
+
+        # Use _get_or_create_bulk to handle existing groups
+        await self._get_or_create_bulk(UserGroupModel, group_names, "name")
+        await self._db_session.flush()
+        print("User groups seeded successfully.")
+
+    async def _seed_test_users(self) -> None:
+        """
+        Seeds test users.
+        """
+        # Create test users
+        test_users = [
+            {
+                "email": f"user{i}@example.com",
+                "password": "Password123!",
+                "is_active": True,
+                "group_id": 1
+            }
+            for i in range(1, 6)
+        ]
+
+        for user_data in test_users:
+            user = UserModel.create(
+                email=user_data["email"],
+                raw_password=user_data["password"],
+                group_id=user_data["group_id"]
+            )
+            user.is_active = user_data["is_active"]
+            self._db_session.add(user)
+
+        await self._db_session.commit()
+        print("Test users created successfully.")
+
     async def seed(self) -> None:
         try:
             if self._db_session.in_transaction():
                 print("Rolling back existing transaction.")
                 await self._db_session.rollback()
 
+            print("\nStarting database seeding...")
             await self._seed_user_groups()
+            await self._seed_test_users()
             await self._seed_movies_from_csv()
+            await self._seed_carts_from_csv()
+            await self._seed_orders_from_csv()
             await self._db_session.commit()
-            print("Seeding completed.")
 
         except SQLAlchemyError as e:
             print(f"An error occurred: {e}")

@@ -291,9 +291,11 @@ async def get_payment_details(
 
 @router.get("/success/")
 async def payment_success(
+    request: Request,
     session_id: str,
     db: AsyncSession = Depends(get_db)
 ) -> RedirectResponse:
+    base_url = request.base_url
     try:
         session = stripe.checkout.Session.retrieve(session_id)
         result = await db.execute(
@@ -307,16 +309,18 @@ async def payment_success(
             payment.status = PaymentStatus.SUCCESSFUL
             await db.commit()
 
-        return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
+        return RedirectResponse(url=f"{base_url}api/v1/payments/history/")
     except Exception:
-        return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
+        return RedirectResponse(url=f"{base_url}api/v1/payments/history/")
 
 
 @router.get("/cancel/")
 async def payment_cancel(
+    request: Request,
     session_id: str,
     db: AsyncSession = Depends(get_db)
 ) -> RedirectResponse:
+    base_url = request.base_url
     try:
         session = stripe.checkout.Session.retrieve(session_id)
         result = await db.execute(
@@ -330,6 +334,6 @@ async def payment_cancel(
             payment.status = PaymentStatus.CANCELED
             await db.commit()
 
-        return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
+        return RedirectResponse(url=f"{base_url}api/v1/payments/history/")
     except Exception:
-        return RedirectResponse(url=f"{stripe_settings.FRONTEND_URL}/payments/history/")
+        return RedirectResponse(url=f"{base_url}api/v1/payments/history/")
