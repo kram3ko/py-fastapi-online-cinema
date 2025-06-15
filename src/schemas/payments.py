@@ -15,6 +15,7 @@ class PaymentItemBaseSchema(BaseModel):
 
 
 class PaymentStatusSchema(str, Enum):
+    PENDING = "PENDING"
     SUCCESSFUL = "SUCCESSFUL"
     CANCELED = "CANCELED"
     REFUNDED = "REFUNDED"
@@ -24,7 +25,7 @@ class PaymentCreateSchema(BaseModel):
     order_id: int
 
 
-class PaymentIntentResponse(BaseModel):
+class CheckoutSessionResponse(BaseModel):
     payment_url: str
     payment_id: int
     external_payment_id: str

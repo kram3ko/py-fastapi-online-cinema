@@ -1,12 +1,29 @@
 from typing import Optional
 
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from database.models.payments import PaymentModel, PaymentItemModel
-from database.models.orders import OrderModel, OrderItemModel
+from database.models.orders import OrderItemModel, OrderModel, OrderStatus
+from database.models.payments import PaymentItemModel, PaymentModel, PaymentStatus
 from schemas.payments import PaymentCreateSchema, PaymentStatusSchema, PaymentUpdateSchema
+
+
+async def update_payment_and_order_status(
+    db: AsyncSession, payment_intent: str, new_status: PaymentStatus, order_status: OrderStatus
+):
+    result = await db.execute(
+        select(PaymentModel).where(PaymentModel.external_payment_id == payment_intent)
+    )
+    payment = result.scalar_one_or_none()
+
+    if payment:
+        payment.status = new_status
+        order = await db.get(OrderModel, payment.order_id)
+        if order:
+            order.status = order_status
+        await db.commit()
 
 
 async def create_payment(
@@ -18,12 +35,19 @@ async def create_payment(
         # Get order with items
         result = await db.execute(
             select(OrderModel)
-            .where(OrderModel.id == payment.order_id)
+            .where(
+                OrderModel.id == payment.order_id,
+                OrderModel.user_id == user_id,  # Check order belongs to user
+                OrderModel.status == OrderStatus.PENDING  # Check order is pending
+            )
             .options(selectinload(OrderModel.order_items))
         )
         order = result.scalar_one_or_none()
         if not order:
-            raise ValueError("Order not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found or not available for payment"
+            )
 
         # Calculate total amount from order items
         total_amount = sum(float(item.price_at_order) for item in order.order_items)
@@ -50,9 +74,15 @@ async def create_payment(
         await db.commit()
         await db.refresh(db_payment)
         return db_payment
+    except HTTPException:
+        await db.rollback()
+        raise
     except Exception as e:
         await db.rollback()
-        raise e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 async def get_payment(
@@ -122,7 +152,10 @@ async def get_payment_by_id(payment_id: int, db: AsyncSession) -> PaymentModel |
         select(PaymentModel)
         .where(PaymentModel.id == payment_id)
         .options(
-            selectinload(PaymentModel.payment_items).selectinload(PaymentItemModel.order_item).selectinload(OrderItemModel.movie),
+            selectinload(
+                PaymentModel.payment_items
+            ).selectinload(PaymentItemModel.order_item).selectinload(
+                OrderItemModel.movie),
             selectinload(PaymentModel.user),
             selectinload(PaymentModel.order)
         )

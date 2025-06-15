@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 
 class PaymentStatus(PyEnum):
+    PENDING = "PENDING"
     SUCCESSFUL = "SUCCESSFUL"
     CANCELED = "CANCELED"
     REFUNDED = "REFUNDED"

@@ -1,5 +1,7 @@
 from decimal import Decimal
-from typing import Callable, Dict, Any
+from typing import Any, Callable
+
+import stripe
 
 from database.models.payments import PaymentStatus
 
@@ -12,60 +14,72 @@ class StripeEventType:
     CHARGE_REFUNDED = "charge.refunded"
 
 
-def handle_checkout_session_completed(event_data: Dict[str, Any]) -> Dict[str, Any]:
+def handle_checkout_session_completed(event_data: dict[str, Any]) -> dict[str, Any]:
     session = event_data.object
     return {
-        "external_payment_id": session.payment_intent,
+        "external_payment_id": session.id,
         "status": PaymentStatus.SUCCESSFUL,
         "amount": Decimal(session.amount_total) / 100,
         "order_id": session.metadata.get("order_id")
     }
 
 
-def handle_checkout_session_expired(event_data: Dict[str, Any]) -> Dict[str, Any]:
+def handle_checkout_session_expired(event_data: dict[str, Any]) -> dict[str, Any]:
     session = event_data.object
     return {
-        "external_payment_id": session.payment_intent,
+        "external_payment_id": session.id,
         "status": PaymentStatus.CANCELED,
         "amount": Decimal(session.amount_total) / 100,
         "order_id": session.metadata.get("order_id")
     }
 
 
-def handle_payment_intent_succeeded(event_data: Dict[str, Any]) -> Dict[str, Any]:
+def handle_payment_intent_succeeded(event_data: dict[str, Any]) -> dict[str, Any]:
     payment_intent = event_data.object
+    session = stripe.checkout.Session.list(
+        payment_intent=payment_intent.id,
+        limit=1
+    ).data[0]
     return {
-        "external_payment_id": payment_intent.id,
+        "external_payment_id": session.id,
         "status": PaymentStatus.SUCCESSFUL,
         "amount": Decimal(payment_intent.amount) / 100,
         "order_id": payment_intent.metadata.get("order_id")
     }
 
 
-def handle_payment_intent_failed(event_data: Dict[str, Any]) -> Dict[str, Any]:
+def handle_payment_intent_failed(event_data: dict[str, Any]) -> dict[str, Any]:
     payment_intent = event_data.object
+    session = stripe.checkout.Session.list(
+        payment_intent=payment_intent.id,
+        limit=1
+    ).data[0]
     return {
-        "external_payment_id": payment_intent.id,
+        "external_payment_id": session.id,
         "status": PaymentStatus.FAILED,
         "amount": Decimal(payment_intent.amount) / 100,
         "order_id": payment_intent.metadata.get("order_id")
     }
 
 
-def handle_charge_refunded(event_data: Dict[str, Any]) -> Dict[str, Any]:
+def handle_charge_refunded(event_data: dict[str, Any]) -> dict[str, Any]:
     charge = event_data.object
+    session = stripe.checkout.Session.list(
+        payment_intent=charge.payment_intent,
+        limit=1
+    ).data[0]
     return {
-        "external_payment_id": charge.payment_intent,
+        "external_payment_id": session.id,
         "status": PaymentStatus.REFUNDED,
         "amount": Decimal(charge.amount) / 100,
         "order_id": charge.metadata.get("order_id")
     }
 
 
-STRIPE_EVENT_HANDLERS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
+STRIPE_EVENT_HANDLERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     StripeEventType.CHECKOUT_SESSION_COMPLETED: handle_checkout_session_completed,
     StripeEventType.CHECKOUT_SESSION_EXPIRED: handle_checkout_session_expired,
     StripeEventType.PAYMENT_INTENT_SUCCEEDED: handle_payment_intent_succeeded,
     StripeEventType.PAYMENT_INTENT_FAILED: handle_payment_intent_failed,
     StripeEventType.CHARGE_REFUNDED: handle_charge_refunded,
-} 
+}

@@ -13,7 +13,7 @@ from config import get_settings
 from database.deps import get_db_contextmanager
 from database.models.accounts import UserGroupEnum, UserGroupModel, UserModel
 from database.models.movies import CertificationModel, DirectorModel, GenreModel, MovieModel, StarModel
-from database.models.orders import OrderModel, OrderItemModel, OrderStatus
+from database.models.orders import OrderItemModel, OrderModel, OrderStatus
 from database.models.shopping_cart import Cart, CartItem
 
 CHUNK_SIZE = 1000
