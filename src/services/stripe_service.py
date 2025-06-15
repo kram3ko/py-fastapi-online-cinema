@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
-from decimal import Decimal
 from typing import Optional
 
 import stripe
 from fastapi import HTTPException, status, Request
 
 from config import get_settings
-from database.models.payments import PaymentModel, PaymentStatus
+from services.stripe_events import STRIPE_EVENT_HANDLERS
+from database.models.payments import PaymentModel
 from schemas.payments import PaymentCreateSchema
 
 stripe_settings = get_settings()
@@ -71,22 +71,9 @@ class StripeService:
                 detail="Invalid signature"
             )
 
-        if event.type == "checkout.session.completed":
-            session = event.data.object
-            return {
-                "external_payment_id": session.id,
-                "status": PaymentStatus.SUCCESSFUL,
-                "amount": Decimal(session.amount_total) / 100,
-                "order_id": session.metadata.get("order_id")
-            }
-        elif event.type == "checkout.session.expired":
-            session = event.data.object
-            return {
-                "external_payment_id": session.id,
-                "status": PaymentStatus.CANCELED,
-                "amount": Decimal(session.amount_total) / 100,
-                "order_id": session.metadata.get("order_id")
-            }
+        handler = STRIPE_EVENT_HANDLERS.get(event.type)
+        if handler:
+            return handler(event.data)
 
         return None
 
