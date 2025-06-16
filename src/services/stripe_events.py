@@ -56,7 +56,7 @@ def handle_payment_intent_failed(event_data: dict[str, Any]) -> dict[str, Any]:
     ).data[0]
     return {
         "external_payment_id": session.id,
-        "status": PaymentStatus.FAILED,
+        "status": PaymentStatus.CANCELED,
         "amount": Decimal(payment_intent.amount) / 100,
         "order_id": payment_intent.metadata.get("order_id")
     }
