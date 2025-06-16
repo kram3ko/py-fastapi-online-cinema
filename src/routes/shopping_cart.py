@@ -6,7 +6,7 @@ from crud import orders as order_crud
 from crud import shopping_cart as cart_crud
 from database.deps import get_db
 from database.models.accounts import UserModel
-from database.models.payments import PaymentModel, PaymentStatus
+from database.models.payments import PaymentModel, PaymentStatus, PaymentItemModel
 from exceptions.shopping_cart import (
     CartNotFoundError,
     MovieAlreadyInCartError,
@@ -156,6 +156,17 @@ async def pay_for_cart(
         external_payment_id=session_data.external_payment_id
     )
     db.add(payment)
+    await db.flush()
+
+    payment_items = []
+    for item in order.order_items:
+        payment_item = PaymentItemModel(
+            payment_id=payment.id,
+            order_item_id=item.id,
+            price_at_payment=item.price_at_order
+        )
+        payment_items.append(payment_item)
+    db.add_all(payment_items)
     await db.commit()
 
     return CheckoutSessionResponse(
