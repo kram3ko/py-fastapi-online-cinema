@@ -1,16 +1,19 @@
-from fastapi import APIRouter, Depends, Path, status
+from fastapi import APIRouter, Depends, Path, status, Request, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.dependencies import get_current_user, require_admin
 from crud import orders as order_crud
 from database.deps import get_db
-from database.models import OrderModel
+from database.models import OrderModel, OrderStatus
 from database.models.accounts import UserModel
+from database.models.payments import PaymentModel, PaymentStatus
 from schemas.orders import (
     OrderFilterParams,
     OrderResponse,
     OrderUpdateStatus,
 )
+from schemas.payments import CheckoutSessionResponse
+from services.stripe_service import StripeService
 
 router = APIRouter()
 
@@ -72,21 +75,48 @@ async def cancel_order_endpoint(  # Renamed to avoid conflict with crud.cancel_o
     return await order_crud.cancel_order(db, order_id, current_user.id)
 
 
-@router.post("/{order_id}/pay", response_model=OrderResponse)
-async def process_order_payment_endpoint(  # Renamed to avoid conflict with crud.process_order_payment
+@router.post("/{order_id}/pay", response_model=CheckoutSessionResponse)
+async def process_order_payment_endpoint(
+    request: Request,
     order_id: int = Path(
         ..., gt=0, description="The ID of the order to pay for"
     ),
-    # payment_data: OrderPaymentRequest, # You can uncomment and use this if your payment endpoint needs a request body
     db: AsyncSession = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
-) -> OrderModel:
+) -> CheckoutSessionResponse:
     """
     Initiates the payment process for a pending order.
-    Upon successful payment, the order status will be updated to PAID.
+    Creates a Stripe checkout session and returns the payment URL.
     """
-    return await order_crud.process_order_payment(
-        db, order_id, current_user.id
+    order = await order_crud.get_order_detail(db, order_id, current_user.id)
+
+    if order.status == OrderStatus.PAID:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Order already paid.",
+        )
+    if order.status == OrderStatus.CANCELED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot pay for a canceled order.",
+        )
+
+    session_data = await StripeService.create_checkout_session(request, order)
+
+    payment = PaymentModel(
+        user_id=current_user.id,
+        order_id=order.id,
+        status=PaymentStatus.PENDING,
+        amount=order.total_amount,
+        external_payment_id=session_data.external_payment_id
+    )
+    db.add(payment)
+    await db.commit()
+
+    return CheckoutSessionResponse(
+        payment_url=session_data.payment_url,
+        external_payment_id=session_data.external_payment_id,
+        payment_id=payment.id
     )
 
 

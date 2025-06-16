@@ -1,52 +1,67 @@
-from datetime import datetime, timedelta
-from decimal import Decimal
 from typing import Optional
 
 import stripe
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from config import get_settings
-from database.models.payments import PaymentModel, PaymentStatus
-from schemas.payments import PaymentCreateSchema
+from database.models.orders import OrderItemModel, OrderModel, OrderStatus
+from database.models.payments import PaymentModel
+from schemas.payments import CheckoutSessionResponse, PaymentCreateSchema
+from services.stripe_events import STRIPE_EVENT_HANDLERS
 
 stripe_settings = get_settings()
-stripe.api_key = stripe_settings.STRIPE_SECRET_KEY
-
-SUCCESS_URL = f"{stripe_settings.FRONTEND_URL}:8000/api/v1/payments/success/?session_id={{CHECKOUT_SESSION_ID}}"
-CANCEL_URL = f"{stripe_settings.FRONTEND_URL}:8000/api/v1/payments/cancel/?session_id={{CHECKOUT_SESSION_ID}}"
 
 
 class StripeService:
     @staticmethod
-    async def create_payment_intent(payment_data: PaymentCreateSchema) -> dict:
+    async def create_checkout_session(
+        request: Request,
+        order: OrderModel
+    ) -> CheckoutSessionResponse:
         try:
-            amount_cents = int(payment_data.amount * 100)
-
-            session = stripe.checkout.Session.create(
-                payment_method_types=["card"],
-                line_items=[{
+            line_items = [
+                {
                     "price_data": {
                         "currency": stripe_settings.STRIPE_CURRENCY,
                         "product_data": {
-                            "name": f"Order #{payment_data.order_id}",
+                            "name": f"Order #{order.id} - {item.movie.name}",
+                            "description": f"Year: {item.movie.year}, IMDB: {item.movie.imdb}",
+                            "metadata": {
+                                "movie_id": str(item.movie.id),
+                                "order_item_id": str(item.id)
+                            }
                         },
-                        "unit_amount": amount_cents,
+                        "unit_amount": int(item.price_at_order * 100),
                     },
                     "quantity": 1,
-                }],
+                }
+                for item in order.order_items
+            ]
+
+            base_url = str(request.base_url)
+            success_url = f"{base_url}api/v1/payments/success?session_id={{CHECKOUT_SESSION_ID}}"
+            cancel_url = f"{base_url}api/v1/payments/cancel?session_id={{CHECKOUT_SESSION_ID}}"
+
+            session = stripe.checkout.Session.create(
+                api_key=stripe_settings.STRIPE_SECRET_KEY,
+                payment_method_types=["card"],
+                line_items=line_items,
                 mode="payment",
-                success_url=SUCCESS_URL,
-                cancel_url=CANCEL_URL,
+                success_url=success_url,
+                cancel_url=cancel_url,
                 metadata={
-                    "order_id": payment_data.order_id,
-                },
-                expires_at=int((datetime.now() + timedelta(minutes=30)).timestamp())
+                    "order_id": str(order.id),
+                    "user_id": str(order.user_id)
+                }
             )
 
-            return {
-                "payment_url": session.url,
-                "payment_intent_id": session.payment_intent if session.payment_intent else session.id
-            }
+            return CheckoutSessionResponse(
+                payment_url=session.url,
+                payment_id=order.id,
+                external_payment_id=session.id
+            )
         except stripe.error.StripeError as e:  # type: ignore[attr-defined]
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,22 +85,9 @@ class StripeService:
                 detail="Invalid signature"
             )
 
-        if event.type == "checkout.session.completed":
-            session = event.data.object
-            return {
-                "external_payment_id": session.id,
-                "status": PaymentStatus.SUCCESSFUL,
-                "amount": Decimal(session.amount_total) / 100,
-                "order_id": session.metadata.get("order_id")
-            }
-        elif event.type == "checkout.session.expired":
-            session = event.data.object
-            return {
-                "external_payment_id": session.id,
-                "status": PaymentStatus.CANCELED,
-                "amount": Decimal(session.amount_total) / 100,
-                "order_id": session.metadata.get("order_id")
-            }
+        handler = STRIPE_EVENT_HANDLERS.get(event.type)
+        if handler:
+            return handler(event.data)
 
         return None
 
@@ -98,25 +100,18 @@ class StripeService:
                     detail="No external payment ID found"
                 )
 
+            payment_intent = payment.external_payment_id
             try:
-
-                refund = stripe.Refund.create(
-                    payment_intent=payment.external_payment_id
-                )
-                return refund.status == "succeeded"
-            except stripe.error.StripeError:  # type: ignore[attr-defined]
-
                 session = stripe.checkout.Session.retrieve(payment.external_payment_id)
-                if not session.payment_intent:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="No payment intent found for this session"
-                    )
+                if session.payment_intent:
+                    payment_intent = session.payment_intent
+            except stripe.error.StripeError:  # type: ignore[attr-defined]
+                pass
 
-                refund = stripe.Refund.create(
-                    payment_intent=session.payment_intent
-                )
-                return refund.status == "succeeded"
+            refund = stripe.Refund.create(
+                payment_intent=payment_intent
+            )
+            return refund.status == "succeeded"
 
         except stripe.error.StripeError as e:  # type: ignore[attr-defined]
             raise HTTPException(

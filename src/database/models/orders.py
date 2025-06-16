@@ -1,8 +1,9 @@
 import enum
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from decimal import Decimal
+from typing import TYPE_CHECKING
 
-from sqlalchemy import DECIMAL, Column, DateTime, Enum, ForeignKey, Integer
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql.functions import func
 
@@ -26,7 +27,7 @@ class OrderModel(Base):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus), nullable=False, default=OrderStatus.PENDING)
-    total_amount: Mapped[DECIMAL[Any]] = mapped_column(DECIMAL(10, 2), nullable=True)
+    total_amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=True)
 
     user: Mapped["UserModel"] = relationship("UserModel", back_populates="orders")
     order_items: Mapped[list["OrderItemModel"]] = relationship("OrderItemModel", back_populates="order")
@@ -36,9 +37,9 @@ class OrderModel(Base):
 class OrderItemModel(Base):
     __tablename__ = "order_items"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    order_id: Mapped[int] = mapped_column(Integer, ForeignKey("orders.id"), nullable=False)
+    order_id: Mapped[int] = mapped_column(Integer, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
     movie_id: Mapped[int] = mapped_column(Integer, ForeignKey("movies.id"), nullable=False)
-    price_at_order: Mapped[DECIMAL[Any]] = mapped_column(DECIMAL(10, 2), nullable=False)
+    price_at_order: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
 
     order: Mapped["OrderModel"] = relationship("OrderModel", back_populates="order_items")
     movie: Mapped["MovieModel"] = relationship("MovieModel", back_populates="order_items")

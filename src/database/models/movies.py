@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DECIMAL, Column, DateTime, ForeignKey, String, Table, Text, UniqueConstraint, func
+from sqlalchemy import Column, DateTime, ForeignKey, Numeric, String, Table, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -197,7 +198,7 @@ class MovieModel(Base):
     meta_score: Mapped[float | None] = mapped_column(nullable=True)
     gross: Mapped[float | None] = mapped_column(nullable=True)
     descriptions: Mapped[str] = mapped_column(Text, nullable=False)
-    price: Mapped[float] = mapped_column(DECIMAL(10, 2))
+    price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
 
     certification_id: Mapped[int] = mapped_column(
         ForeignKey("certifications.id"),
