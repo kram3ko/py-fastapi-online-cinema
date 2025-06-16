@@ -51,6 +51,12 @@ async def create_payment(
                 detail="Order not found or not available for payment"
             )
 
+        if float(order.total_amount) <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Order amount must be positive"
+            )
+
         # Calculate total amount from order items
         total_amount = sum(float(item.price_at_order) for item in order.order_items)
 
