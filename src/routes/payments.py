@@ -3,14 +3,13 @@ from datetime import datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from fastapi.responses import RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from config.dependencies import allow_roles, get_current_user, require_admin
-from crud.payments import create_payment, get_payment_by_id, update_payment_and_order_status
+from crud.payments import create_payment, get_payment_by_id
 from database.deps import get_db
 from database.models import OrderItemModel, OrderModel, UserGroupEnum, UserModel
 from database.models.orders import OrderStatus
@@ -296,29 +295,3 @@ async def get_payment_details(
         )
 
     return PaymentBaseSchema.model_validate(payment)
-
-
-@router.get("/success/")
-async def payment_success(
-    request: Request,
-    session_id: str,
-    db: AsyncSession = Depends(get_db)
-) -> RedirectResponse:
-    try:
-        await update_payment_and_order_status(db, session_id, PaymentStatus.SUCCESSFUL, OrderStatus.PAID)
-    except Exception as e:
-        logger.error(f"Error in payment_success: {str(e)}")
-    return RedirectResponse(url=f"{request.base_url}api/v1/payments/history")
-
-
-@router.get("/cancel/")
-async def payment_cancel(
-    request: Request,
-    session_id: str,
-    db: AsyncSession = Depends(get_db)
-) -> RedirectResponse:
-    try:
-        await update_payment_and_order_status(db, session_id, PaymentStatus.CANCELED, OrderStatus.CANCELED)
-    except Exception as e:
-        logger.error(f"Error in payment_cancel: {str(e)}")
-    return RedirectResponse(url=f"{request.base_url}api/v1/payments/history")

@@ -6,7 +6,7 @@ from crud import orders as order_crud
 from crud import shopping_cart as cart_crud
 from database.deps import get_db
 from database.models.accounts import UserModel
-from database.models.payments import PaymentModel, PaymentStatus, PaymentItemModel
+from database.models.payments import PaymentItemModel, PaymentModel, PaymentStatus
 from exceptions.shopping_cart import (
     CartNotFoundError,
     MovieAlreadyInCartError,

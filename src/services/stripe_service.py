@@ -10,6 +10,7 @@ from schemas.payments import CheckoutSessionResponse
 from services.stripe_events import STRIPE_EVENT_HANDLERS
 
 stripe_settings = get_settings()
+stripe.api_key = stripe_settings.STRIPE_SECRET_KEY
 
 
 class StripeService:
@@ -39,8 +40,8 @@ class StripeService:
             ]
 
             base_url = str(request.base_url)
-            success_url = f"{base_url}api/v1/payments/success?session_id={{CHECKOUT_SESSION_ID}}"
-            cancel_url = f"{base_url}api/v1/payments/cancel?session_id={{CHECKOUT_SESSION_ID}}"
+            success_url = f"{base_url}api/v1/payments/history"
+            cancel_url = f"{base_url}api/v1/payments/history"
 
             session = stripe.checkout.Session.create(
                 api_key=stripe_settings.STRIPE_SECRET_KEY,
