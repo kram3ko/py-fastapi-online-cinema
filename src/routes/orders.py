@@ -6,7 +6,7 @@ from crud import orders as order_crud
 from database.deps import get_db
 from database.models import OrderModel, OrderStatus
 from database.models.accounts import UserModel
-from database.models.payments import PaymentModel, PaymentStatus, PaymentItemModel
+from database.models.payments import PaymentItemModel, PaymentModel, PaymentStatus
 from schemas.orders import (
     OrderFilterParams,
     OrderResponse,
