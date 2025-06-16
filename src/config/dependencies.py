@@ -3,7 +3,6 @@ from collections.abc import Awaitable
 from typing import Callable
 
 from fastapi import Depends, HTTPException, status
-from jose.exceptions import ExpiredSignatureError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
@@ -190,15 +189,15 @@ async def get_current_user(
         )
 
 
-async def require_admin(current_user: UserModel = Depends(get_current_user)) -> UserModel:
-    if current_user.group.name != UserGroupEnum.ADMIN:
-        raise HTTPException(status_code=403, detail="Access forbidden: admins only")
-    return current_user
-
-
 async def require_moderator(current_user: UserModel = Depends(get_current_user)) -> UserModel:
     if current_user.group.name != UserGroupEnum.MODERATOR:
         raise HTTPException(status_code=403, detail="Access forbidden: moderator or admins only")
+    return current_user
+
+
+async def require_admin(current_user: UserModel = Depends(get_current_user)) -> UserModel:
+    if current_user.group.name != UserGroupEnum.ADMIN:
+        raise HTTPException(status_code=403, detail="Access forbidden: admins only")
     return current_user
 
 

@@ -13,6 +13,7 @@ app = FastAPI(title="Online Cinema", description="Group project Online Cinema AP
 
 api_version_prefix = "/api/v1"
 
+app.include_router(index_router, tags=["index"])
 app.include_router(accounts_router, prefix=f"{api_version_prefix}/accounts", tags=["accounts"])
 app.include_router(profiles_router, prefix=f"{api_version_prefix}/profiles", tags=["profiles"])
 app.include_router(movie_router, prefix=f"{api_version_prefix}/online_cinema", tags=["movies"])
@@ -20,6 +21,5 @@ app.include_router(movie_router, prefix=f"{api_version_prefix}/online_cinema", t
 app.include_router(payments_router, prefix=f"{api_version_prefix}/payments", tags=["payments"])
 app.include_router(cart_router, prefix=f"{api_version_prefix}/cart", tags=["cart"])
 app.include_router(orders_router, prefix=f"{api_version_prefix}/orders", tags=["orders"])
-app.include_router(index_router, tags=["index"])
 
 add_pagination(app)

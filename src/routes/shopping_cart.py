@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.dependencies import get_current_user, require_admin
@@ -6,6 +6,7 @@ from crud import orders as order_crud
 from crud import shopping_cart as cart_crud
 from database.deps import get_db
 from database.models.accounts import UserModel
+from database.models.payments import PaymentModel, PaymentStatus
 from exceptions.shopping_cart import (
     CartNotFoundError,
     MovieAlreadyInCartError,
@@ -14,12 +15,13 @@ from exceptions.shopping_cart import (
     MovieNotInCartError,
 )
 from schemas.accounts import MessageResponseSchema
-from schemas.orders import OrderResponse
+from schemas.payments import CheckoutSessionResponse
 from schemas.shopping_cart import (
     CartItemCreate,
     CartItemResponse,
     CartResponse,
 )
+from services.stripe_service import StripeService
 
 router = APIRouter()
 
@@ -132,25 +134,35 @@ async def clear_cart(
     return MessageResponseSchema(message="Cart cleared successfully")
 
 
-@router.post("/pay", response_model=OrderResponse)
+@router.post("/pay", response_model=CheckoutSessionResponse)
 async def pay_for_cart(
+    request: Request,
     current_user: UserModel = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> OrderResponse:
+) -> CheckoutSessionResponse:
     """
-    Pay for all movies in the cart at once.
-    This will:
-    1. Create an order from the cart
-    2. Process the payment for that order
-    3. Return the order details
+    Creates an order from the cart and initiates Stripe payment.
+    Returns a URL to the Stripe checkout page.
     """
     order = await order_crud.create_order_from_cart(current_user.id, db)
 
-    paid_order = await order_crud.process_order_payment(
-        db, order.id, current_user.id
-    )
+    session_data = await StripeService.create_checkout_session(request, order)
 
-    return paid_order
+    payment = PaymentModel(
+        user_id=current_user.id,
+        order_id=order.id,
+        status=PaymentStatus.PENDING,
+        amount=order.total_amount,
+        external_payment_id=session_data.external_payment_id
+    )
+    db.add(payment)
+    await db.commit()
+
+    return CheckoutSessionResponse(
+        payment_url=session_data.payment_url,
+        external_payment_id=session_data.external_payment_id,
+        payment_id=payment.id
+    )
 
 
 @router.get("/admin/user/{user_id}", response_model=CartResponse)
