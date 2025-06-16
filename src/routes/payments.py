@@ -4,15 +4,13 @@ from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from config.dependencies import allow_roles, get_current_user, require_admin
 from crud.payments import create_payment, get_payment_by_id
 from database.deps import get_db
-from database.models import OrderItemModel, OrderModel, UserGroupEnum, UserModel
-from database.models.orders import OrderStatus
+from database.models import OrderItemModel, UserGroupEnum, UserModel
 from database.models.payments import PaymentItemModel, PaymentModel, PaymentStatus
 from schemas.payments import (
     CheckoutSessionResponse,
@@ -24,6 +22,7 @@ from schemas.payments import (
     RefundResponse,
     WebhookResponse,
 )
+from services.payment_webhook_service import PaymentWebhookService
 from services.stripe_service import StripeService
 
 logger = logging.getLogger(__name__)
@@ -58,55 +57,25 @@ async def create_checkout_session(
 
 @router.post("/webhook", response_model=WebhookResponse)
 async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> WebhookResponse:
-    try:
-        payload = await request.body()
-        sig_header = request.headers.get("stripe-signature")
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
 
-        if not sig_header:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No Stripe signature found"
-            )
-
-        webhook_data = await StripeService.handle_webhook(payload, sig_header)
-        if not webhook_data:
-            return WebhookResponse()
-
-        result = await db.execute(
-            select(PaymentModel).where(
-                PaymentModel.external_payment_id == webhook_data["external_payment_id"]
-            )
-        )
-        payment = result.scalar_one_or_none()
-        if not payment:
-            return WebhookResponse()
-
-        payment.status = webhook_data["status"]
-        order = await db.get(OrderModel, payment.order_id)
-        if not order:
-            await db.commit()
-            return WebhookResponse()
-
-        if webhook_data["status"] == PaymentStatus.SUCCESSFUL:
-            order.status = OrderStatus.PAID
-        elif webhook_data["status"] == PaymentStatus.CANCELED:
-            order.status = OrderStatus.CANCELED
-        else:
-            order.status = order.status
-
-        await db.commit()
-        return WebhookResponse()
-    except SQLAlchemyError as e:
-        await db.rollback()
+    if not sig_header:
+        logger.warning("Webhook received without signature header")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            detail="No signature header"
         )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+
+    webhook_data = await StripeService.handle_webhook(payload, sig_header)
+    await PaymentWebhookService.process_webhook_data(webhook_data, db)
+
+    return WebhookResponse(
+        status="success",
+        message="Webhook processed",
+        event_type=webhook_data.get("type") if webhook_data else None,
+        payment_id=webhook_data.get("payment_id") if webhook_data else None
+    )
 
 
 @router.get("/history", response_model=PaymentListSchema)

@@ -71,7 +71,12 @@ class AdminPaymentFilter(BaseModel):
 
 
 class WebhookResponse(BaseModel):
-    status: str = "success"
+    status: str
+    message: str
+    event_type: str | None = None
+    payment_id: int | None = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PaymentStatisticsResponse(BaseModel):
