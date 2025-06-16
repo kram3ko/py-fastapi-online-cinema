@@ -2,13 +2,11 @@ from typing import Optional
 
 import stripe
 from fastapi import HTTPException, Request, status
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from config import get_settings
-from database.models.orders import OrderItemModel, OrderModel, OrderStatus
+from database.models.orders import OrderModel
 from database.models.payments import PaymentModel
-from schemas.payments import CheckoutSessionResponse, PaymentCreateSchema
+from schemas.payments import CheckoutSessionResponse
 from services.stripe_events import STRIPE_EVENT_HANDLERS
 
 stripe_settings = get_settings()
