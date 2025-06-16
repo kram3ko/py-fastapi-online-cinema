@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import BaseAppSettings, get_jwt_auth_manager, get_settings
+from config import get_jwt_auth_manager
 from config.dependencies import get_current_user, require_admin
 from crud.user_service import UserService
 from database.deps import get_db
@@ -58,9 +58,9 @@ router = APIRouter()
     },
 )
 async def register_user(
+    request: Request,
     user_data: UserRegistrationRequestSchema,
     db: AsyncSession = Depends(get_db),
-    settings: BaseAppSettings = Depends(get_settings),
 ) -> UserRegistrationResponseSchema:
     """
     Endpoint for user registration.
@@ -70,9 +70,9 @@ async def register_user(
     In case of any unexpected issues during the creation process, an HTTP 500 error is returned.
 
     Args:
+        request (Request): The HTTP request object, used to access request metadata.
         user_data (UserRegistrationRequestSchema): The registration details including email and password.
         db (AsyncSession): The asynchronous database session.
-        settings (BaseAppSettings): The application settings.
 
     Returns:
         UserRegistrationResponseSchema: The newly created user's details.
@@ -103,7 +103,7 @@ async def register_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="An error occurred during user creation."
         ) from e
 
-    activation_link = f"{settings.FRONTEND_URL}/accounts/activate/"
+    activation_link = f"{request.base_url}api/v1/accounts/activate/"
     send_activation_email_task.delay(new_user.email, activation_link)
 
     return UserRegistrationResponseSchema.model_validate(new_user)
@@ -137,9 +137,9 @@ async def register_user(
     },
 )
 async def activate_account(
+    request: Request,
     activation_data: UserActivationRequestSchema,
     db: AsyncSession = Depends(get_db),
-    settings: BaseAppSettings = Depends(get_settings),
 ) -> MessageResponseSchema:
     """Endpoint to activate a user's account."""
     user_service = UserService(db)
@@ -150,7 +150,7 @@ async def activate_account(
     if result == "invalid_token":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired activation token.")
 
-    login_link = f"{settings.FRONTEND_URL}/accounts/login/"
+    login_link = f"{request.base_url}accounts/login/"
     send_activation_complete_email_task.delay(str(activation_data.email), login_link)
 
     return MessageResponseSchema(message="User account activated successfully.")
@@ -170,9 +170,9 @@ async def activate_account(
     },
 )
 async def resend_activation_email(
+    request: Request,
     data: ResendActivationRequestSchema,
     db: AsyncSession = Depends(get_db),
-    settings: BaseAppSettings = Depends(get_settings),
 ) -> MessageResponseSchema:
     """
     Endpoint to resend activation email.
@@ -183,9 +183,9 @@ async def resend_activation_email(
     or if the account is already active, an HTTP 400 error is raised.
 
     Args:
+        request (Request): The HTTP request object, used to access request metadata.
         data (ResendActivationRequestSchema): Contains the user's email.
         db (AsyncSession): The asynchronous database session.
-        settings (BaseAppSettings): The application settings.
     Returns:
         MessageResponseSchema: A response message confirming that an email will be sent with instructions.
 
@@ -197,7 +197,7 @@ async def resend_activation_email(
     if not await user_service.resend_activation(data):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User account is already active.")
 
-    activation_link = f"{settings.FRONTEND_URL}/accounts/activate/"
+    activation_link = f"{request.base_url}accounts/activate/"
     send_activation_email_task.delay(data.email, activation_link)
 
     return MessageResponseSchema(message="If you are registered, you will receive an email with instructions.")
@@ -211,9 +211,9 @@ async def resend_activation_email(
     status_code=status.HTTP_200_OK,
 )
 async def request_password_reset_token(
+    request: Request,
     data: PasswordResetRequestSchema,
     db: AsyncSession = Depends(get_db),
-    settings: BaseAppSettings = Depends(get_settings),
 ) -> MessageResponseSchema:
     """
     Endpoint to request a password reset token.
@@ -221,7 +221,7 @@ async def request_password_reset_token(
     user_service = UserService(db)
 
     if await user_service.request_password_reset(data):
-        reset_link = f"{settings.FRONTEND_URL}/accounts/reset-password/"
+        reset_link = f"{request.base_url}accounts/reset-password/"
         send_password_reset_email_task.delay(str(data.email), reset_link)
 
     return MessageResponseSchema(message="If you are registered, you will receive an email with instructions.")
@@ -247,9 +247,9 @@ async def request_password_reset_token(
     },
 )
 async def reset_password(
+    request: Request,
     data: PasswordResetCompleteRequestSchema,
     db: AsyncSession = Depends(get_db),
-    settings: BaseAppSettings = Depends(get_settings),
 ) -> MessageResponseSchema:
     """Endpoint to reset a user's password."""
     user_service = UserService(db)
@@ -262,7 +262,7 @@ async def reset_password(
     if result in {"invalid", "inactive"}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email or token.")
 
-    login_link = f"{settings.FRONTEND_URL}/accounts/login/"
+    login_link = f"{request.base_url}accounts/login/"
     send_password_reset_complete_email_task.delay(str(data.email), login_link)
 
     return MessageResponseSchema(message="Password has been reset successfully.")
