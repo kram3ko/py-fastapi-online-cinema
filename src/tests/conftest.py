@@ -317,7 +317,7 @@ def mock_stripe_service(monkeypatch):
     """
     monkeypatch.setattr(
         StripeService,
-        "create_payment_intent",
+        "create_checkout_session",
         AsyncMock(return_value={
             "payment_intent_id": "pi_test_123456",
             "payment_url": "https://mock.stripe.test/pay/pi_test_123456"
