@@ -51,8 +51,6 @@ services:
         condition: service_healthy
       migrator:
         condition: service_completed_successfully
-      minio:
-        condition: service_healthy
     volumes:
       - ./src:/usr/src/fastapi
     networks:
