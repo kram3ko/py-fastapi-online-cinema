@@ -4,10 +4,9 @@ from fastapi import status
 
 
 @pytest.fixture
-def test_payment_data():
+def test_payment_data(test_order):
     return {
-        "order_id": 1,
-        "amount": 100.50
+        "order_id": test_order.id
     }
 
 
@@ -22,8 +21,8 @@ async def test_create_payment_intent_success(auth_user_client: AsyncClient, test
 
 
 @pytest.mark.asyncio
-async def test_create_payment_intent_negative_amount(auth_user_client: AsyncClient):
-    response = await auth_user_client.post("/api/v1/payments/create-intent", json={"order_id": 1, "amount": -10})
+async def test_create_payment_intent_negative_amount(auth_user_client: AsyncClient, test_order_negative_amount):
+    response = await auth_user_client.post("/api/v1/payments/create-intent", json={"order_id": test_order_negative_amount.id})
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 

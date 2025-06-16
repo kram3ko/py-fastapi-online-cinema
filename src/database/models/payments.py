@@ -3,7 +3,7 @@ from decimal import Decimal
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DECIMAL, DateTime, Enum, ForeignKey, String, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.models.base import Base
@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 
 class PaymentStatus(PyEnum):
+    PENDING = "PENDING"
     SUCCESSFUL = "SUCCESSFUL"
     CANCELED = "CANCELED"
     REFUNDED = "REFUNDED"
@@ -29,7 +30,7 @@ class PaymentModel(Base):
     status: Mapped[PaymentStatus] = mapped_column(
         Enum(PaymentStatus), default=PaymentStatus.SUCCESSFUL, nullable=False
     )
-    amount: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     external_payment_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
     user: Mapped["UserModel"] = relationship("UserModel", back_populates="payments")
@@ -41,9 +42,9 @@ class PaymentItemModel(Base):
     __tablename__ = "payment_items"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    payment_id: Mapped[int] = mapped_column(ForeignKey("payments.id"), nullable=False)
+    payment_id: Mapped[int] = mapped_column(ForeignKey("payments.id", ondelete="CASCADE"), nullable=False)
     order_item_id: Mapped[int] = mapped_column(ForeignKey("order_items.id"), nullable=False)
-    price_at_payment: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)
+    price_at_payment: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
 
     payment: Mapped["PaymentModel"] = relationship("PaymentModel", back_populates="payment_items")
     order_item: Mapped["OrderItemModel"] = relationship("OrderItemModel", back_populates="payment_items")

@@ -24,6 +24,8 @@ from tests.doubles.stubs.emails import StubEmailSender
 
 from unittest.mock import AsyncMock
 from services.stripe_service import StripeService
+from database.models.orders import OrderModel, OrderStatus
+from schemas.payments import CheckoutSessionResponse
 
 
 def pytest_configure(config):
@@ -318,11 +320,12 @@ def mock_stripe_service(monkeypatch):
     """
     monkeypatch.setattr(
         StripeService,
-        "create_payment_intent",
-        AsyncMock(return_value={
-            "payment_intent_id": "pi_test_123456",
-            "payment_url": "https://mock.stripe.test/pay/pi_test_123456"
-        }),
+        "create_checkout_session",
+        AsyncMock(return_value=CheckoutSessionResponse(
+            payment_url="https://mock.stripe.test/pay/pi_test_123456",
+            payment_id=1,
+            external_payment_id="pi_test_123456"
+        )),
     )
     monkeypatch.setattr(
         StripeService,
@@ -366,3 +369,31 @@ async def auth_admin_client(
 ):
     client.headers["Authorization"] = f"Bearer {auth_admin_token}"
     return client
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_order(db_session: AsyncSession, test_user: UserModel, test_movie):
+    """Create a test order for payment tests."""
+    order = OrderModel(
+        user_id=test_user.id,
+        status=OrderStatus.PENDING,
+        total_amount=test_movie.price
+    )
+    db_session.add(order)
+    await db_session.commit()
+    await db_session.refresh(order)
+    return order
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_order_negative_amount(db_session: AsyncSession, test_user: UserModel, test_movie):
+    """Create a test order with a negative amount for negative test cases."""
+    order = OrderModel(
+        user_id=test_user.id,
+        status=OrderStatus.PENDING,
+        total_amount=-10.0  # отрицательная сумма
+    )
+    db_session.add(order)
+    await db_session.commit()
+    await db_session.refresh(order)
+    return order
