@@ -12,6 +12,7 @@ from services.stripe_events import STRIPE_EVENT_HANDLERS
 stripe_settings = get_settings()
 stripe.api_key = stripe_settings.STRIPE_SECRET_KEY
 
+
 class StripeService:
     @staticmethod
     async def create_checkout_session(
