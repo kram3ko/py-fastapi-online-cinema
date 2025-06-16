@@ -88,4 +88,6 @@ class PaymentStatisticsResponse(BaseModel):
 
 
 class RefundResponse(BaseModel):
+    payment_id: int
+    order_id: int
     status: str = "refunded"

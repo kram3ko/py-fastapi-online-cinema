@@ -68,12 +68,13 @@ class PaymentWebhookService:
                     detail=f"Order not found for payment ID: {payment.id}"
                 )
 
-            if webhook_data["status"] == PaymentStatus.SUCCESSFUL:
-                order.status = OrderStatus.PAID
-            elif webhook_data["status"] == PaymentStatus.CANCELED:
-                order.status = OrderStatus.CANCELED
-            else:
-                order.status = order.status
+            status_map = {
+                PaymentStatus.SUCCESSFUL: OrderStatus.PAID,
+                PaymentStatus.CANCELED: OrderStatus.CANCELED,
+                PaymentStatus.REFUNDED: OrderStatus.CANCELED,
+            }
+
+            order.status = status_map.get(webhook_data["status"], order.status)
 
             await db.commit()
             logger.info(

@@ -228,7 +228,10 @@ async def refund_payment(
 
         payment.status = PaymentStatus.REFUNDED
         await db.commit()
-        return RefundResponse()
+        return RefundResponse(
+            payment_id=payment.id,
+            order_id=payment.order_id,
+        )
     except Exception as e:
         await db.rollback()
         raise HTTPException(
