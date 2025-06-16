@@ -9,10 +9,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from config.dependencies import get_current_user, require_admin, allow_roles
+from config.dependencies import allow_roles, get_current_user, require_admin
 from crud.payments import create_payment, get_payment_by_id, update_payment_and_order_status
 from database.deps import get_db
-from database.models import OrderItemModel, OrderModel, UserModel, UserGroupEnum
+from database.models import OrderItemModel, OrderModel, UserGroupEnum, UserModel
 from database.models.orders import OrderStatus
 from database.models.payments import PaymentItemModel, PaymentModel, PaymentStatus
 from schemas.payments import (
@@ -269,7 +269,11 @@ async def refund_payment(
         )
 
 
-@router.get("/pays/{payment_id}", response_model=PaymentBaseSchema, dependencies=[Depends(allow_roles(UserGroupEnum.ADMIN, UserGroupEnum.USER))])
+@router.get(
+    "/pays/{payment_id}",
+    response_model=PaymentBaseSchema,
+    dependencies=[Depends(allow_roles(UserGroupEnum.ADMIN, UserGroupEnum.USER))]
+)
 async def get_payment_details(
     payment_id: int,
     current_user: UserModel = Depends(get_current_user),

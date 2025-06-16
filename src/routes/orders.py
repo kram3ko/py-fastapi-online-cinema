@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Path, status, Request, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.dependencies import get_current_user, require_admin
