@@ -73,7 +73,7 @@ class AdminPaymentFilter(BaseModel):
 class WebhookResponse(BaseModel):
     status: str
     message: str
-    amount: Decimal
+    amount: Decimal | None = None
     payment_id: str | None = None
     order_id: int | None = None
     event_type: str | None = None

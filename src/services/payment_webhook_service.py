@@ -6,13 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.models.orders import OrderModel, OrderStatus
 from database.models.payments import PaymentModel, PaymentStatus
+from schemas.payments import WebhookResponse
 
 logger = logging.getLogger(__name__)
 
 
 class PaymentWebhookService:
     @staticmethod
-    async def process_webhook_data(webhook_data: dict, db: AsyncSession) -> None:
+    async def process_webhook_data(webhook_data: dict, db: AsyncSession) -> WebhookResponse | None:
         """
         Process webhook data and update payment and order status.
 
@@ -30,21 +31,20 @@ class PaymentWebhookService:
                 detail="No webhook data received"
             )
 
-        result = await db.execute(
+        payment = await db.scalar(
             select(PaymentModel).where(
                 PaymentModel.external_payment_id == webhook_data["external_payment_id"]
             )
         )
-        payment = result.scalar_one_or_none()
 
         if not payment:
             logger.warning(
                 "Payment not found for external ID: %s",
                 webhook_data["external_payment_id"]
             )
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Payment not found for external ID: {webhook_data['external_payment_id']}"
+            return WebhookResponse(
+                status="failed",
+                message=f"Payment not found for external ID: {webhook_data['external_payment_id']}"
             )
 
         try:
