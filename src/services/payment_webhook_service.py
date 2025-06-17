@@ -70,8 +70,9 @@ class PaymentWebhookService:
 
             status_map = {
                 PaymentStatus.SUCCESSFUL: OrderStatus.PAID,
-                PaymentStatus.CANCELED: OrderStatus.CANCELED,
+                PaymentStatus.CANCELED: OrderStatus.PENDING,
                 PaymentStatus.REFUNDED: OrderStatus.CANCELED,
+                PaymentStatus.EXPIRED: OrderStatus.PENDING,
             }
 
             order.status = status_map.get(webhook_data["status"], order.status)

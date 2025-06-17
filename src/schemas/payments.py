@@ -19,6 +19,7 @@ class PaymentStatusSchema(str, Enum):
     SUCCESSFUL = "SUCCESSFUL"
     CANCELED = "CANCELED"
     REFUNDED = "REFUNDED"
+    EXPIRED = "EXPIRED"
 
 
 class PaymentCreateSchema(BaseModel):
@@ -76,7 +77,6 @@ class WebhookResponse(BaseModel):
     amount: Decimal | None = None
     payment_id: str | None = None
     order_id: int | None = None
-    event_type: str | None = None
 
 
     model_config = ConfigDict(from_attributes=True)

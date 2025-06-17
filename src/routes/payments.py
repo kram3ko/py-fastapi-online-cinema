@@ -76,7 +76,6 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -
         amount=webhook_data.get("amount"),
         payment_id=webhook_data.get("payment_id"),
         order_id=webhook_data.get("order_id"),
-        event_type=webhook_data.get("type"),
     )
 
 

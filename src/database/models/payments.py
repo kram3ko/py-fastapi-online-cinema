@@ -18,6 +18,7 @@ class PaymentStatus(PyEnum):
     SUCCESSFUL = "SUCCESSFUL"
     CANCELED = "CANCELED"
     REFUNDED = "REFUNDED"
+    EXPIRED = "EXPIRED"
 
 
 class PaymentModel(Base):
