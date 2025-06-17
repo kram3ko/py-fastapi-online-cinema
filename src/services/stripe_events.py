@@ -21,7 +21,10 @@ def handle_checkout_session_completed(event_data: dict[str, Any]) -> dict[str, A
         "external_payment_id": session.id,
         "status": PaymentStatus.SUCCESSFUL,
         "amount": Decimal(session.amount_total) / 100,
-        "order_id": session.metadata.get("order_id")
+        "order_id": session.metadata.get("order_id"),
+        "session_id": session.id,
+        "payment_id": session.payment_intent,
+        "event_type": event_data.get("type")
     }
 
 
@@ -31,7 +34,10 @@ def handle_checkout_session_expired(event_data: dict[str, Any]) -> dict[str, Any
         "external_payment_id": session.id,
         "status": PaymentStatus.CANCELED,
         "amount": Decimal(session.amount_total) / 100,
-        "order_id": session.metadata.get("order_id")
+        "order_id": session.metadata.get("order_id"),
+        "session_id": session.id,
+        "payment_id": session.payment_intent,
+        "event_type": event_data.get("type")
     }
 
 
@@ -45,7 +51,10 @@ def handle_payment_intent_succeeded(event_data: dict[str, Any]) -> dict[str, Any
         "external_payment_id": session.id,
         "status": PaymentStatus.SUCCESSFUL,
         "amount": Decimal(payment_intent.amount) / 100,
-        "order_id": payment_intent.metadata.get("order_id")
+        "order_id": payment_intent.metadata.get("order_id"),
+        "payment_id": payment_intent.id,
+        "session_id": session.id,
+        "event_type": event_data.get("type")
     }
 
 
@@ -59,7 +68,10 @@ def handle_payment_intent_failed(event_data: dict[str, Any]) -> dict[str, Any]:
         "external_payment_id": session.id,
         "status": PaymentStatus.CANCELED,
         "amount": Decimal(payment_intent.amount) / 100,
-        "order_id": payment_intent.metadata.get("order_id")
+        "order_id": payment_intent.metadata.get("order_id"),
+        "payment_id": payment_intent.id,
+        "session_id": session.id,
+        "event_type": event_data.get("type")
     }
 
 
@@ -73,7 +85,10 @@ def handle_charge_refunded(event_data: dict[str, Any]) -> dict[str, Any]:
         "external_payment_id": session.id,
         "status": PaymentStatus.REFUNDED,
         "amount": Decimal(charge.amount) / 100,
-        "order_id": charge.metadata.get("order_id")
+        "order_id": charge.metadata.get("order_id"),
+        "payment_id": charge.payment_intent,
+        "session_id": session.id,
+        "event_type": event_data.get("type")
     }
 
 
@@ -88,7 +103,10 @@ def handle_refund_created(event_data: dict[str, Any]) -> dict[str, Any]:
         "external_payment_id": session.id,
         "status": PaymentStatus.REFUNDED,
         "amount": Decimal(refund.amount) / 100,
-        "order_id": charge.metadata.get("order_id")
+        "order_id": charge.metadata.get("order_id"),
+        "payment_id": charge.payment_intent,
+        "session_id": session.id,
+        "event_type": event_data.get("type")
     }
 
 
