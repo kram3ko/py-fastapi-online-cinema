@@ -1,4 +1,4 @@
-from typing import Optional
+from decimal import Decimal
 
 import stripe
 from fastapi import HTTPException, Request, status
@@ -7,6 +7,7 @@ from config import get_settings
 from database.models.orders import OrderModel
 from database.models.payments import PaymentModel
 from schemas.payments import CheckoutSessionResponse
+from services.payment_webhook_service import PaymentWebhookService
 from services.stripe_events import STRIPE_EVENT_HANDLERS
 
 stripe_settings = get_settings()
@@ -68,7 +69,11 @@ class StripeService:
             )
 
     @staticmethod
-    async def handle_webhook(payload: bytes, sig_header: str) -> Optional[dict]:
+    async def handle_webhook(
+        payload: bytes,
+        sig_header: str,
+        webhook_service: PaymentWebhookService
+    ) -> tuple[str, dict]:
         try:
             event = stripe.Webhook.construct_event(
                 payload, sig_header, stripe_settings.STRIPE_WEBHOOK_SECRET
@@ -85,10 +90,23 @@ class StripeService:
             )
 
         handler = STRIPE_EVENT_HANDLERS.get(event.type)
-        if handler:
-            return handler(event.data)
+        if not handler:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No handler for event type: {event.type}"
+            )
 
-        return None
+        await handler(event.data.object, webhook_service)
+
+        # Extract payment details from event
+        event_data = event.data.object
+        payment_details = {
+            "payment_id": event_data.id,
+            "amount": round(Decimal(event_data.amount_total / 100), 2) if hasattr(event_data, "amount_total") else None,
+            "order_id": int(event_data.metadata.get("order_id")) if hasattr(event_data, "metadata") else None
+        }
+
+        return event.type, payment_details
 
     @staticmethod
     async def refund_payment(payment: PaymentModel) -> bool:

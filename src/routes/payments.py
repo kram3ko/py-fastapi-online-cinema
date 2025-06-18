@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from config.dependencies import allow_roles, get_current_user, require_admin
+from config.dependencies import allow_roles, get_current_user, get_webhook_service, require_admin
 from crud.payments import create_payment, get_payment_by_id
 from database.deps import get_db
 from database.models import OrderItemModel, UserGroupEnum, UserModel
@@ -56,7 +56,10 @@ async def create_checkout_session(
 
 
 @router.post("/webhook", response_model=WebhookResponse)
-async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> WebhookResponse:
+async def stripe_webhook(
+    request: Request,
+    webhook_service: PaymentWebhookService = Depends(get_webhook_service),
+) -> WebhookResponse:
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
 
@@ -67,15 +70,19 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -
             detail="No signature header"
         )
 
-    webhook_data = await StripeService.handle_webhook(payload, sig_header)
-    await PaymentWebhookService.process_webhook_data(webhook_data, db)
+    event_type, payment_details = await StripeService.handle_webhook(
+        payload,
+        sig_header,
+        webhook_service
+    )
 
     return WebhookResponse(
         status="success",
-        message="Webhook processed",
-        amount=webhook_data.get("amount"),
-        payment_id=webhook_data.get("payment_id"),
-        order_id=webhook_data.get("order_id"),
+        message=f"Processed {event_type} event",
+        event_type=event_type,
+        amount=payment_details["amount"],
+        payment_id=payment_details["payment_id"],
+        order_id=payment_details["order_id"]
     )
 
 

@@ -16,6 +16,7 @@ from notifications.stripe_notificator import StripeEmailNotificator, StripeEmail
 from security.http import get_token
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
+from services.payment_webhook_service import PaymentWebhookService
 from storages import DropboxStorageInterface, S3StorageInterface
 from storages.dropbox import DropboxStorageClient
 from storages.s3 import S3StorageClient
@@ -238,3 +239,8 @@ def allow_roles(*roles) -> Callable[..., Awaitable[UserModel]]:
         return user
 
     return dependency
+
+
+def get_webhook_service() -> PaymentWebhookService:
+    """Dependency for getting PaymentWebhookService instance."""
+    return PaymentWebhookService()
