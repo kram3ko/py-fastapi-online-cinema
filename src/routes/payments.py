@@ -80,9 +80,7 @@ async def stripe_webhook(
         status="success",
         message=f"Processed {event_type} event",
         event_type=event_type,
-        amount=payment_details["amount"],
         payment_id=payment_details["payment_id"],
-        order_id=payment_details["order_id"]
     )
 
 

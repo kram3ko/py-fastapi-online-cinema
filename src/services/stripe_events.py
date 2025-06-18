@@ -22,7 +22,7 @@ async def handle_checkout_session_completed(event_data: dict, webhook_service: P
 
 async def handle_checkout_session_expired(event_data: dict, webhook_service: PaymentWebhookService) -> None:
     external_payment_id = event_data["id"]
-    await webhook_service.handle_failed_payment(external_payment_id)
+    await webhook_service.handle_expired_session(external_payment_id)
 
 
 async def handle_payment_intent_succeeded(event_data: dict, webhook_service: PaymentWebhookService) -> None:
@@ -42,11 +42,8 @@ async def handle_charge_refunded(event_data: dict, webhook_service: PaymentWebho
 
 async def handle_refund_created(event_data: dict, webhook_service: PaymentWebhookService) -> None:
     charge = stripe.Charge.retrieve(event_data["charge"])
-    session = stripe.checkout.Session.list(
-        payment_intent=charge.payment_intent,
-        limit=1
-    ).data[0]
-    await webhook_service.handle_refunded_payment(session.id)
+    external_payment_id = charge.payment_intent
+    await webhook_service.handle_refunded_payment(external_payment_id)
 
 
 STRIPE_EVENT_HANDLERS: dict[str, Callable[[dict, PaymentWebhookService], Coroutine[Any, Any, None]]] = {

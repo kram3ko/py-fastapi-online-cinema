@@ -75,11 +75,7 @@ class WebhookResponse(BaseModel):
     status: str
     message: str
     event_type: str
-    amount: Decimal | None = None
-    payment_id: str | None = None
-    order_id: int | None = None
-
-    model_config = ConfigDict(from_attributes=True)
+    payment_id: str
 
 
 class PaymentStatisticsResponse(BaseModel):

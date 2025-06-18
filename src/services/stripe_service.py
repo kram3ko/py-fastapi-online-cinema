@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 import stripe
 from fastapi import HTTPException, Request, status
 
@@ -98,13 +96,8 @@ class StripeService:
 
         await handler(event.data.object, webhook_service)
 
-        # Extract payment details from event
         event_data = event.data.object
-        payment_details = {
-            "payment_id": event_data.id,
-            "amount": round(Decimal(event_data.amount_total / 100), 2) if hasattr(event_data, "amount_total") else None,
-            "order_id": int(event_data.metadata.get("order_id")) if hasattr(event_data, "metadata") else None
-        }
+        payment_details = {"payment_id": event_data.id}
 
         return event.type, payment_details
 
