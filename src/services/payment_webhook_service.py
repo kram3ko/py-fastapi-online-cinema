@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from sqlalchemy import select
@@ -14,18 +15,20 @@ class PaymentWebhookService:
     """Service for handling payment webhooks and updating payment/order statuses."""
 
     @staticmethod
-    async def _get_payment_by_external_id(session_id: str, db: AsyncSession) -> PaymentModel:
-        payment = await db.scalar(
-            select(PaymentModel).where(
-                (PaymentModel.session_id == session_id) |
-                (PaymentModel.payment_intent_id == session_id)
+    async def _get_payment_by_external_id(payment_id: str, db: AsyncSession, attempts: int = 3) -> PaymentModel:
+        for attempt in range(attempts):
+            payment = await db.scalar(
+                select(PaymentModel).where(
+                    (PaymentModel.session_id == payment_id) |
+                    (PaymentModel.payment_intent_id == payment_id)
+                )
             )
-        )
-
-        if not payment:
-            logger.error(f"Payment not found for session_id={session_id}")
-            raise ValueError("Payment not found")
-        return payment
+            if payment:
+                return payment
+            if attempt < 2:
+                await asyncio.sleep(1)
+        logger.error(f"Payment not found for session_id={payment_id}")
+        raise ValueError("Payment not found")
 
     @staticmethod
     async def _get_order(order_id: int, db: AsyncSession) -> OrderModel:
