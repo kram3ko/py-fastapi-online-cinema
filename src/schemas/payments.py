@@ -29,14 +29,14 @@ class PaymentCreateSchema(BaseModel):
 class CheckoutSessionResponse(BaseModel):
     payment_url: str
     payment_id: int
-    external_payment_id: str
+    session_id: str
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class PaymentUpdateSchema(BaseModel):
     status: Optional[PaymentStatusSchema] = None
-    external_payment_id: Optional[str] = None
+    session_id: Optional[str] = None
     amount: Optional[Decimal] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -49,7 +49,7 @@ class PaymentBaseSchema(BaseModel):
     created_at: datetime
     status: PaymentStatusSchema
     amount: Decimal
-    external_payment_id: Optional[str] = None
+    session_id: Optional[str] = None
     payment_items: list[PaymentItemBaseSchema] = []
 
     model_config = ConfigDict(from_attributes=True)

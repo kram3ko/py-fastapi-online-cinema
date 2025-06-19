@@ -58,7 +58,7 @@ class StripeService:
             return CheckoutSessionResponse(
                 payment_url=session.url,
                 payment_id=order.id,
-                external_payment_id=session.id
+                session_id=session.id
             )
         except stripe.error.StripeError as e:  # type: ignore[attr-defined]
             raise HTTPException(
@@ -104,15 +104,15 @@ class StripeService:
     @staticmethod
     async def refund_payment(payment: PaymentModel) -> bool:
         try:
-            if not payment.external_payment_id:
+            if not payment.session_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="No external payment ID found"
                 )
 
-            payment_intent = payment.external_payment_id
+            payment_intent = payment.session_id
             try:
-                session = stripe.checkout.Session.retrieve(payment.external_payment_id)
+                session = stripe.checkout.Session.retrieve(payment.session_id)
                 if session.payment_intent:
                     payment_intent = session.payment_intent
             except stripe.error.StripeError:  # type: ignore[attr-defined]

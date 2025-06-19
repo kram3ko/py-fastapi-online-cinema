@@ -17,7 +17,7 @@ async def test_create_payment_intent_success(auth_user_client: AsyncClient, test
     data = response.json()
     assert "payment_url" in data
     assert "payment_id" in data
-    assert "external_payment_id" in data
+    assert "session_id" in data
 
 
 @pytest.mark.asyncio

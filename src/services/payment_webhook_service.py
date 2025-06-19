@@ -14,103 +14,89 @@ class PaymentWebhookService:
     """Service for handling payment webhooks and updating payment/order statuses."""
 
     @staticmethod
-    async def _get_payment_by_external_id(external_payment_id: str, db: AsyncSession) -> PaymentModel | None:
-        """Get payment by external ID. Returns None if not found."""
-        return await db.scalar(
-            select(PaymentModel).where(PaymentModel.external_payment_id == external_payment_id)
+    async def _get_payment_by_external_id(session_id: str, db: AsyncSession) -> PaymentModel:
+        payment = await db.scalar(
+            select(PaymentModel).where(
+                (PaymentModel.session_id == session_id) |
+                (PaymentModel.payment_intent_id == session_id)
+            )
         )
 
-    @staticmethod
-    async def _get_order(order_id: int, db: AsyncSession) -> OrderModel | None:
-        """Get order by ID. Returns None if not found."""
-        return await db.get(OrderModel, order_id)
+        if not payment:
+            logger.error(f"Payment not found for session_id={session_id}")
+            raise ValueError("Payment not found")
+        return payment
 
-    async def handle_successful_session(self, external_payment_id: str) -> None:
+    @staticmethod
+    async def _get_order(order_id: int, db: AsyncSession) -> OrderModel:
+        order = await db.get(OrderModel, order_id)
+        if not order:
+            logger.error(f"Order not found for order_id={order_id}")
+            raise ValueError("Order not found")
+        return order
+
+    async def handle_successful_session(self, session_id: str, payment_intent_id: str) -> None:
         """Handle successful session payment."""
         async with get_db_contextmanager() as db:
             try:
-                payment = await self._get_payment_by_external_id(external_payment_id, db)
-                if not payment:
-                    return
-
-                payment.status = PaymentStatus.SUCCESSFUL
-
-                order = await self._get_order(payment.order_id, db)
-                if order:
-                    order.status = OrderStatus.PAID
-
+                payment = await self._get_payment_by_external_id(session_id, db)
+                if payment_intent_id.startswith("pi_") and payment.session_id.startswith("cs_"):
+                    payment.payment_intent_id = payment_intent_id
                 await db.commit()
-            except Exception as e:
-                logger.error(f"Error handling successful session: {e}")
+            except Exception:
                 await db.rollback()
+                raise
 
-    async def handle_expired_session(self, external_payment_id: str) -> None:
+    async def handle_expired_session(self, session_id: str) -> None:
         """Handle expired session payment."""
         async with get_db_contextmanager() as db:
             try:
-                payment = await self._get_payment_by_external_id(external_payment_id, db)
-                if not payment:
-                    return
-
+                payment = await self._get_payment_by_external_id(session_id, db)
                 payment.status = PaymentStatus.EXPIRED
                 await db.commit()
-            except Exception as e:
-                logger.error(f"Error handling expired session: {e}")
+            except Exception:
                 await db.rollback()
+                raise
 
-    async def handle_successful_payment(self, external_payment_id: str) -> None:
+    async def handle_successful_payment(self, session_id: str) -> None:
         """Handle successful payment."""
         async with get_db_contextmanager() as db:
             try:
-                payment = await self._get_payment_by_external_id(external_payment_id, db)
-                if not payment:
-                    return
+                payment = await self._get_payment_by_external_id(session_id, db)
 
                 payment.status = PaymentStatus.SUCCESSFUL
-
                 order = await self._get_order(payment.order_id, db)
-                if order:
-                    order.status = OrderStatus.PAID
-
+                order.status = OrderStatus.PAID
                 await db.commit()
-            except Exception as e:
-                logger.error(f"Error handling successful payment: {e}")
+            except Exception:
                 await db.rollback()
+                raise
 
-    async def handle_failed_payment(self, external_payment_id: str) -> None:
+    async def handle_failed_payment(self, session_id: str) -> None:
         """Handle failed payment."""
         async with get_db_contextmanager() as db:
             try:
-                payment = await self._get_payment_by_external_id(external_payment_id, db)
-                if not payment:
-                    return
-
+                payment = await self._get_payment_by_external_id(session_id, db)
                 payment.status = PaymentStatus.CANCELED
-
                 order = await self._get_order(payment.order_id, db)
-                if order:
-                    order.status = OrderStatus.PENDING
-
+                order.status = OrderStatus.PENDING
                 await db.commit()
-            except Exception as e:
-                logger.error(f"Error handling failed payment: {e}")
+            except Exception:
                 await db.rollback()
+                raise
 
-    async def handle_refunded_payment(self, external_payment_id: str) -> None:
+    async def handle_refunded_payment(self, session_id: str) -> None:
         """Handle refunded payment."""
         async with get_db_contextmanager() as db:
             try:
-                payment = await self._get_payment_by_external_id(external_payment_id, db)
-                if not payment:
-                    return
-
+                payment = await self._get_payment_by_external_id(session_id, db)
                 payment.status = PaymentStatus.REFUNDED
-
-                order = await self._get_order(payment.order_id, db)
-                if order:
+                try:
+                    order = await self._get_order(payment.order_id, db)
                     order.status = OrderStatus.CANCELED
-
+                except ValueError:
+                    logger.error(f"Order {payment.order_id} not found for payment {payment.id}")
                 await db.commit()
-            except Exception as e:
-                logger.error(f"Error handling refunded payment: {e}")
+            except Exception:
                 await db.rollback()
+                raise

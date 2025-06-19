@@ -32,7 +32,8 @@ class PaymentModel(Base):
         Enum(PaymentStatus), default=PaymentStatus.PENDING, nullable=False
     )
     amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    external_payment_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    session_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    payment_intent_id: Mapped[str | None] = mapped_column(String, nullable=True)
 
     user: Mapped["UserModel"] = relationship("UserModel", back_populates="payments")
     order: Mapped["OrderModel"] = relationship("OrderModel", back_populates="payments")

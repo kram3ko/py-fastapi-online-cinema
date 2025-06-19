@@ -324,14 +324,14 @@ def mock_stripe_service(monkeypatch):
         AsyncMock(return_value=CheckoutSessionResponse(
             payment_url="https://mock.stripe.test/pay/pi_test_123456",
             payment_id=1,
-            external_payment_id="pi_test_123456"
+            session_id="pi_test_123456"
         )),
     )
     monkeypatch.setattr(
         StripeService,
         "handle_webhook",
         AsyncMock(return_value={
-            "external_payment_id": "pi_test_123456",
+            "session_id": "pi_test_123456",
             "status": "SUCCESSFUL"
         }),
     )

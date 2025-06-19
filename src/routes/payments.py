@@ -44,14 +44,14 @@ async def create_checkout_session(
         payment.order
     )
 
-    payment.external_payment_id = session_data.external_payment_id
+    payment.session_id = session_data.session_id
     await db.commit()
     await db.refresh(payment)
 
     return CheckoutSessionResponse(
         payment_url=session_data.payment_url,
         payment_id=payment.id,
-        external_payment_id=session_data.external_payment_id
+        session_id=session_data.session_id
     )
 
 
