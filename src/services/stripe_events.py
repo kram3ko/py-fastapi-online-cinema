@@ -14,6 +14,7 @@ class StripeEventType:
     REFUND_CREATED = "refund.created"
     CHARGE_REFUNDED = "charge.refunded"
 
+
 async def handle_checkout_session_completed(event_data: dict, webhook_service: PaymentWebhookService) -> None:
     session_id = event_data["id"]
     payment_intent_id = event_data["payment_intent"]
