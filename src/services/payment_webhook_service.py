@@ -58,11 +58,11 @@ class PaymentWebhookService:
                 await db.rollback()
                 raise
 
-    async def handle_successful_payment(self, session_id: str) -> None:
+    async def handle_successful_payment(self, payment_intent_id: str) -> None:
         """Handle successful payment."""
         async with get_db_contextmanager() as db:
             try:
-                payment = await self._get_payment_by_external_id(session_id, db)
+                payment = await self._get_payment_by_external_id(payment_intent_id, db)
 
                 payment.status = PaymentStatus.SUCCESSFUL
                 order = await self._get_order(payment.order_id, db)
@@ -72,11 +72,11 @@ class PaymentWebhookService:
                 await db.rollback()
                 raise
 
-    async def handle_failed_payment(self, session_id: str) -> None:
+    async def handle_failed_payment(self, payment_intent_id: str) -> None:
         """Handle failed payment."""
         async with get_db_contextmanager() as db:
             try:
-                payment = await self._get_payment_by_external_id(session_id, db)
+                payment = await self._get_payment_by_external_id(payment_intent_id, db)
                 payment.status = PaymentStatus.CANCELED
                 order = await self._get_order(payment.order_id, db)
                 order.status = OrderStatus.PENDING
@@ -85,11 +85,11 @@ class PaymentWebhookService:
                 await db.rollback()
                 raise
 
-    async def handle_refunded_payment(self, session_id: str) -> None:
+    async def handle_refunded_payment(self, payment_intent_id: str) -> None:
         """Handle refunded payment."""
         async with get_db_contextmanager() as db:
             try:
-                payment = await self._get_payment_by_external_id(session_id, db)
+                payment = await self._get_payment_by_external_id(payment_intent_id, db)
                 payment.status = PaymentStatus.REFUNDED
                 try:
                     order = await self._get_order(payment.order_id, db)
