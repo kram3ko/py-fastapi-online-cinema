@@ -149,16 +149,7 @@ async def get_all_payments(
 
 
 async def get_payment_by_id(payment_id: int, db: AsyncSession) -> PaymentModel | None:
-    result = await db.execute(
-        select(PaymentModel)
-        .where(PaymentModel.id == payment_id)
-        .options(
-            selectinload(
-                PaymentModel.payment_items
-            ).selectinload(PaymentItemModel.order_item).selectinload(
-                OrderItemModel.movie),
-            selectinload(PaymentModel.user),
-            selectinload(PaymentModel.order)
-        )
+    result = await db.scalar(
+        select(PaymentModel).where(PaymentModel.id == payment_id)
     )
-    return result.scalar_one_or_none()
+    return result

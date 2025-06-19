@@ -67,7 +67,7 @@ class StripeService:
             )
 
     @staticmethod
-    async def get_checkout_session_url(session_id: str) -> str:
+    async def get_checkout_session_url(session_id: str) -> str | None:
         session = stripe.checkout.Session.retrieve(session_id)
         return session.url
 

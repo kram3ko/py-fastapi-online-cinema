@@ -26,7 +26,7 @@ from services.payment_webhook_service import PaymentWebhookService
 from services.stripe_service import StripeService
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["payments"])
+router = APIRouter()
 
 
 @router.post("/create-intent", response_model=CheckoutSessionResponse)
@@ -84,7 +84,7 @@ async def stripe_webhook(
     )
 
 
-@router.get("/{session_id}")
+@router.get("/session/{session_id}")
 async def get_payment_link(session_id: str) -> dict:
     """ Retrieve the checkout session URL for a given session ID."""
     try:
@@ -209,18 +209,11 @@ async def get_payment_statistics(
     )
 
 
-@router.post("/{payment_id}/refund", response_model=RefundResponse)
+@router.post("/{payment_id}/refund", response_model=RefundResponse, dependencies=[Depends(require_admin)])
 async def refund_payment(
     payment_id: int,
-    is_admin: bool = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ) -> RefundResponse:
-    if not is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to refund payments"
-        )
-
     payment = await get_payment_by_id(payment_id, db)
     if not payment:
         raise HTTPException(
@@ -234,26 +227,12 @@ async def refund_payment(
             detail="Can only refund successful payments"
         )
 
-    try:
-        success = await StripeService.refund_payment(payment)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to process refund"
-            )
+    await StripeService.refund_payment(payment)
 
-        payment.status = PaymentStatus.REFUNDED
-        await db.commit()
-        return RefundResponse(
-            payment_id=payment.id,
-            order_id=payment.order_id,
-        )
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+    return RefundResponse(
+        payment_id=payment.id,
+        order_id=payment.order_id,
+    )
 
 
 @router.get(
@@ -273,13 +252,9 @@ async def get_payment_details(
             detail="Payment not found"
         )
 
-    if current_user.group.name == UserGroupEnum.ADMIN:
+    if current_user.group.name == UserGroupEnum.ADMIN or payment.user_id == current_user.id:
         return PaymentBaseSchema.model_validate(payment)
-
-    if payment.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view this payment"
-        )
-
-    return PaymentBaseSchema.model_validate(payment)
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Not authorized to view this payment"
+    )
