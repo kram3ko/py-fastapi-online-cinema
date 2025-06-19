@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Coroutine
 from typing import Any, Callable
 
@@ -16,13 +17,13 @@ class StripeEventType:
 
 
 async def handle_checkout_session_completed(event_data: dict, webhook_service: PaymentWebhookService) -> None:
-    external_payment_id = event_data["id"]
+    external_payment_id = event_data["payment_intent"]
     await webhook_service.handle_successful_payment(external_payment_id)
 
 
 async def handle_checkout_session_expired(event_data: dict, webhook_service: PaymentWebhookService) -> None:
-    external_payment_id = event_data["id"]
-    await webhook_service.handle_expired_session(external_payment_id)
+    session_id = event_data["id"]
+    await webhook_service.handle_expired_session(session_id)
 
 
 async def handle_payment_intent_succeeded(event_data: dict, webhook_service: PaymentWebhookService) -> None:
@@ -36,13 +37,14 @@ async def handle_payment_intent_payment_failed(event_data: dict, webhook_service
 
 
 async def handle_charge_refunded(event_data: dict, webhook_service: PaymentWebhookService) -> None:
-    external_payment_id = event_data["id"]
+    charge_id = event_data["id"]
+    charge = stripe.Charge.retrieve(charge_id)
+    external_payment_id = charge.payment_intent
     await webhook_service.handle_refunded_payment(external_payment_id)
 
 
 async def handle_refund_created(event_data: dict, webhook_service: PaymentWebhookService) -> None:
-    charge = stripe.Charge.retrieve(event_data["charge"])
-    external_payment_id = charge.payment_intent
+    external_payment_id = event_data["payment_intent"]
     await webhook_service.handle_refunded_payment(external_payment_id)
 
 
