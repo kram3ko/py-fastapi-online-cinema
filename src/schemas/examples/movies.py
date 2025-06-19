@@ -1,76 +1,91 @@
 movie_item_schema_example = {
-    "id": 9933,
-    "name": "The Swan Princess: A Royal Wedding",
-    "date": "2020-07-20",
-    "score": 70,
-    "overview": "Princess Odette and Prince Derek are going to a wedding at Princess Mei Li and her beloved Chen. "
-                "But evil forces are at stake and the wedding plans are tarnished and "
-                "true love has difficult conditions."
+    "id": 1,
+    "uuid_movie": "38e6c48d-8a93-4e1e-9df5-4316cbf3f9a1",
+    "name": "Inception",
+    "year": 2010,
+    "time": 148,
+    "imdb": 8.8,
+    "votes": 2000000,
+    "meta_score": 74.0,
+    "gross": 829.89,
+    "descriptions": "A thief who steals corporate secrets through the use of dream-sharing technology...",
+    "price": 12.99,
+    "certification": {
+        "id": 2,
+        "name": "PG-13",
+    },
+    "genres": [
+        {"id": 1, "name": "Action"},
+        {"id": 2, "name": "Sci-Fi"},
+    ],
+    "stars": [{"id": 1, "name": "Leonardo DiCaprio"}, {"id": 2, "name": "Joseph Gordon-Levitt"}],
+    "directors": [
+        {"id": 1, "name": "Christopher Nolan"},
+    ],
 }
 
 movie_list_response_schema_example = {
-    "movies": [
-        movie_item_schema_example
-    ],
-    "prev_page": "/theater/movies/?page=1&per_page=1",
-    "next_page": "/theater/movies/?page=3&per_page=1",
-    "total_pages": 9933,
-    "total_items": 9933
+    "movies": [movie_item_schema_example],
+    "prev_page": "/movies/?page=1&per_page=10",
+    "next_page": "/movies/?page=3&per_page=10",
+    "total_pages": 99,
+    "total_items": 990,
 }
 
 movie_create_schema_example = {
     "name": "New Movie",
-    "date": "2025-01-01",
-    "score": 85.5,
-    "overview": "An amazing movie.",
-    "status": "Released",
-    "budget": 1000000.00,
-    "revenue": 5000000.00,
-    "country": "US",
-    "genres": ["Action", "Adventure"],
-    "actors": ["John Doe", "Jane Doe"],
-    "languages": ["English", "French"]
+    "year": 2025,
+    "time": 120,
+    "gross": 1000000.00,
+    "descriptions": "A band-new sci-fi movie about AI in the future.",
+    "price": 12.99,
+    "certification_id": 1,
+    "genre_ids": [1, 2],
+    "star_ids": [1, 2],
+    "director_ids": [3],
 }
 
 
-language_schema_example = {
-    "id": 1,
-    "name": "English"
-}
+director_schema_example = {"name": "Christopher Nolan"}
 
-country_schema_example = {
-    "id": 1,
-    "code": "US",
-    "name": "United States"
-}
 
-genre_schema_example = {
-    "id": 1,
-    "genre": "Comedy"
-}
+certification_schema_example = {"name": "PG-13"}
 
-actor_schema_example = {
-    "id": 1,
-    "name": "JimmyFallon"
-}
+genre_schema_example = {"name": "Action"}
+
+
+star_schema_example = {"name": "Leonardo DiCaprio"}
+
 
 movie_detail_schema_example = {
     **movie_item_schema_example,
-    "status": "Released",
-    "budget": 1000000.00,
-    "revenue": 5000000.00,
-    "actors": [actor_schema_example],
-    "country": country_schema_example,
     "genres": [genre_schema_example],
-    "languages": [language_schema_example]
+    "stars": [star_schema_example],
+    "directors": [director_schema_example],
+}
+
+movie_list_schema_example = {
+    "id": 1,
+    "name": "New Movie",
+    "year": 2025,
+    "imdb": 8.8,
+    "time": 120,
+    "price": 12.99,
+    "genres": [genre_schema_example],
 }
 
 movie_update_schema_example = {
-    "name": "Update Movie",
-    "date": "2025-01-01",
-    "score": 85.5,
-    "overview": "An amazing movie.",
-    "status": "Released",
-    "budget": 1000000.00,
-    "revenue": 5000000.00,
+    "name": "Update Movie Title",
+    "year": 2024,
+    "time": 135,
+    "imdb": 8.2,
+    "votes": 500000,
+    "meta_score": 77.0,
+    "gross": 4500000.00,
+    "descriptions": "Updated description of the movie.",
+    "price": 11.99,
+    "certification_id": 2,
+    "genres_id": [1, 4],
+    "stars_id": [1],
+    "directors_id": [1],
 }

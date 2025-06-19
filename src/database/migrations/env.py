@@ -2,10 +2,9 @@ from logging.config import fileConfig
 
 from alembic import context
 
-from database.models import movies, accounts # noqa: F401
+from database.models import movies, accounts, shopping_cart, payments, orders  # noqa: F401
 from database.models.base import Base
 from database.session_postgresql import sync_postgresql_engine
-
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -21,6 +20,7 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
+
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

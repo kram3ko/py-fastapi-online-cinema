@@ -3,32 +3,36 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import get_settings, get_accounts_email_notificator, get_s3_storage_client
-from database import (
-    reset_database,
-    get_db_contextmanager,
-    UserGroupEnum,
-    UserGroupModel
+from config import (
+    get_settings,
+    get_accounts_email_notificator,
 )
+from config.dependencies import get_dropbox_storage_client
+from database.deps import get_db_contextmanager
+from database.models import CertificationModel, GenreModel, StarModel, DirectorModel
+from database.models.accounts import UserGroupEnum, UserGroupModel, UserModel
+from database.models.shopping_cart import Cart
 from database.populate import CSVDatabaseSeeder
+from database.session_sqlite import reset_sqlite_database as reset_database
 from main import app
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
-from storages import S3StorageClient
-from tests.doubles.fakes.storage import FakeS3Storage
+from storages import DropboxStorageClient
+from tests.doubles.fakes.storage import FakeDropboxStorage
 from tests.doubles.stubs.emails import StubEmailSender
+
+
+from unittest.mock import AsyncMock
+from services.stripe_service import StripeService
+from database.models.orders import OrderModel, OrderStatus
+from schemas.payments import CheckoutSessionResponse
 
 
 def pytest_configure(config):
     config.addinivalue_line(
-        "markers", "e2e: End-to-end tests"
-    )
-    config.addinivalue_line(
         "markers", "order: Specify the order of test execution"
     )
-    config.addinivalue_line(
-        "markers", "unit: Unit tests"
-    )
+    config.addinivalue_line("markers", "unit: Unit tests")
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
@@ -40,25 +44,11 @@ async def reset_db(request):
     test function to maintain test isolation. However, if the test is marked with 'e2e',
     the database reset is skipped to allow preserving state between end-to-end tests.
     """
-    if "e2e" in request.keywords:
-        yield
-    else:
-        await reset_database()
-        yield
-
-
-@pytest_asyncio.fixture(scope="session")
-async def reset_db_once_for_e2e(request):
-    """
-    Reset the database once for end-to-end tests.
-
-    This fixture is intended to be used for end-to-end tests at the session scope,
-    ensuring the database is reset before running E2E tests.
-    """
     await reset_database()
+    yield
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def settings():
     """
     Provide application settings.
@@ -79,55 +69,49 @@ async def email_sender_stub():
 
 
 @pytest_asyncio.fixture(scope="function")
-async def s3_storage_fake():
+async def dropbox_storage_fake():
     """
     Provide a fake S3 storage client.
 
-    This fixture returns an instance of FakeS3Storage for testing purposes.
+    This fixture returns an instance of FakeDropboxStorage for testing purposes.
     """
-    return FakeS3Storage()
+    return FakeDropboxStorage()
 
 
-@pytest_asyncio.fixture(scope="session")
-async def s3_client(settings):
+@pytest_asyncio.fixture(scope="function")
+async def dropbox_client(settings):
     """
     Provide an S3 storage client.
 
     This fixture returns an instance of S3StorageClient configured with the application settings.
     """
-    return S3StorageClient(
-        endpoint_url=settings.S3_STORAGE_ENDPOINT,
-        access_key=settings.S3_STORAGE_ACCESS_KEY,
-        secret_key=settings.S3_STORAGE_SECRET_KEY,
-        bucket_name=settings.S3_BUCKET_NAME
+    return DropboxStorageClient(
+        access_token=settings.DROPBOX_ACCESS_TOKEN,
+        app_key=settings.DROPBOX_APP_KEY,
+        app_secret=settings.DROPBOX_APP_SECRET,
+        refresh_token=settings.DROPBOX_REFRESH_TOKEN
     )
 
 
 @pytest_asyncio.fixture(scope="function")
-async def client(email_sender_stub, s3_storage_fake):
+async def client(email_sender_stub, dropbox_storage_fake):
     """
     Provide an asynchronous HTTP client for testing.
 
+
     Overrides the dependencies for email sender and S3 storage with test doubles.
     """
-    app.dependency_overrides[get_accounts_email_notificator] = lambda: email_sender_stub
-    app.dependency_overrides[get_s3_storage_client] = lambda: s3_storage_fake
+    app.dependency_overrides[get_accounts_email_notificator] = (
+        lambda: email_sender_stub
+    )
+    app.dependency_overrides[get_dropbox_storage_client] = lambda: dropbox_storage_fake
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as async_client:
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as async_client:
         yield async_client
 
     app.dependency_overrides.clear()
-
-
-@pytest_asyncio.fixture(scope="session")
-async def e2e_client():
-    """
-    Provide an asynchronous HTTP client for end-to-end tests.
-
-    This client is available at the session scope.
-    """
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as async_client:
-        yield async_client
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -137,20 +121,6 @@ async def db_session():
 
     This fixture yields an async session using `get_db_contextmanager`, ensuring that the session
     is properly closed after each test.
-    """
-    async with get_db_contextmanager() as session:
-        yield session
-
-
-@pytest_asyncio.fixture(scope="session")
-async def e2e_db_session():
-    """
-    Provide an async database session for end-to-end tests.
-
-    This fixture yields an async session using `get_db_contextmanager` at the session scope,
-    ensuring that the same session is used throughout the E2E test suite.
-    Note: Using a session-scoped DB session in async tests may lead to shared state between tests,
-    so use this fixture with caution if tests run concurrently.
     """
     async with get_db_contextmanager() as session:
         yield session
@@ -173,7 +143,7 @@ async def jwt_manager() -> JWTAuthManagerInterface:
     return JWTAuthManager(
         secret_key_access=settings.SECRET_KEY_ACCESS,
         secret_key_refresh=settings.SECRET_KEY_REFRESH,
-        algorithm=settings.JWT_SIGNING_ALGORITHM
+        algorithm=settings.JWT_SIGNING_ALGORITHM,
     )
 
 
@@ -203,9 +173,227 @@ async def seed_database(db_session):
     :type db_session: AsyncSession
     """
     settings = get_settings()
-    seeder = CSVDatabaseSeeder(csv_file_path=settings.PATH_TO_MOVIES_CSV, db_session=db_session)
+    seeder = CSVDatabaseSeeder(
+        csv_file_path=settings.PATH_TO_MOVIES_CSV, db_session=db_session
+    )
 
     if not await seeder.is_db_populated():
         await seeder.seed()
 
     yield db_session
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_user(db_session, seed_user_groups):
+    """
+    Create a test user for validation tests.
+    
+    This fixture creates a test user with the following properties:
+    - email: test@mate.com
+    - password: TestPassword123!
+    - group_id: 1 (User group)
+    - is_active: True
+    
+    The user is created before each test and cleaned up after.
+    """
+    user = UserModel.create(email="test@mate.com", raw_password="TestPassword123!", group_id=1)
+    user.is_active = True
+    db_session.add(user)
+    await db_session.commit()
+    return user
+
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_client(
+    client: AsyncClient,
+    test_user: UserModel,
+    jwt_manager: JWTAuthManagerInterface,
+):
+    """
+    Provide an authenticated async HTTP client for testing with regular user privileges.
+    """
+    access_token = jwt_manager.create_access_token({"user_id": test_user.id})
+    client.headers["Authorization"] = f"Bearer {access_token}"
+    return client
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_moderator(db_session, seed_user_groups):
+    """
+    Create a test moderator for validation tests.
+
+    This fixture creates a test moderator with the following properties:
+    - email: moderator@mate.com
+    - password: TestPassword123!
+    - group_id: 2 (Moderator group)
+    - is_active: True
+
+    The moderator is created before each test and cleaned up after.
+    """
+    moderator = UserModel.create(email="moderator@mate.com", raw_password="TestPassword123!", group_id=2)
+    moderator.is_active = True
+    db_session.add(moderator)
+    await db_session.commit()
+    return moderator
+
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_moderator_client(
+    client: AsyncClient,
+    test_moderator: UserModel,
+    jwt_manager: JWTAuthManagerInterface,
+):
+    """
+    Provide an authenticated async HTTP client for testing with moderator privileges.
+    """
+    access_token = jwt_manager.create_access_token({"user_id": test_moderator.id})
+    client.headers["Authorization"] = f"Bearer {access_token}"
+    return client
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_movie(db_session: AsyncSession):
+    """Create a test movie for shopping cart tests."""
+    from database.models.movies import MovieModel, CertificationModel
+
+    certification = CertificationModel(name="PG-13")
+    db_session.add(certification)
+    await db_session.flush()
+
+    movie = MovieModel(
+        name="Test Movie",
+        descriptions="Test Description",
+        price=10.0,
+        year=2024,
+        time=120,
+        certification_id=certification.id,
+    )
+    db_session.add(movie)
+    await db_session.commit()
+    await db_session.refresh(movie)
+    return movie
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_cart(db_session: AsyncSession, test_user: UserModel):
+    """Create a test cart for the test user."""
+    cart = Cart(user_id=test_user.id)
+    db_session.add(cart)
+    await db_session.commit()
+    await db_session.refresh(cart)
+    return cart
+
+
+@pytest_asyncio.fixture(scope="function")
+async def seed_movie_relations(db_session: AsyncSession):
+    """
+    Ensure that at least one genre, star, director, and certification exist in the database with id=1.
+    """
+    # Certification
+    cert = await db_session.get(CertificationModel, 1)
+    if not cert:
+        cert = CertificationModel(id=1, name="PG-13")
+        db_session.add(cert)
+    # Genre
+    genre = await db_session.get(GenreModel, 1)
+    if not genre:
+        genre = GenreModel(id=1, name="Action")
+        db_session.add(genre)
+    # Star
+    star = await db_session.get(StarModel, 1)
+    if not star:
+        star = StarModel(id=1, name="Leonardo DiCaprio")
+        db_session.add(star)
+    # Director
+    director = await db_session.get(DirectorModel, 1)
+    if not director:
+        director = DirectorModel(id=1, name="Christopher Nolan")
+        db_session.add(director)
+    await db_session.commit()
+    yield
+
+
+@pytest_asyncio.fixture(autouse=True)
+def mock_stripe_service(monkeypatch):
+    """
+    Automatically patch StripeService methods for all tests using mocked behavior.
+    """
+    monkeypatch.setattr(
+        StripeService,
+        "create_checkout_session",
+        AsyncMock(return_value=CheckoutSessionResponse(
+            payment_url="https://mock.stripe.test/pay/pi_test_123456",
+            payment_id=1,
+            session_id="pi_test_123456"
+        )),
+    )
+    monkeypatch.setattr(
+        StripeService,
+        "handle_webhook",
+        AsyncMock(return_value={
+            "session_id": "pi_test_123456",
+            "status": "SUCCESSFUL"
+        }),
+    )
+    monkeypatch.setattr(
+        StripeService,
+        "refund_payment",
+        AsyncMock(return_value=True),
+    )
+
+
+# ⬇️ Авторизовані клієнти (користувач / адмін)
+@pytest_asyncio.fixture(scope="function")
+async def auth_user_token(test_user: UserModel, jwt_manager: JWTAuthManagerInterface):
+    return jwt_manager.create_access_token({"user_id": test_user.id})
+
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_admin_token(test_moderator: UserModel, jwt_manager: JWTAuthManagerInterface):
+    return jwt_manager.create_access_token({"user_id": test_moderator.id})
+
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_user_client(
+    client: AsyncClient,
+    auth_user_token: str,
+):
+    client.headers["Authorization"] = f"Bearer {auth_user_token}"
+    return client
+
+
+@pytest_asyncio.fixture(scope="function")
+async def auth_admin_client(
+    client: AsyncClient,
+    auth_admin_token: str,
+):
+    client.headers["Authorization"] = f"Bearer {auth_admin_token}"
+    return client
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_order(db_session: AsyncSession, test_user: UserModel, test_movie):
+    """Create a test order for payment tests."""
+    order = OrderModel(
+        user_id=test_user.id,
+        status=OrderStatus.PENDING,
+        total_amount=test_movie.price
+    )
+    db_session.add(order)
+    await db_session.commit()
+    await db_session.refresh(order)
+    return order
+
+
+@pytest_asyncio.fixture(scope="function")
+async def test_order_negative_amount(db_session: AsyncSession, test_user: UserModel, test_movie):
+    """Create a test order with a negative amount for negative test cases."""
+    order = OrderModel(
+        user_id=test_user.id,
+        status=OrderStatus.PENDING,
+        total_amount=-10.0  # отрицательная сумма
+    )
+    db_session.add(order)
+    await db_session.commit()
+    await db_session.refresh(order)
+    return order

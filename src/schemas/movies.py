@@ -1,199 +1,344 @@
-from datetime import date, datetime
-from typing import Optional, List
+import uuid
+from datetime import datetime
+from enum import Enum
+from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from fastapi import Query
+from pydantic import BaseModel, ConfigDict, Field
 
-from database.models.movies import MovieStatusEnum
 from schemas.examples.movies import (
-    country_schema_example,
-    language_schema_example,
+    certification_schema_example,
+    director_schema_example,
     genre_schema_example,
-    actor_schema_example,
-    movie_item_schema_example,
-    movie_list_response_schema_example,
     movie_create_schema_example,
     movie_detail_schema_example,
-    movie_update_schema_example
+    movie_item_schema_example,
+    movie_list_response_schema_example,
+    movie_list_schema_example,
+    movie_update_schema_example,
+    star_schema_example,
 )
 
 
-class LanguageSchema(BaseModel):
-    id: int
+class GenreBaseSchema(BaseModel):
     name: str
 
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
-            "examples": [
-                language_schema_example
-            ]
-        }
-    }
-
-
-class CountrySchema(BaseModel):
-    id: int
-    code: str
-    name: Optional[str]
-
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
-            "examples": [
-                country_schema_example
-            ]
-        }
-    }
-
-
-class GenreSchema(BaseModel):
-    id: int
-    name: str
-
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "examples": [
                 genre_schema_example
             ]
         }
-    }
+    )
 
 
-class ActorSchema(BaseModel):
+class GenreCreateSchema(GenreBaseSchema):
+    pass
+
+
+class GenreUpdateSchema(GenreBaseSchema):
+    pass
+
+
+class GenreDeleteSchema(GenreBaseSchema):
+    pass
+
+
+class GenreReadSchema(GenreBaseSchema):
     id: int
-    name: str
+    movie_count: Optional[int] = Field(default=None)
 
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
-            "examples": [
-                actor_schema_example
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": [
+                genre_schema_example
             ]
         }
-    }
+    )
+
+
+class StarBaseSchema(BaseModel):
+    name: str
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                star_schema_example
+            ]
+        }
+    )
+
+
+class StarCreateSchema(StarBaseSchema):
+    pass
+
+
+class StarUpdateSchema(StarBaseSchema):
+    pass
+
+
+class StarDeleteSchema(StarBaseSchema):
+    pass
+
+
+class StarReadSchema(StarBaseSchema):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DirectorBaseSchema(BaseModel):
+    name: str
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                director_schema_example
+            ]
+        }
+    )
+
+
+class DirectorCreateSchema(DirectorBaseSchema):
+    pass
+
+
+class DirectorUpdateSchema(DirectorBaseSchema):
+    pass
+
+
+class DirectorDeleteSchema(DirectorBaseSchema):
+    pass
+
+
+class DirectorReadSchema(DirectorBaseSchema):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class CertificationBaseSchema(BaseModel):
+    name: str
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                certification_schema_example
+            ]
+        }
+    )
+
+
+class CertificationCreateSchema(CertificationBaseSchema):
+    pass
+
+
+class CertificationUpdateSchema(CertificationBaseSchema):
+    pass
+
+
+class CertificationDeleteSchema(CertificationBaseSchema):
+    pass
+
+
+class CertificationReadSchema(CertificationBaseSchema):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MovieBaseSchema(BaseModel):
-    name: str = Field(..., max_length=255)
-    date: date
-    score: float = Field(..., ge=0, le=100)
-    overview: str
-    status: MovieStatusEnum
-    budget: float = Field(..., ge=0)
-    revenue: float = Field(..., ge=0)
+    uuid_movie: uuid.UUID
+    name: str
+    year: int
+    time: int
+    imdb: Optional[float] = Field(default=None)
+    votes: Optional[int] = Field(default=None)
+    meta_score: Optional[float] = Field(default=None)
+    gross: Optional[float] = Field(default=None)
+    descriptions: str
+    price: float
+    certification_id: int
 
-    model_config = {
-        "from_attributes": True
-    }
-
-    @field_validator("date")
-    @classmethod
-    def validate_date(cls, value):
-        current_year = datetime.now().year
-        if value.year > current_year + 1:
-            raise ValueError(f"The year in 'date' cannot be greater than {current_year + 1}.")
-        return value
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                movie_item_schema_example
+            ]
+        }
+    )
 
 
 class MovieDetailSchema(MovieBaseSchema):
     id: int
-    country: CountrySchema
-    genres: List[GenreSchema]
-    actors: List[ActorSchema]
-    languages: List[LanguageSchema]
+    genres: list[GenreBaseSchema]
+    stars: list[StarBaseSchema]
+    directors: list[DirectorBaseSchema]
 
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "examples": [
                 movie_detail_schema_example
             ]
         }
-    }
+    )
 
 
 class MovieListItemSchema(BaseModel):
     id: int
     name: str
-    date: date
-    score: float
-    overview: str
+    year: int
+    imdb: Optional[float]
+    time: int
+    price: float
+    genres: list[GenreBaseSchema]
 
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "examples": [
-                movie_item_schema_example
+                movie_list_schema_example
             ]
         }
-    }
+    )
 
 
 class MovieListResponseSchema(BaseModel):
-    movies: List[MovieListItemSchema]
+    movies: list[MovieListItemSchema]
     prev_page: Optional[str]
     next_page: Optional[str]
     total_pages: int
     total_items: int
 
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "examples": [
                 movie_list_response_schema_example
             ]
         }
-    }
+    )
 
 
 class MovieCreateSchema(BaseModel):
     name: str
-    date: date
-    score: float = Field(..., ge=0, le=100)
-    overview: str
-    status: MovieStatusEnum
-    budget: float = Field(..., ge=0)
-    revenue: float = Field(..., ge=0)
-    country: str
-    genres: List[str]
-    actors: List[str]
-    languages: List[str]
+    year: int
+    time: int
+    gross: Optional[float]
+    descriptions: str
+    price: float
+    certification_id: int
+    genre_ids: list[int]
+    star_ids: list[int]
+    director_ids: list[int]
 
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "examples": [
                 movie_create_schema_example
             ]
         }
-    }
-
-    @field_validator("country", mode="before")
-    @classmethod
-    def normalize_country(cls, value: str) -> str:
-        return value.upper()
-
-    @field_validator("genres", "actors", "languages", mode="before")
-    @classmethod
-    def normalize_list_fields(cls, value: List[str]) -> List[str]:
-        return [item.title() for item in value]
+    )
 
 
 class MovieUpdateSchema(BaseModel):
     name: Optional[str] = None
-    date: Optional[date] = None
-    score: Optional[float] = Field(None, ge=0, le=100)
-    overview: Optional[str] = None
-    status: Optional[MovieStatusEnum] = None
-    budget: Optional[float] = Field(None, ge=0)
-    revenue: Optional[float] = Field(None, ge=0)
+    year: Optional[int] = None
+    time: Optional[int] = None
+    imdb: Optional[float] = None
+    votes: Optional[int] = None
+    meta_score: Optional[float] = None
+    gross: Optional[float] = None
+    descriptions: Optional[str] = None
+    price: Optional[float] = None
+    certification_id: Optional[int] = None
+    genre_ids: Optional[list[int]] = None
+    star_ids: Optional[list[int]] = None
+    director_ids: Optional[list[int]] = None
 
-    model_config = {
-        "from_attributes": True,
-        "json_schema_extra": {
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
             "examples": [
                 movie_update_schema_example
             ]
         }
-    }
+    )
+
+
+class MovieDeleteSchema(MovieBaseSchema):
+    pass
+
+
+class MovieFilterParamsSchema:
+    def __init__(
+        self,
+        year: Optional[int] = Query(default=None),
+        genre_ids: Optional[list[int]] = Query(default=None),
+        min_imdb: Optional[float] = Query(default=None),
+    ):
+        self.year = year
+        self.genre_ids = genre_ids
+        self.min_imdb = min_imdb
+
+
+class SortOptions(str, Enum):
+    price_asc = "price_asc"
+    price_desc = "price_desc"
+    release_date_asc = "release_date_asc"
+    release_date_desc = "release_date_desc"
+
+
+class MovieLikeRequestSchema(BaseModel):
+    movie_id: int
+    is_like: bool
+
+
+class MovieLikeResponseSchema(BaseModel):
+    message: str
+    total_likes: int
+    total_dislikes: int
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+
+class CommentCreateSchema(BaseModel):
+    content: str
+    rating: int = Field(..., ge=1, le=10)
+
+
+class CommentReadSchema(BaseModel):
+    id: int
+    content: str
+    rating: int
+    created_at: datetime
+    user_id: int
+    movie_id: int
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )
+
+
+class FavoriteCreateSchema(BaseModel):
+    movie_id: int
+
+
+class FavoriteReadSchema(BaseModel):
+    id: int
+    movie_id: int
+    movie_title: str
+
+    model_config = ConfigDict(
+        from_attributes=True,
+    )

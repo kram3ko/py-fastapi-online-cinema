@@ -1,25 +1,24 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
-from database import accounts_validators
+from database.models import UserGroupEnum
+from database.validators.accounts import validate_email, validate_password_strength
 
 
 class BaseEmailPasswordSchema(BaseModel):
     email: EmailStr
     password: str
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = ConfigDict(from_attributes=True)
 
     @field_validator("email")
     @classmethod
-    def validate_email(cls, value):
-        return value.lower()
+    def validate_user_email(cls, value: str) -> str:
+        return validate_email(value.lower())
 
     @field_validator("password")
     @classmethod
-    def validate_password(cls, value):
-        return accounts_validators.validate_password_strength(value)
+    def validate_password(cls, value: str) -> str:
+        return validate_password_strength(value)
 
 
 class UserRegistrationRequestSchema(BaseEmailPasswordSchema):
@@ -48,9 +47,7 @@ class UserRegistrationResponseSchema(BaseModel):
     id: int
     email: EmailStr
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = {"from_attributes": True}
 
 
 class UserActivationRequestSchema(BaseModel):
@@ -73,3 +70,7 @@ class TokenRefreshRequestSchema(BaseModel):
 class TokenRefreshResponseSchema(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class ChangeUserGroupRequest(BaseModel):
+    group: UserGroupEnum
