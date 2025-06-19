@@ -19,6 +19,7 @@ class PaymentStatusSchema(str, Enum):
     SUCCESSFUL = "SUCCESSFUL"
     CANCELED = "CANCELED"
     REFUNDED = "REFUNDED"
+    EXPIRED = "EXPIRED"
 
 
 class PaymentCreateSchema(BaseModel):
@@ -28,14 +29,14 @@ class PaymentCreateSchema(BaseModel):
 class CheckoutSessionResponse(BaseModel):
     payment_url: str
     payment_id: int
-    external_payment_id: str
+    session_id: str
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class PaymentUpdateSchema(BaseModel):
     status: Optional[PaymentStatusSchema] = None
-    external_payment_id: Optional[str] = None
+    session_id: Optional[str] = None
     amount: Optional[Decimal] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -48,7 +49,8 @@ class PaymentBaseSchema(BaseModel):
     created_at: datetime
     status: PaymentStatusSchema
     amount: Decimal
-    external_payment_id: Optional[str] = None
+    session_id: Optional[str] = None
+    payment_intent_id: Optional[str] = None
     payment_items: list[PaymentItemBaseSchema] = []
 
     model_config = ConfigDict(from_attributes=True)
@@ -71,7 +73,10 @@ class AdminPaymentFilter(BaseModel):
 
 
 class WebhookResponse(BaseModel):
-    status: str = "success"
+    status: str
+    message: str
+    event_type: str
+    payment_id: str
 
 
 class PaymentStatisticsResponse(BaseModel):
@@ -83,4 +88,6 @@ class PaymentStatisticsResponse(BaseModel):
 
 
 class RefundResponse(BaseModel):
+    payment_id: int
+    order_id: int
     status: str = "refunded"

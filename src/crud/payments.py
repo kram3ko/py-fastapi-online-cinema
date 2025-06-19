@@ -6,24 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from database.models.orders import OrderItemModel, OrderModel, OrderStatus
-from database.models.payments import PaymentItemModel, PaymentModel, PaymentStatus
+from database.models.payments import PaymentItemModel, PaymentModel
 from schemas.payments import PaymentCreateSchema, PaymentStatusSchema, PaymentUpdateSchema
-
-
-async def update_payment_and_order_status(
-    db: AsyncSession, payment_intent: str, new_status: PaymentStatus, order_status: OrderStatus
-) -> None:
-    result = await db.execute(
-        select(PaymentModel).where(PaymentModel.external_payment_id == payment_intent)
-    )
-    payment = result.scalar_one_or_none()
-
-    if payment:
-        payment.status = new_status
-        order = await db.get(OrderModel, payment.order_id)
-        if order:
-            order.status = order_status
-        await db.commit()
 
 
 async def create_payment(
@@ -165,16 +149,7 @@ async def get_all_payments(
 
 
 async def get_payment_by_id(payment_id: int, db: AsyncSession) -> PaymentModel | None:
-    result = await db.execute(
-        select(PaymentModel)
-        .where(PaymentModel.id == payment_id)
-        .options(
-            selectinload(
-                PaymentModel.payment_items
-            ).selectinload(PaymentItemModel.order_item).selectinload(
-                OrderItemModel.movie),
-            selectinload(PaymentModel.user),
-            selectinload(PaymentModel.order)
-        )
+    result = await db.scalar(
+        select(PaymentModel).where(PaymentModel.id == payment_id)
     )
-    return result.scalar_one_or_none()
+    return result

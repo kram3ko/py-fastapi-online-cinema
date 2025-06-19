@@ -1,5 +1,3 @@
-from typing import Optional
-
 import stripe
 from fastapi import HTTPException, Request, status
 
@@ -7,6 +5,7 @@ from config import get_settings
 from database.models.orders import OrderModel
 from database.models.payments import PaymentModel
 from schemas.payments import CheckoutSessionResponse
+from services.payment_webhook_service import PaymentWebhookService
 from services.stripe_events import STRIPE_EVENT_HANDLERS
 
 stripe_settings = get_settings()
@@ -40,8 +39,8 @@ class StripeService:
             ]
 
             base_url = str(request.base_url)
-            success_url = f"{base_url}api/v1/payments/success?session_id={{CHECKOUT_SESSION_ID}}"
-            cancel_url = f"{base_url}api/v1/payments/cancel?session_id={{CHECKOUT_SESSION_ID}}"
+            success_url = f"{base_url}api/v1/payments/history"
+            cancel_url = f"{base_url}api/v1/payments/history"
 
             session = stripe.checkout.Session.create(
                 api_key=stripe_settings.STRIPE_SECRET_KEY,
@@ -59,7 +58,7 @@ class StripeService:
             return CheckoutSessionResponse(
                 payment_url=session.url,
                 payment_id=order.id,
-                external_payment_id=session.id
+                session_id=session.id
             )
         except stripe.error.StripeError as e:  # type: ignore[attr-defined]
             raise HTTPException(
@@ -68,7 +67,16 @@ class StripeService:
             )
 
     @staticmethod
-    async def handle_webhook(payload: bytes, sig_header: str) -> Optional[dict]:
+    async def get_checkout_session_url(session_id: str) -> str | None:
+        session = stripe.checkout.Session.retrieve(session_id)
+        return session.url
+
+    @staticmethod
+    async def handle_webhook(
+        payload: bytes,
+        sig_header: str,
+        webhook_service: PaymentWebhookService
+    ) -> tuple[str, dict]:
         try:
             event = stripe.Webhook.construct_event(
                 payload, sig_header, stripe_settings.STRIPE_WEBHOOK_SECRET
@@ -85,23 +93,31 @@ class StripeService:
             )
 
         handler = STRIPE_EVENT_HANDLERS.get(event.type)
-        if handler:
-            return handler(event.data)
+        if not handler:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"No handler for event type: {event.type}"
+            )
 
-        return None
+        await handler(event.data.object, webhook_service)
+
+        event_data = event.data.object
+        payment_details = {"payment_id": event_data.id}
+
+        return event.type, payment_details
 
     @staticmethod
     async def refund_payment(payment: PaymentModel) -> bool:
         try:
-            if not payment.external_payment_id:
+            if not payment.session_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="No external payment ID found"
                 )
 
-            payment_intent = payment.external_payment_id
+            payment_intent = payment.session_id
             try:
-                session = stripe.checkout.Session.retrieve(payment.external_payment_id)
+                session = stripe.checkout.Session.retrieve(payment.session_id)
                 if session.payment_intent:
                     payment_intent = session.payment_intent
             except stripe.error.StripeError:  # type: ignore[attr-defined]

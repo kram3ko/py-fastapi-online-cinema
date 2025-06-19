@@ -2,7 +2,7 @@
 
 # Running Gunicorn with Uvicorn workers
 gunicorn main:app \
-    --workers 1 \
+    --workers 2 \
     --worker-class uvicorn.workers.UvicornWorker \
     --bind 0.0.0.0:8000 \
     --log-level info \

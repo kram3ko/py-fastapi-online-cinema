@@ -16,7 +16,10 @@ from notifications.stripe_notificator import StripeEmailNotificator, StripeEmail
 from security.http import get_token
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
-from storages import S3StorageClient, S3StorageInterface
+from services.payment_webhook_service import PaymentWebhookService
+from storages import DropboxStorageInterface, S3StorageInterface
+from storages.dropbox import DropboxStorageClient
+from storages.s3 import S3StorageClient
 
 
 def get_settings() -> Settings:
@@ -116,6 +119,31 @@ def get_s3_storage_client(
     )
 
 
+def get_dropbox_storage_client(
+    settings: BaseAppSettings = Depends(get_settings),
+) -> DropboxStorageInterface:
+    """
+    Retrieve an instance of the storage interface configured with Dropbox settings.
+
+    This function instantiates a DropboxStorageClient using the provided settings, which include the Dropbox
+    access token, app key, app secret, and refresh token. The returned client can be used to interact with Dropbox
+    storage service for file uploads and URL generation.
+
+    Args:
+        settings (BaseAppSettings, optional): The application settings,
+        provided via dependency injection from `get_settings`.
+
+    Returns:
+        S3StorageInterface: An instance of DropboxStorageClient configured with the appropriate Dropbox settings.
+    """
+    return DropboxStorageClient(
+        access_token=settings.DROPBOX_ACCESS_TOKEN,
+        app_key=settings.DROPBOX_APP_KEY,
+        app_secret=settings.DROPBOX_APP_SECRET,
+        refresh_token=settings.DROPBOX_REFRESH_TOKEN
+    )
+
+
 def get_stripe_email_notificator(
     settings: BaseAppSettings = Depends(get_settings),
 ) -> StripeEmailSenderInterface:
@@ -211,3 +239,8 @@ def allow_roles(*roles) -> Callable[..., Awaitable[UserModel]]:
         return user
 
     return dependency
+
+
+def get_webhook_service() -> PaymentWebhookService:
+    """Dependency for getting PaymentWebhookService instance."""
+    return PaymentWebhookService()

@@ -3,17 +3,14 @@ from datetime import datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from fastapi.responses import RedirectResponse
 from sqlalchemy import func, select
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from config.dependencies import allow_roles, get_current_user, require_admin
-from crud.payments import create_payment, get_payment_by_id, update_payment_and_order_status
+from config.dependencies import allow_roles, get_current_user, get_webhook_service, require_admin
+from crud.payments import create_payment, get_payment_by_id
 from database.deps import get_db
-from database.models import OrderItemModel, OrderModel, UserGroupEnum, UserModel
-from database.models.orders import OrderStatus
+from database.models import OrderItemModel, UserGroupEnum, UserModel
 from database.models.payments import PaymentItemModel, PaymentModel, PaymentStatus
 from schemas.payments import (
     CheckoutSessionResponse,
@@ -25,10 +22,11 @@ from schemas.payments import (
     RefundResponse,
     WebhookResponse,
 )
+from services.payment_webhook_service import PaymentWebhookService
 from services.stripe_service import StripeService
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["payments"])
+router = APIRouter()
 
 
 @router.post("/create-intent", response_model=CheckoutSessionResponse)
@@ -46,68 +44,54 @@ async def create_checkout_session(
         payment.order
     )
 
-    payment.external_payment_id = session_data.external_payment_id
+    payment.session_id = session_data.session_id
     await db.commit()
     await db.refresh(payment)
 
     return CheckoutSessionResponse(
         payment_url=session_data.payment_url,
         payment_id=payment.id,
-        external_payment_id=session_data.external_payment_id
+        session_id=session_data.session_id
     )
 
 
 @router.post("/webhook", response_model=WebhookResponse)
-async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_db)) -> WebhookResponse:
+async def stripe_webhook(
+    request: Request,
+    webhook_service: PaymentWebhookService = Depends(get_webhook_service),
+) -> WebhookResponse:
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    if not sig_header:
+        logger.warning("Webhook received without signature header")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No signature header"
+        )
+
+    event_type, payment_details = await StripeService.handle_webhook(
+        payload,
+        sig_header,
+        webhook_service
+    )
+
+    return WebhookResponse(
+        status="success",
+        message=f"Processed {event_type} event",
+        event_type=event_type,
+        payment_id=payment_details["payment_id"],
+    )
+
+
+@router.get("/session/{session_id}")
+async def get_payment_link(session_id: str) -> dict:
+    """ Retrieve the checkout session URL for a given session ID."""
     try:
-        payload = await request.body()
-        sig_header = request.headers.get("stripe-signature")
-
-        if not sig_header:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No Stripe signature found"
-            )
-
-        webhook_data = await StripeService.handle_webhook(payload, sig_header)
-        if not webhook_data:
-            return WebhookResponse()
-
-        result = await db.execute(
-            select(PaymentModel).where(
-                PaymentModel.external_payment_id == webhook_data["external_payment_id"]
-            )
-        )
-        payment = result.scalar_one_or_none()
-        if not payment:
-            return WebhookResponse()
-
-        payment.status = webhook_data["status"]
-        order = await db.get(OrderModel, payment.order_id)
-        if not order:
-            await db.commit()
-            return WebhookResponse()
-
-        if webhook_data["status"] == PaymentStatus.SUCCESSFUL:
-            order.status = OrderStatus.PAID
-        elif webhook_data["status"] == PaymentStatus.CANCELED:
-            order.status = OrderStatus.CANCELED
-        else:
-            order.status = order.status
-
-        await db.commit()
-        return WebhookResponse()
-    except SQLAlchemyError as e:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        url = await StripeService.get_checkout_session_url(session_id)
+        return {"url": url}
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
 
 
 @router.get("/history", response_model=PaymentListSchema)
@@ -225,18 +209,11 @@ async def get_payment_statistics(
     )
 
 
-@router.post("/{payment_id}/refund", response_model=RefundResponse)
+@router.post("/{payment_id}/refund", response_model=RefundResponse, dependencies=[Depends(require_admin)])
 async def refund_payment(
     payment_id: int,
-    is_admin: bool = Depends(require_admin),
     db: AsyncSession = Depends(get_db),
 ) -> RefundResponse:
-    if not is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to refund payments"
-        )
-
     payment = await get_payment_by_id(payment_id, db)
     if not payment:
         raise HTTPException(
@@ -250,23 +227,12 @@ async def refund_payment(
             detail="Can only refund successful payments"
         )
 
-    try:
-        success = await StripeService.refund_payment(payment)
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to process refund"
-            )
+    await StripeService.refund_payment(payment)
 
-        payment.status = PaymentStatus.REFUNDED
-        await db.commit()
-        return RefundResponse()
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+    return RefundResponse(
+        payment_id=payment.id,
+        order_id=payment.order_id,
+    )
 
 
 @router.get(
@@ -286,39 +252,9 @@ async def get_payment_details(
             detail="Payment not found"
         )
 
-    if current_user.group.name == UserGroupEnum.ADMIN:
+    if current_user.group.name == UserGroupEnum.ADMIN or payment.user_id == current_user.id:
         return PaymentBaseSchema.model_validate(payment)
-
-    if payment.user_id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view this payment"
-        )
-
-    return PaymentBaseSchema.model_validate(payment)
-
-
-@router.get("/success/")
-async def payment_success(
-    request: Request,
-    session_id: str,
-    db: AsyncSession = Depends(get_db)
-) -> RedirectResponse:
-    try:
-        await update_payment_and_order_status(db, session_id, PaymentStatus.SUCCESSFUL, OrderStatus.PAID)
-    except Exception as e:
-        logger.error(f"Error in payment_success: {str(e)}")
-    return RedirectResponse(url=f"{request.base_url}api/v1/payments/history")
-
-
-@router.get("/cancel/")
-async def payment_cancel(
-    request: Request,
-    session_id: str,
-    db: AsyncSession = Depends(get_db)
-) -> RedirectResponse:
-    try:
-        await update_payment_and_order_status(db, session_id, PaymentStatus.CANCELED, OrderStatus.CANCELED)
-    except Exception as e:
-        logger.error(f"Error in payment_cancel: {str(e)}")
-    return RedirectResponse(url=f"{request.base_url}api/v1/payments/history")
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Not authorized to view this payment"
+    )

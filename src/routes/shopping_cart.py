@@ -153,7 +153,7 @@ async def pay_for_cart(
         order_id=order.id,
         status=PaymentStatus.PENDING,
         amount=order.total_amount,
-        external_payment_id=session_data.external_payment_id
+        session_id=session_data.session_id
     )
     db.add(payment)
     await db.flush()
@@ -171,7 +171,7 @@ async def pay_for_cart(
 
     return CheckoutSessionResponse(
         payment_url=session_data.payment_url,
-        external_payment_id=session_data.external_payment_id,
+        session_id=session_data.session_id,
         payment_id=payment.id
     )
 
