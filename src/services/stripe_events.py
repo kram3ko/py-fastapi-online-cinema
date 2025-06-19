@@ -1,4 +1,3 @@
-import logging
 from collections.abc import Coroutine
 from typing import Any, Callable
 
@@ -17,8 +16,9 @@ class StripeEventType:
 
 
 async def handle_checkout_session_completed(event_data: dict, webhook_service: PaymentWebhookService) -> None:
-    external_payment_id = event_data["payment_intent"]
-    await webhook_service.handle_successful_payment(external_payment_id)
+    session_id = event_data["id"]
+    payment_intent = event_data["payment_intent"]
+    await webhook_service.handle_successful_session(session_id=session_id, payment_intent=payment_intent)
 
 
 async def handle_checkout_session_expired(event_data: dict, webhook_service: PaymentWebhookService) -> None:

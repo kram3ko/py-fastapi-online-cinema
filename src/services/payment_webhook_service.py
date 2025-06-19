@@ -31,13 +31,13 @@ class PaymentWebhookService:
             raise ValueError("Order not found")
         return order
 
-    async def handle_successful_session(self, external_payment_id: str) -> None:
+    async def handle_successful_session(self, session_id: str, payment_intent: str) -> None:
         """Handle successful session payment."""
         async with get_db_contextmanager() as db:
             try:
-                payment = await self._get_payment_by_external_id(external_payment_id, db)
-                if external_payment_id.startswith("pi_") and payment.external_payment_id.startswith("cs_"):
-                    payment.external_payment_id = external_payment_id
+                payment = await self._get_payment_by_external_id(session_id, db)
+                if payment_intent.startswith("pi_") and payment.external_payment_id.startswith("cs_"):
+                    payment.external_payment_id = payment_intent
                 await db.commit()
             except Exception:
                 await db.rollback()
