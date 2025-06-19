@@ -84,6 +84,16 @@ async def stripe_webhook(
     )
 
 
+@router.get("/{session_id}")
+async def get_payment_link(session_id: str) -> dict:
+    """ Retrieve the checkout session URL for a given session ID."""
+    try:
+        url = await StripeService.get_checkout_session_url(session_id)
+        return {"url": url}
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+
+
 @router.get("/history", response_model=PaymentListSchema)
 async def get_payment_history(
     current_user: UserModel = Depends(get_current_user),

@@ -67,6 +67,11 @@ class StripeService:
             )
 
     @staticmethod
+    async def get_checkout_session_url(session_id: str) -> str:
+        session = stripe.checkout.Session.retrieve(session_id)
+        return session.url
+
+    @staticmethod
     async def handle_webhook(
         payload: bytes,
         sig_header: str,
