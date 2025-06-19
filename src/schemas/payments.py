@@ -50,6 +50,7 @@ class PaymentBaseSchema(BaseModel):
     status: PaymentStatusSchema
     amount: Decimal
     session_id: Optional[str] = None
+    payment_intent_id: Optional[str] = None
     payment_items: list[PaymentItemBaseSchema] = []
 
     model_config = ConfigDict(from_attributes=True)
