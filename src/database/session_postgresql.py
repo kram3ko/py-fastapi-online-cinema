@@ -27,7 +27,7 @@ sync_postgresql_engine = create_engine(
     future=True,
 )
 
-AsyncPostgresqlSessionLocal = sessionmaker(  # type: ignore
+AsyncPostgresqlSessionLocal = async_sessionmaker(
     bind=postgresql_engine,
     class_=AsyncSession,
     autocommit=False,
