@@ -2,7 +2,7 @@ from collections.abc import AsyncGenerator, Generator
 from contextlib import asynccontextmanager, contextmanager
 
 from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from config import get_settings
@@ -25,7 +25,7 @@ sync_sqlite_engine = create_engine(
 )
 
 
-AsyncSQLiteSessionLocal = sessionmaker(  # type: ignore
+AsyncSQLiteSessionLocal = async_sessionmaker(
     bind=sqlite_engine, class_=AsyncSession, expire_on_commit=False
 )
 
