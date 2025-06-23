@@ -1,7 +1,7 @@
 from typing import Any
 
 from notifications.base_notificator import BaseEmailNotificator
-from notifications.stripe_interfaces import StripeEmailSenderInterface
+from notifications.interfaces import StripeEmailSenderInterface
 
 
 class StripeEmailNotificator(BaseEmailNotificator, StripeEmailSenderInterface):

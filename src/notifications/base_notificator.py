@@ -1,6 +1,7 @@
 import logging
 import smtplib
 from abc import ABC
+from dataclasses import dataclass, field
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -9,31 +10,18 @@ from jinja2 import Environment, FileSystemLoader
 from exceptions import BaseEmailError
 
 
+@dataclass
 class BaseEmailNotificator(ABC):
-    def __init__(
-        self,
-        hostname: str,
-        port: int,
-        email: str,
-        password: str,
-        use_tls: bool,
-        template_dir: str,
-        activation_email_template_name: str,
-        activation_complete_email_template_name: str,
-        password_email_template_name: str,
-        password_complete_email_template_name: str,
-    ):
-        self._hostname = hostname
-        self._port = port
-        self._email = email
-        self._password = password
-        self._use_tls = use_tls
-        self._activation_email_template_name = activation_email_template_name
-        self._activation_complete_email_template_name = activation_complete_email_template_name
-        self._password_email_template_name = password_email_template_name
-        self._password_complete_email_template_name = password_complete_email_template_name
+    _hostname: str
+    _port: int
+    _email: str
+    _password: str
+    _use_tls: bool
+    _template_dir: str
+    _env: Environment = field(init=False, repr=False)
 
-        self._env = Environment(loader=FileSystemLoader(template_dir))
+    def __post_init__(self):
+        self._env = Environment(loader=FileSystemLoader(self._template_dir))
 
     def _send_email(self, recipient: str, subject: str, html_content: str) -> None:
         """

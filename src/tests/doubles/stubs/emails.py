@@ -1,5 +1,4 @@
 from notifications.emails import EmailSenderInterface
-from notifications.stripe_interfaces import StripeEmailSenderInterface
 
 
 class StubEmailSender(EmailSenderInterface):
@@ -41,17 +40,5 @@ class StubEmailSender(EmailSenderInterface):
         Args:
             email (str): The recipient's email address.
             login_link (str): The login link to include in the email.
-        """
-        return None
-
-
-class StubStripeEmailSender(StripeEmailSenderInterface):
-    async def send_payment_success_email(self, email: str, payment_details: dict) -> None:
-        """
-        Stub implementation for sending a payment success email.
-
-        Args:
-            email (str): The recipient's email address.
-            payment_details (dict): The payment details to include in the email.
         """
         return None
