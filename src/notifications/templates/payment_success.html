@@ -1,21 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="">
 <head>
-    <meta charset="utf-8">
-    <title>Payment Successful</title>
+  <meta charset="utf-8">
+  <title>Payment Successful</title>
 </head>
 <body>
-    <h1>Payment Successful</h1>
-    <p>Thank you for your payment!</p>
-    
-    <h2>Payment Details:</h2>
-    <ul>
-        <li>Amount: {{ payment_details.amount }}</li>
-        <li>Currency: {{ payment_details.currency }}</li>
-        <li>Payment ID: {{ payment_details.payment_id }}</li>
-        <li>Date: {{ payment_details.date }}</li>
-    </ul>
+<h1>Payment Successful</h1>
+<p>Thank you for your payment.</p>
 
-    <p>If you have any questions, please don't hesitate to contact our support team.</p>
+<h2>Payment Details</h2>
+<ul>
+  <li>Sender name: {{ payment_details.payment_details_name }}</li>
+  <li>Email account payment: {{ payment_details.payment_details_email }}</li>
+  <li>Payment ID: {{ payment_details.payment_id }}</li>
+  <li>Receipt_url: {{ payment_details.receipt_url }}</li>
+</ul>
+
+<p>If you have any questions, please contact our support team.</p>
 </body>
-</html> 
+</html>

@@ -16,10 +16,8 @@ from notifications.stripe_notificator import StripeEmailNotificator, StripeEmail
 from security.http import get_token
 from security.interfaces import JWTAuthManagerInterface
 from security.token_manager import JWTAuthManager
-from services.payment_webhook_service import PaymentWebhookService
 from storages import DropboxStorageInterface, S3StorageInterface
 from storages.dropbox import DropboxStorageClient
-from storages.s3 import S3StorageClient
 
 
 def get_settings() -> Settings:
@@ -66,7 +64,7 @@ def get_jwt_auth_manager(
 
 def get_accounts_email_notificator(
     settings: BaseAppSettings,
-) -> EmailSenderInterface:
+) -> EmailSender:
     """
     Retrieve an instance of the EmailSenderInterface configured with the application settings.
 
@@ -81,41 +79,40 @@ def get_accounts_email_notificator(
         EmailSenderInterface: An instance of EmailSender configured with the appropriate email settings.
     """
     return EmailSender(
-        hostname=settings.EMAIL_HOST,
-        port=settings.EMAIL_PORT,
-        email=settings.EMAIL_HOST_USER,
-        password=settings.EMAIL_HOST_PASSWORD,
-        use_tls=settings.EMAIL_USE_TLS,
-        template_dir=settings.PATH_TO_EMAIL_TEMPLATES_DIR,
-        activation_email_template_name=settings.ACTIVATION_EMAIL_TEMPLATE_NAME,
-        activation_complete_email_template_name=settings.ACTIVATION_COMPLETE_EMAIL_TEMPLATE_NAME,
-        password_email_template_name=settings.PASSWORD_RESET_TEMPLATE_NAME,
-        password_complete_email_template_name=settings.PASSWORD_RESET_COMPLETE_TEMPLATE_NAME,
+        _hostname=settings.EMAIL_HOST,
+        _port=settings.EMAIL_PORT,
+        _email=settings.EMAIL_HOST_USER,
+        _password=settings.EMAIL_HOST_PASSWORD,
+        _use_tls=settings.EMAIL_USE_TLS,
+        _template_dir=settings.PATH_TO_EMAIL_TEMPLATES_DIR,
     )
 
 
-def get_s3_storage_client(
-    settings: BaseAppSettings = Depends(get_settings),
-) -> S3StorageInterface:
+def get_stripe_email_notificator(
+    settings: BaseAppSettings,
+) -> StripeEmailNotificator:
     """
-    Retrieve an instance of the S3StorageInterface configured with the application settings.
+     Retrieve an instance of the StripeEmailSenderInterface configured with the application settings.
 
-    This function instantiates an S3StorageClient using the provided settings, which include the S3 endpoint URL,
-    access credentials, and the bucket name. The returned client can be used to interact with an S3-compatible
-    storage service for file uploads and URL generation.
+    This function creates a StripeEmailNotificator using the provided settings,
+    which include details such as the email host,
+     port, credentials, TLS usage, and the directory for email templates. This allows the application
+     to send payment-related email notifications.
 
-    Args:
-        settings (BaseAppSettings, optional): The application settings,
-        provided via dependency injection from `get_settings`.
+     Args:
+         settings (BaseAppSettings): The application settings.
 
-    Returns:
-        S3StorageInterface: An instance of S3StorageClient configured with the appropriate S3 storage settings.
+     Returns:
+         StripeEmailSenderInterface: An instance of StripeEmailNotificator
+         configured with the appropriate email settings.
     """
-    return S3StorageClient(
-        endpoint_url=settings.S3_STORAGE_ENDPOINT,
-        access_key=settings.S3_STORAGE_ACCESS_KEY,
-        secret_key=settings.S3_STORAGE_SECRET_KEY,
-        bucket_name=settings.S3_BUCKET_NAME,
+    return StripeEmailNotificator(
+        _hostname=settings.EMAIL_HOST,
+        _port=settings.EMAIL_PORT,
+        _email=settings.EMAIL_HOST_USER,
+        _password=settings.EMAIL_HOST_PASSWORD,
+        _use_tls=settings.EMAIL_USE_TLS,
+        _template_dir=settings.PATH_TO_EMAIL_TEMPLATES_DIR,
     )
 
 
@@ -141,38 +138,6 @@ def get_dropbox_storage_client(
         app_key=settings.DROPBOX_APP_KEY,
         app_secret=settings.DROPBOX_APP_SECRET,
         refresh_token=settings.DROPBOX_REFRESH_TOKEN
-    )
-
-
-def get_stripe_email_notificator(
-    settings: BaseAppSettings = Depends(get_settings),
-) -> StripeEmailSenderInterface:
-    """
-     Retrieve an instance of the StripeEmailSenderInterface configured with the application settings.
-
-    This function creates a StripeEmailNotificator using the provided settings,
-    which include details such as the email host,
-     port, credentials, TLS usage, and the directory for email templates. This allows the application
-     to send payment-related email notifications.
-
-     Args:
-         settings (BaseAppSettings): The application settings.
-
-     Returns:
-         StripeEmailSenderInterface: An instance of StripeEmailNotificator
-         configured with the appropriate email settings.
-    """
-    return StripeEmailNotificator(
-        hostname=settings.EMAIL_HOST,
-        port=settings.EMAIL_PORT,
-        email=settings.EMAIL_HOST_USER,
-        password=settings.EMAIL_HOST_PASSWORD,
-        use_tls=settings.EMAIL_USE_TLS,
-        template_dir=settings.PATH_TO_EMAIL_TEMPLATES_DIR,
-        activation_email_template_name=settings.ACTIVATION_EMAIL_TEMPLATE_NAME,
-        activation_complete_email_template_name=settings.ACTIVATION_COMPLETE_EMAIL_TEMPLATE_NAME,
-        password_email_template_name=settings.PASSWORD_RESET_TEMPLATE_NAME,
-        password_complete_email_template_name=settings.PASSWORD_RESET_COMPLETE_TEMPLATE_NAME,
     )
 
 
@@ -239,8 +204,3 @@ def allow_roles(*roles) -> Callable[..., Awaitable[UserModel]]:
         return user
 
     return dependency
-
-
-def get_webhook_service() -> PaymentWebhookService:
-    """Dependency for getting PaymentWebhookService instance."""
-    return PaymentWebhookService()

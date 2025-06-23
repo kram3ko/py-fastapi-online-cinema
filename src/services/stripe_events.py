@@ -1,8 +1,6 @@
 from collections.abc import Coroutine
 from typing import Any, Callable
 
-import stripe
-
 from services.payment_webhook_service import PaymentWebhookService
 
 
@@ -28,19 +26,17 @@ async def handle_checkout_session_expired(event_data: dict, webhook_service: Pay
 
 async def handle_payment_intent_succeeded(event_data: dict, webhook_service: PaymentWebhookService) -> None:
     payment_intent_id = event_data["id"]
-    await webhook_service.handle_successful_payment(payment_intent_id)
+    await webhook_service.handle_payment_intent_successful(payment_intent_id)
 
 
 async def handle_payment_intent_payment_failed(event_data: dict, webhook_service: PaymentWebhookService) -> None:
     payment_intent_id = event_data["id"]
-    await webhook_service.handle_failed_payment(payment_intent_id)
+    await webhook_service.handle_payment_intent_failed(payment_intent_id)
 
 
 async def handle_charge_refunded(event_data: dict, webhook_service: PaymentWebhookService) -> None:
     charge_id = event_data["id"]
-    charge = stripe.Charge.retrieve(charge_id)
-    payment_intent_id = charge.payment_intent
-    await webhook_service.handle_refunded_payment(payment_intent_id)
+    await webhook_service.handle_refunded_payment(charge_id)
 
 
 async def handle_refund_created(event_data: dict, webhook_service: PaymentWebhookService) -> None:

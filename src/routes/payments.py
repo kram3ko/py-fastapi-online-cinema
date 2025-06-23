@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from config.dependencies import allow_roles, get_current_user, get_webhook_service, require_admin
+from config.dependencies import allow_roles, get_current_user, require_admin
 from crud.payments import create_payment, get_payment_by_id
 from database.deps import get_db
 from database.models import OrderItemModel, UserGroupEnum, UserModel
@@ -58,7 +58,6 @@ async def create_checkout_session(
 @router.post("/webhook", response_model=WebhookResponse)
 async def stripe_webhook(
     request: Request,
-    webhook_service: PaymentWebhookService = Depends(get_webhook_service),
 ) -> WebhookResponse:
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
@@ -70,6 +69,7 @@ async def stripe_webhook(
             detail="No signature header"
         )
 
+    webhook_service = PaymentWebhookService()
     event_type, payment_details = await StripeService.handle_webhook(
         payload,
         sig_header,

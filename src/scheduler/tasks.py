@@ -4,8 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import delete
 from sqlalchemy.exc import SQLAlchemyError
 
-from config import get_settings
-from config.dependencies import get_accounts_email_notificator, get_stripe_email_notificator
+from config import get_accounts_email_notificator, get_settings, get_stripe_email_notificator
 from database.deps import get_sync_db_contextmanager
 from database.models.accounts import ActivationTokenModel
 from scheduler.celery_app import celery_app
