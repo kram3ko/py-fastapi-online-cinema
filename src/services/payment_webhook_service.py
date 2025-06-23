@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import stripe
 from sqlalchemy import select
@@ -65,11 +66,15 @@ class PaymentWebhookService:
     async def handle_payment_intent_successful(payment_intent_id: str) -> None:
         """Handle successful payment."""
         try:
-            charge_intent = stripe.PaymentIntent.retrieve(payment_intent_id, expand=["charges"])
-            charges = charge_intent.charges.data[0]
-            receipt_url = charges.receipt_url if charges else None
-            payment_details_name = charges.name if charges else None
-            payment_details_email = charges.email if charges else None
+            charge_intent = stripe.PaymentIntent.retrieve(
+                payment_intent_id,
+                expand=["latest_charge"]
+            )
+
+            latest_charge: Any = charge_intent.latest_charge
+            receipt_url = latest_charge.receipt_url if latest_charge else None
+            payment_details_name = latest_charge.billing_details.name if latest_charge else None
+            payment_details_email = latest_charge.billing_details.email if latest_charge else None
 
             payment_details = {
                 "payment_details_name": payment_details_name,
@@ -81,7 +86,7 @@ class PaymentWebhookService:
             send_stripe_payment_success_email_task.delay(payment_details_email, payment_details)
 
         except Exception as e:
-            logger.error(f"Error sending email: {e}")
+            logger.error(f"Error processing payment {payment_intent_id}: {e}")
             raise
 
     async def handle_payment_intent_failed(self, payment_intent_id: str) -> None:

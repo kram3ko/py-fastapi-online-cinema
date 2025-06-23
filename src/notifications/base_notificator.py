@@ -1,7 +1,7 @@
 import logging
 import smtplib
 from abc import ABC
-from dataclasses import field, dataclass
+from dataclasses import dataclass, field
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
